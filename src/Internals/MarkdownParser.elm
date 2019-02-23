@@ -1,4 +1,4 @@
-module MarkdownParser exposing (..)
+module Internals.MarkdownParser exposing (..)
 
 import Browser exposing (element)
 import Element exposing (..)
