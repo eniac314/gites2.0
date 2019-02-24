@@ -1,4 +1,4 @@
-module DatePicker.Date
+module Bookings.DatePicker.Date
     exposing
         ( addDay
         , addDays
@@ -262,8 +262,9 @@ subDows =
 
 succDow : Time.Weekday -> Time.Weekday
 succDow d =
-    (weekdayToNumber d + 1)
+    weekdayToNumber d
         |> modBy 7
+        |> (\r -> r + 1)
         |> numberToWeekday
 
 
@@ -305,31 +306,12 @@ subDay d =
 nextMonth : Date -> Date
 nextMonth d =
     add Months 1 d
+        |> firstOfMonth
 
 
 prevMonth : Date -> Date
 prevMonth d =
     add Months -1 d
-
-
-predMonth : Time.Month -> Time.Month
-predMonth m =
-    let
-        prev =
-            (monthToNumber m - 1)
-                |> modBy 12
-    in
-    if prev == 0 then
-        Dec
-    else
-        numberToMonth prev
-
-
-succMonth : Time.Month -> Time.Month
-succMonth m =
-    (monthToNumber m + 1)
-        |> modBy 12
-        |> numberToMonth
 
 
 repeat : (a -> a) -> Int -> a -> a

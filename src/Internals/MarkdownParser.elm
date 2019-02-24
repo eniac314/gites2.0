@@ -15,6 +15,7 @@ import Html.Attributes as HtmlAttr
 import Markdown exposing (..)
 import Markdown.Block as Block exposing (..)
 import Markdown.Inline as Inline exposing (..)
+import Style.Helpers exposing (..)
 import Style.Palette exposing (..)
 
 
@@ -309,7 +310,3 @@ inlinesToElements inline =
 
         Inline.Custom i inlines ->
             []
-
-
-noAttr =
-    htmlAttribute <| HtmlAttr.class ""
