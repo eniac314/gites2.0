@@ -1,6 +1,7 @@
 module Bookings.DatePicker.DatePicker exposing (..)
 
 import Bookings.DatePicker.Date exposing (..)
+import Browser.Dom exposing (focus)
 import Date exposing (..)
 import Element exposing (..)
 import Element.Background as Background
@@ -13,8 +14,10 @@ import Element.Lazy exposing (lazy)
 import Element.Region as Region
 import Html as Html
 import Html.Attributes as HtmlAttr
+import Html.Events exposing (custom, stopPropagationOn)
 import Json.Decode as D
 import MultLang.MultLang exposing (..)
+import Random exposing (generate, int)
 import Style.Helpers exposing (..)
 import Style.Icons as Icons
 import Style.Palette exposing (..)
@@ -31,6 +34,8 @@ type Msg
     | Close
     | MouseEnter
     | MouseLeave
+    | MouseDown
+    | SetId Int
     | NoOp
 
 
@@ -58,6 +63,7 @@ type alias Model msg =
     , firstDayOfWeek : Time.Weekday
     , canPickDateInPast : Bool
     , outMsg : Msg -> msg
+    , id : Maybe Int
     }
 
 
@@ -86,9 +92,13 @@ init mbStartDate outMsg =
         , firstDayOfWeek = Mon
         , canPickDateInPast = False
         , outMsg = outMsg
+        , id = Nothing
         }
-    , Cmd.map outMsg <|
-        Task.perform CurrentDate today
+    , [ Task.perform CurrentDate today
+      , Random.generate SetId (Random.int 0 10000)
+      ]
+        |> Cmd.batch
+        |> Cmd.map outMsg
     )
 
 
@@ -175,6 +185,20 @@ update msg model =
             , Nothing
             )
 
+        MouseDown ->
+            ( model
+            , Task.attempt
+                (\_ -> model.outMsg NoOp)
+                (focus <| idStr model)
+            , Nothing
+            )
+
+        SetId n ->
+            ( { model | id = Just n }
+            , Cmd.none
+            , Nothing
+            )
+
         NoOp ->
             ( model
             , Cmd.none
@@ -204,6 +228,7 @@ view config model =
                         , moveUp 1
                         , Events.onMouseEnter MouseEnter
                         , Events.onMouseLeave MouseLeave
+                        , Events.onMouseDown MouseDown
                         ]
                         [ monthSelectorView config model
                         , weekdaysView config model
@@ -235,6 +260,8 @@ pickedDateView config model =
             Events.onClick Open
         , pointer
         , Font.size 16
+        , htmlAttribute <| HtmlAttr.id (idStr model)
+        , htmlAttribute <| HtmlAttr.readonly True -- "readonly" "true"
         ]
         { onChange = always NoOp
         , text =
@@ -250,6 +277,17 @@ pickedDateView config model =
 
 monthSelectorView : Config -> Model msg -> Element Msg
 monthSelectorView config model =
+    let
+        onPicker ev msg =
+            custom
+                ev
+                (D.succeed
+                    { message = msg
+                    , stopPropagation = True
+                    , preventDefault = True
+                    }
+                )
+    in
     row
         [ width fill
         , paddingXY 7 5
@@ -482,3 +520,7 @@ groupDates dates =
                         go (i + 1) xs_ (x :: racc) acc
     in
     go 0 dates [] []
+
+
+idStr model =
+    "datepicker-" ++ (String.fromInt <| Maybe.withDefault 0 model.id)
