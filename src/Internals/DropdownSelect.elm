@@ -12,7 +12,6 @@ import Element.Lazy exposing (lazy)
 import Element.Region as Region
 import Html as Html
 import Html.Attributes as HtmlAttr
-import Html.Events exposing (stopPropagationOn)
 import Json.Decode as D
 import Style.Helpers exposing (noAttr)
 import Style.Palette exposing (..)

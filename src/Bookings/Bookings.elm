@@ -24,7 +24,7 @@ main =
     Browser.element
         { init = \_ -> init identity
         , update = update
-        , view = view
+        , view = view { lang = French }
         , subscriptions = subscriptions
         }
 
@@ -49,7 +49,7 @@ type alias Model msg =
     , lastName : Maybe String
     , address : Maybe String
     , addAddress : Maybe String
-    , postcode : Maybe String
+    , postcode : Maybe Int
     , city : Maybe String
     , country : Maybe String
     , phone1 : Maybe String
@@ -57,6 +57,7 @@ type alias Model msg =
     , email : Maybe String
     , confEmail : Maybe String
     , confEmailFocused : Bool
+    , comment : Maybe String
 
     --
     , displayMode : DisplayMode
@@ -83,7 +84,7 @@ titleMLS t =
 
 
 type DisplayMode
-    = Calendar
+    = DateChoice
     | Form
     | Confirmation
 
@@ -99,8 +100,20 @@ type alias Slots =
 type Msg
     = CheckInPickerMsg DP.Msg
     | CheckOutPickerMsg DP.Msg
-    | TitleSelectorMsg Select.Msg
     | SelectTitle Title
+    | TitleSelectorMsg Select.Msg
+    | SetFirstName String
+    | SetLastName String
+    | SetAddress String
+    | SetAddAddress String
+    | SetPostCode String
+    | SetCity String
+    | SetCountry String
+    | SetPhone1 String
+    | SetPhone2 String
+    | SetEmail String
+    | SetComment String
+    | SetConfEmail String
     | NoOp
 
 
@@ -136,9 +149,10 @@ init outMsg =
       , email = Nothing
       , confEmail = Nothing
       , confEmailFocused = False
+      , comment = Nothing
 
       --
-      , displayMode = Calendar
+      , displayMode = DateChoice
       , outMsg = outMsg
       }
     , Cmd.batch
@@ -213,6 +227,138 @@ update msg model =
             , Cmd.none
             )
 
+        SetFirstName s ->
+            ( { model
+                | firstName =
+                    if s == "" then
+                        Nothing
+                    else
+                        Just s
+              }
+            , Cmd.none
+            )
+
+        SetLastName s ->
+            ( { model
+                | lastName =
+                    if s == "" then
+                        Nothing
+                    else
+                        Just s
+              }
+            , Cmd.none
+            )
+
+        SetAddress s ->
+            ( { model
+                | address =
+                    if s == "" then
+                        Nothing
+                    else
+                        Just s
+              }
+            , Cmd.none
+            )
+
+        SetAddAddress s ->
+            ( { model
+                | addAddress =
+                    if s == "" then
+                        Nothing
+                    else
+                        Just s
+              }
+            , Cmd.none
+            )
+
+        SetPostCode s ->
+            ( { model
+                | postcode =
+                    if s == "" then
+                        Nothing
+                    else
+                        String.toInt s
+              }
+            , Cmd.none
+            )
+
+        SetCity s ->
+            ( { model
+                | city =
+                    if s == "" then
+                        Nothing
+                    else
+                        Just s
+              }
+            , Cmd.none
+            )
+
+        SetCountry s ->
+            ( { model
+                | country =
+                    if s == "" then
+                        Nothing
+                    else
+                        Just s
+              }
+            , Cmd.none
+            )
+
+        SetPhone1 s ->
+            ( { model
+                | phone1 =
+                    if s == "" then
+                        Nothing
+                    else
+                        Just s
+              }
+            , Cmd.none
+            )
+
+        SetPhone2 s ->
+            ( { model
+                | phone2 =
+                    if s == "" then
+                        Nothing
+                    else
+                        Just s
+              }
+            , Cmd.none
+            )
+
+        SetEmail s ->
+            ( { model
+                | email =
+                    if s == "" then
+                        Nothing
+                    else
+                        Just s
+              }
+            , Cmd.none
+            )
+
+        SetConfEmail s ->
+            ( { model
+                | confEmail =
+                    if s == "" then
+                        Nothing
+                    else
+                        Just s
+              }
+            , Cmd.none
+            )
+
+        SetComment s ->
+            ( { model
+                | comment =
+                    if s == "" then
+                        Nothing
+                    else
+                        Just s
+              }
+            , Cmd.none
+            )
+
         NoOp ->
             ( model, Cmd.none )
 
@@ -249,38 +395,197 @@ newCheckOutAvailability { booked, notAvailable, noCheckIn, noCheckOut } checkInD
             DP.Available
 
 
-view model =
+
+--view : { a | lang : Lang } -> Model msg -> Html msg
+
+
+view config model =
     Element.layout [] <|
-        column
-            [ spacing 15
-            , padding 15
-            , width fill
-            ]
-            [ DP.view
-                { lang = English
-                , availability = model.checkInAvailability
-                , pickedDate = model.checkInDate
-                }
-                model.checkInPicker
-            , DP.view
-                { lang = English
-                , availability = model.checkOutAvailability
-                , pickedDate = model.checkOutDate
-                }
-                model.checkOutPicker
-            , Select.view
-                { outMsg = TitleSelectorMsg
-                , items =
-                    [ ( "Mr", SelectTitle Mr )
-                    , ( "Ms", SelectTitle Ms )
-                    , ( "Other", SelectTitle Other )
+        Element.map model.outMsg <|
+            column
+                [ spacing 15
+                , padding 15
+                , width fill
+                , Font.size 16
+                ]
+                [ checkInView config model
+                , checkOutView config model
+                , Select.view
+                    { outMsg = TitleSelectorMsg
+                    , items =
+                        [ ( "Mr", SelectTitle Mr )
+                        , ( "Ms", SelectTitle Ms )
+                        , ( "Other", SelectTitle Other )
+                        ]
+                    , selected =
+                        model.selectedTitle
+                            |> Maybe.map
+                                (\t -> strM config.lang (titleMLS t))
+                    , placeholder =
+                        Just <|
+                            strM config.lang
+                                (MultLangStr
+                                    "Title"
+                                    "Civilité"
+                                )
+                    , label = Nothing
+                    }
+                    model.titleSelector
+                ]
+
+
+checkInView : { a | lang : Lang } -> Model msg -> Element msg
+checkInView config model =
+    column
+        [ spacing 15
+        , width fill
+        ]
+        [ el [ Font.bold ]
+            (textM config.lang
+                (MultLangStr "Check-In"
+                    "Date d'arrivée"
+                )
+            )
+        , column
+            [ spacing 15 ]
+            [ row
+                [ spacing 15 ]
+                [ row
+                    [ spacing 10 ]
+                    [ el
+                        [ width (px 15)
+                        , height (px 15)
+                        , Border.color grey
+                        , Border.width 1
+                        , Background.color lightGreen
+                        ]
+                        Element.none
+                    , el []
+                        (textM config.lang
+                            (MultLangStr "Available"
+                                "Libre"
+                            )
+                        )
                     ]
-                , selected =
-                    model.selectedTitle
-                        |> Maybe.map
-                            (\t -> strM English (titleMLS t))
-                , placeholder = Nothing
-                , label = Nothing
-                }
-                model.titleSelector
+                , row
+                    [ spacing 10 ]
+                    [ el
+                        [ width (px 15)
+                        , height (px 15)
+                        , Border.color grey
+                        , Border.width 1
+                        , Background.color lightRed
+                        ]
+                        Element.none
+                    , el []
+                        (textM config.lang
+                            (MultLangStr "Not available"
+                                "Indisponible"
+                            )
+                        )
+                    ]
+                ]
+            , row
+                [ spacing 10 ]
+                [ el
+                    [ width (px 15)
+                    , height (px 15)
+                    , Border.color grey
+                    , Border.width 1
+                    , Background.color orange
+                    ]
+                    Element.none
+                , el []
+                    (textM config.lang
+                        (MultLangStr "Available but not as checkin date"
+                            "Libre mais pas comme date d'arrivée"
+                        )
+                    )
+                ]
             ]
+        , DP.view
+            { lang = config.lang
+            , availability = model.checkInAvailability
+            , pickedDate = model.checkInDate
+            }
+            model.checkInPicker
+        ]
+
+
+checkOutView : { a | lang : Lang } -> Model msg -> Element msg
+checkOutView config model =
+    column
+        [ spacing 15
+        , width fill
+        ]
+        [ el [ Font.bold ]
+            (textM config.lang
+                (MultLangStr "Check-out"
+                    "Date de départ"
+                )
+            )
+        , column
+            [ spacing 15 ]
+            [ row
+                [ spacing 15 ]
+                [ row
+                    [ spacing 10 ]
+                    [ el
+                        [ width (px 15)
+                        , height (px 15)
+                        , Border.color grey
+                        , Border.width 1
+                        , Background.color lightGreen
+                        ]
+                        Element.none
+                    , el []
+                        (textM config.lang
+                            (MultLangStr "Available"
+                                "Libre"
+                            )
+                        )
+                    ]
+                , row
+                    [ spacing 10 ]
+                    [ el
+                        [ width (px 15)
+                        , height (px 15)
+                        , Border.color grey
+                        , Border.width 1
+                        , Background.color lightRed
+                        ]
+                        Element.none
+                    , el []
+                        (textM config.lang
+                            (MultLangStr "Not available"
+                                "Indisponible"
+                            )
+                        )
+                    ]
+                ]
+            , row
+                [ spacing 10 ]
+                [ el
+                    [ width (px 15)
+                    , height (px 15)
+                    , Border.color grey
+                    , Border.width 1
+                    , Background.color orange
+                    ]
+                    Element.none
+                , el []
+                    (textM config.lang
+                        (MultLangStr
+                            "Available but not as checkout date"
+                            "Libre mais pas comme date de départ"
+                        )
+                    )
+                ]
+            ]
+        , DP.view
+            { lang = config.lang
+            , availability = model.checkOutAvailability
+            , pickedDate = model.checkOutDate
+            }
+            model.checkOutPicker
+        ]
