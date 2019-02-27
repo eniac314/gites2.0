@@ -1,1 +1,12 @@
 plan du logement
+
+
+###############################################################################
+git memo:
+
+git add -A 
+git commit -m "put some comments here"
+git push origin master
+
+--download files
+git pull
