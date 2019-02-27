@@ -27,19 +27,21 @@ type Msg
     | NextMonth
     | PrevMonth
     | Pick Date
-      --| Change String
     | Open
     | Close
+    | MouseEnter
+    | MouseLeave
+    | NoOp
 
 
 type Availability
     = Available
     | NotAvailable
-    | NoArrival
-    | NoDeparture
+    | NoCheckIn
+    | NoCheckOut
     | NotAvailableAdmin
-    | NoArrivalAdmin
-    | NoDepartureAdmin
+    | NoCheckInAdmin
+    | NoCheckOutAdmin
     | BookedAdmin String
 
 
@@ -49,10 +51,12 @@ defaultAvailability =
 
 type alias Model msg =
     { open : Bool
+    , mouseInside : Bool
     , today : Date
-    , currentMonth : Date
+    , currentDate : Date
     , currentDates : List Date
     , firstDayOfWeek : Time.Weekday
+    , canPickDateInPast : Bool
     , outMsg : Msg -> msg
     }
 
@@ -67,14 +71,20 @@ placeholder l =
             "Choisissez une date..."
 
 
-init : (Msg -> msg) -> ( Model msg, Cmd msg )
-init outMsg =
-    ( prepareDates initDate
+init : Maybe Date -> (Msg -> msg) -> ( Model msg, Cmd msg )
+init mbStartDate outMsg =
+    let
+        startDate =
+            Maybe.withDefault initDate mbStartDate
+    in
+    ( prepareDates startDate
         { open = False
-        , today = initDate
-        , currentMonth = initDate
+        , mouseInside = False
+        , today = startDate
+        , currentDate = startDate
         , currentDates = []
         , firstDayOfWeek = Mon
+        , canPickDateInPast = False
         , outMsg = outMsg
         }
     , Cmd.map outMsg <|
@@ -82,9 +92,15 @@ init outMsg =
     )
 
 
+setCurrentDate : Date -> Model msg -> Model msg
+setCurrentDate d model =
+    prepareDates d <|
+        { model | currentDate = d }
+
+
 prepareDates : Date -> Model msg -> Model msg
 prepareDates date model =
-    -- set the currentMonth and the 35/42 days to display in currentDates
+    -- set the currentDate and the 35/42 days to display in currentDates
     let
         start =
             firstOfMonth date |> subDays 6
@@ -93,7 +109,7 @@ prepareDates date model =
             nextMonth date |> addDays 6
     in
     { model
-        | currentMonth = date
+        | currentDate = date
         , currentDates = datesInRange model.firstDayOfWeek start end
     }
 
@@ -104,19 +120,21 @@ update msg model =
         CurrentDate date ->
             ( prepareDates
                 date
-                { model | today = date }
+                { model
+                    | today = date
+                }
             , Cmd.none
             , Nothing
             )
 
         NextMonth ->
-            ( prepareDates (nextMonth model.currentMonth) model
+            ( prepareDates (nextMonth model.currentDate) model
             , Cmd.none
             , Nothing
             )
 
         PrevMonth ->
-            ( prepareDates (prevMonth model.currentMonth) model
+            ( prepareDates (prevMonth model.currentDate) model
             , Cmd.none
             , Nothing
             )
@@ -132,13 +150,33 @@ update msg model =
             )
 
         Open ->
-            ( { model | open = True }
+            ( { model
+                | open = True
+              }
             , Cmd.none
             , Nothing
             )
 
         Close ->
             ( { model | open = False }
+            , Cmd.none
+            , Nothing
+            )
+
+        MouseEnter ->
+            ( { model | mouseInside = True }
+            , Cmd.none
+            , Nothing
+            )
+
+        MouseLeave ->
+            ( { model | mouseInside = False }
+            , Cmd.none
+            , Nothing
+            )
+
+        NoOp ->
+            ( model
             , Cmd.none
             , Nothing
             )
@@ -155,54 +193,59 @@ view : Config -> Model msg -> Element msg
 view config model =
     Element.map model.outMsg <|
         column
-            [ width fill ]
-            [ pickedDateView config model
-            , el
-                [ width fill
-                , height fill
-                , if model.open then
-                    Events.onClick Close
-                  else
-                    noAttr
-                ]
-                Element.none
-            , el
-                [ inFront <|
+            [ width fill
+            , if model.open then
+                below <|
                     column
                         [ Border.color grey
+                        , Border.rounded 3
                         , Border.width 1
+                        , Background.color white
+                        , moveUp 1
+                        , Events.onMouseEnter MouseEnter
+                        , Events.onMouseLeave MouseLeave
                         ]
-                        (if model.open then
-                            [ monthSelectorView config model
-                            , weekdaysView config model
-                            , dayGrid config model
-                            ]
-                         else
-                            []
-                        )
-                ]
-                Element.none
+                        [ monthSelectorView config model
+                        , weekdaysView config model
+                        , dayGrid config model
+                        ]
+              else
+                noAttr
+            ]
+            [ pickedDateView config model
             ]
 
 
 pickedDateView : Config -> Model msg -> Element Msg
 pickedDateView config model =
-    el
+    Input.text
         [ Background.color white
         , paddingXY 7 5
         , Border.rounded 3
         , Border.color grey
         , Border.width 1
         , width (px 250)
-        , if model.open then
+        , if model.open && not model.mouseInside then
+            Events.onLoseFocus Close
+          else
+            noAttr
+        , if model.open && not model.mouseInside then
             Events.onClick Close
           else
             Events.onClick Open
+        , pointer
+        , Font.size 16
         ]
-        (Maybe.map (formatDate config.lang) config.pickedDate
-            |> Maybe.withDefault (placeholder config.lang)
-            |> text
-        )
+        { onChange = always NoOp
+        , text =
+            Maybe.map (formatDate config.lang) config.pickedDate
+                |> Maybe.withDefault ""
+        , placeholder =
+            Just <|
+                Input.placeholder []
+                    (text <| placeholder config.lang)
+        , label = Input.labelHidden ""
+        }
 
 
 monthSelectorView : Config -> Model msg -> Element Msg
@@ -238,7 +281,7 @@ monthSelectorView config model =
                 (text <|
                     formatMonth
                         config.lang
-                        (month model.currentMonth)
+                        (month model.currentDate)
                 )
             , el
                 ([ Font.size 12
@@ -247,7 +290,7 @@ monthSelectorView config model =
                  ]
                     ++ unselectable
                 )
-                (text <| String.fromInt (year model.currentMonth))
+                (text <| String.fromInt (year model.currentDate))
             ]
         , el
             [ Events.onClick NextMonth
@@ -301,44 +344,67 @@ dayGrid config model =
         days =
             groupDates model.currentDates
 
+        isPickedDate d =
+            case config.pickedDate of
+                Nothing ->
+                    False
+
+                Just pd ->
+                    Date.compare pd d == EQ
+
+        availability =
+            \d ->
+                if
+                    not model.canPickDateInPast
+                        && (Date.compare d model.today
+                                == LT
+                           )
+                        || (Date.compare d model.today
+                                == EQ
+                           )
+                then
+                    NotAvailable
+                else
+                    config.availability d
+
         dayColor d =
-            case config.availability d of
+            case availability d of
                 Available ->
-                    green
+                    lightGreen
 
                 NotAvailable ->
+                    lightRed
+
+                NoCheckIn ->
                     orange
 
-                NoArrival ->
+                NoCheckOut ->
                     orange
-
-                NoDeparture ->
-                    purple
 
                 NotAvailableAdmin ->
                     red
 
-                NoArrivalAdmin ->
+                NoCheckInAdmin ->
                     blue
 
-                NoDepartureAdmin ->
+                NoCheckOutAdmin ->
                     purple
 
                 BookedAdmin s ->
                     orange
 
         handler d =
-            case config.availability d of
+            case availability d of
                 Available ->
                     Events.onClick (Pick d)
 
                 NotAvailableAdmin ->
                     Events.onClick (Pick d)
 
-                NoArrivalAdmin ->
+                NoCheckInAdmin ->
                     Events.onClick (Pick d)
 
-                NoDepartureAdmin ->
+                NoCheckOutAdmin ->
                     Events.onClick (Pick d)
 
                 BookedAdmin s ->
@@ -349,14 +415,35 @@ dayGrid config model =
 
         dayView d =
             el
-                [ width fill
-                , centerY
-                , Font.center
-                , Font.color (dayColor d)
-                , handler d
-                , padding 3
-                , Font.size 16
-                ]
+                ([ width fill
+                 , centerY
+                 , Font.center
+                 , Font.color (dayColor d)
+                 , handler d
+                 , padding 3
+                 , Font.size 16
+                 , mouseOver
+                    [ Background.color lightGrey ]
+                 , if Date.compare d model.today == EQ then
+                    Font.bold
+                   else
+                    noAttr
+                 , if availability d == Available then
+                    pointer
+                   else
+                    noAttr
+                 ]
+                    ++ (if isPickedDate d then
+                            [ Font.color black
+                            , Background.color lightGrey
+                            ]
+                        else if month d /= month model.currentDate then
+                            [ alpha 0.4 ]
+                        else
+                            []
+                       )
+                    ++ unselectable
+                )
                 (text <| String.fromInt (day d))
     in
     column

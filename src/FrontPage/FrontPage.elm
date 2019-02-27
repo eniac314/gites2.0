@@ -11,20 +11,31 @@ import Element.Input as Input
 import Element.Keyed as Keyed
 import Element.Lazy exposing (lazy)
 import Element.Region as Region
+import FrontPage.MarkdownEditor as MarkdownEditor exposing (..)
 import Html as Html
 import Html.Attributes as HtmlAttr
-import Internals.MarkdownParser exposing (..)
+import Internals.Helpers exposing (..)
+import Internals.MarkdownParser as MarkdownParser exposing (..)
 import List.Extra exposing (swapAt)
 import MultLang.MultLang exposing (..)
+import Style.Icons as Icons exposing (..)
 import Style.Palette exposing (..)
 
 
 main : Program () (Model Msg) Msg
 main =
     Browser.element
-        { init = \_ -> ( init [] identity, Cmd.none )
+        { init =
+            \_ ->
+                ( init
+                    [ MarkdownContent (MultLangStr "Hello world" "Bonjour le monde")
+                    , MarkdownContent (MultLangStr "Bread is so good!" "J'aime le pain!")
+                    ]
+                    identity
+                , Cmd.none
+                )
         , update = \msg model -> ( update msg model, Cmd.none )
-        , view = \model -> Element.layout [] <| view { lang = English } model
+        , view = \model -> Element.layout [] <| view { lang = French } model
         , subscriptions = subscriptions
         }
 
@@ -51,9 +62,9 @@ type alias ImageMeta =
 
 
 type alias Model msg =
-    { markDownInputs : Maybe MultLangStr
-    , picRowInput : List ImageMeta
+    { picRowInput : List ImageMeta
     , content : Dict Int FrontPageItem
+    , markdownEditor : MarkdownEditor.Model msg
     , displayMode : DisplayMode
     , selectedItem : Maybe Int
     , outMsg : Msg -> msg
@@ -75,16 +86,20 @@ type Msg
     | NewMarkdown
     | NewPicRow
     | AddNewsBlock
+    | MarkdownEditorMsg MarkdownEditor.Msg
     | NoOp
 
 
 init : FrontPageContent -> (Msg -> msg) -> Model msg
 init content outMsg =
-    { markDownInputs = Nothing
-    , picRowInput = []
+    { picRowInput = []
     , content =
         List.indexedMap Tuple.pair content
             |> Dict.fromList
+    , markdownEditor =
+        MarkdownEditor.init
+            French
+            (outMsg << MarkdownEditorMsg)
     , displayMode = Preview
     , selectedItem = Nothing
     , outMsg = outMsg
@@ -100,7 +115,10 @@ update msg model =
                     case item of
                         MarkdownContent markDownMls ->
                             { model
-                                | markDownInputs = Just markDownMls
+                                | markdownEditor =
+                                    MarkdownEditor.load
+                                        model.markdownEditor
+                                        (Just markDownMls)
                                 , displayMode = EditMarkdown
                                 , selectedItem = Just id
                             }
@@ -146,7 +164,10 @@ update msg model =
 
         NewMarkdown ->
             { model
-                | markDownInputs = Nothing
+                | markdownEditor =
+                    MarkdownEditor.load
+                        model.markdownEditor
+                        Nothing
                 , displayMode = EditMarkdown
                 , selectedItem = Just (nextId model.content)
             }
@@ -163,6 +184,40 @@ update msg model =
                 | displayMode = EditNews
                 , selectedItem = Just (nextId model.content)
             }
+
+        MarkdownEditorMsg markdownEditorMsg ->
+            let
+                ( newEditor, mbPluginRes ) =
+                    MarkdownEditor.update markdownEditorMsg model.markdownEditor
+            in
+            case mbPluginRes of
+                Nothing ->
+                    { model | markdownEditor = newEditor }
+
+                Just PluginQuit ->
+                    { model
+                        | markdownEditor = newEditor
+                        , displayMode = Preview
+                    }
+
+                Just (PluginData data) ->
+                    case model.selectedItem of
+                        Nothing ->
+                            { model
+                                | markdownEditor = newEditor
+                                , displayMode = Preview
+                            }
+
+                        Just id ->
+                            { model
+                                | markdownEditor = newEditor
+                                , content =
+                                    Dict.insert
+                                        id
+                                        (MarkdownContent data)
+                                        model.content
+                                , displayMode = Preview
+                            }
 
         NoOp ->
             model
@@ -186,19 +241,19 @@ type alias ViewConfig =
 
 view : ViewConfig -> Model msg -> Element msg
 view config model =
-    Element.map model.outMsg <|
-        case model.displayMode of
-            Preview ->
+    case model.displayMode of
+        Preview ->
+            Element.map model.outMsg <|
                 previewView config model
 
-            EditMarkdown ->
-                Element.none
+        EditMarkdown ->
+            MarkdownEditor.view config model.markdownEditor
 
-            EditPicRow ->
-                Element.none
+        EditPicRow ->
+            Element.none
 
-            EditNews ->
-                Element.none
+        EditNews ->
+            Element.none
 
 
 previewView : ViewConfig -> Model msg -> Element Msg
@@ -235,4 +290,101 @@ previewView config model =
                         }
                 }
             ]
+        , Dict.map (editableItem config) model.content
+            --Dict Int (Element Msg)
+            |> Dict.values
+            --List (Element Msg)
+            |> column []
         ]
+
+
+editableItem : ViewConfig -> Int -> FrontPageItem -> Element Msg
+editableItem config id item =
+    row
+        []
+        [ frontPageItemView config item
+        , itemControlView config id
+        ]
+
+
+
+--frontPageContentView : config model
+
+
+frontPageItemView : ViewConfig -> FrontPageItem -> Element msg
+frontPageItemView config item =
+    case item of
+        MarkdownContent mls ->
+            MarkdownParser.renderMarkdown
+                (strM config.lang mls)
+
+        ImageRow images ->
+            Element.none
+
+        NewsBlock ->
+            Element.none
+
+
+
+--(Icons.chevronLeft
+--    (Icons.defOptions
+--       |> Icons.color grey
+--    )
+--)
+
+
+itemControlView : ViewConfig -> Int -> Element Msg
+itemControlView config id =
+    row
+        [ spacing 15 ]
+        [ column
+            [ spacing 15 ]
+            [ Input.button
+                []
+                { onPress = Just <| SwapUp id
+                , label =
+                    Icons.arrowUp
+                        (Icons.defOptions
+                            |> Icons.color black
+                            |> Icons.size 25
+                        )
+                }
+            , Input.button
+                []
+                { onPress = Just <| SwapDown id
+                , label =
+                    Icons.arrowDown
+                        (Icons.defOptions
+                            |> Icons.color black
+                            |> Icons.size 25
+                        )
+                }
+            ]
+        , column
+            [ spacing 15 ]
+            [ Input.button
+                []
+                { onPress = Just <| EditItem id
+                , label =
+                    Icons.pencil
+                        (Icons.defOptions
+                            |> Icons.color black
+                            |> Icons.size 25
+                        )
+                }
+            , Input.button
+                []
+                { onPress = Just <| DeleteItem id
+                , label =
+                    Icons.trashcan
+                        (Icons.defOptions
+                            |> Icons.color black
+                            |> Icons.size 25
+                        )
+                }
+            ]
+        ]
+
+
+
+--newsBlockView config

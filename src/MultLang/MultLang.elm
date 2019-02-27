@@ -14,6 +14,16 @@ type alias MultLangStr =
     }
 
 
+langKey : Lang -> Int
+langKey l =
+    case l of
+        English ->
+            0
+
+        French ->
+            1
+
+
 textM : Lang -> MultLangStr -> Element msg
 textM l ms =
     case l of

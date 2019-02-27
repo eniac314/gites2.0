@@ -1,4 +1,4 @@
-module Internals.MarkdownParser exposing (..)
+module Internals.MarkdownParser exposing (renderMarkdown)
 
 import Browser exposing (element)
 import Element exposing (..)
@@ -164,12 +164,20 @@ subscriptions model =
     Sub.batch []
 
 
-blocksToElements : List (Block b i) -> List (Element Msg)
+renderMarkdown : String -> Element msg
+renderMarkdown s =
+    Block.parse Nothing s
+        |> blocksToElements
+        |> column
+            [ width fill ]
+
+
+blocksToElements : List (Block b i) -> List (Element msg)
 blocksToElements blocks =
     List.map (blockToElement 0) blocks
 
 
-blockToElement : Int -> Block b i -> Element Msg
+blockToElement : Int -> Block b i -> Element msg
 blockToElement offset block =
     case block of
         BlankLine s ->
@@ -252,7 +260,7 @@ headings raw level inlines =
         (List.concatMap inlinesToElements inlines)
 
 
-inlinesToElements : Inline i -> List (Element Msg)
+inlinesToElements : Inline i -> List (Element msg)
 inlinesToElements inline =
     case inline of
         Text s ->
