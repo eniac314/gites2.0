@@ -20,6 +20,7 @@ import List.Extra exposing (swapAt)
 import MultLang.MultLang exposing (..)
 import Style.Icons as Icons exposing (..)
 import Style.Palette exposing (..)
+import Style.Helpers exposing (..)
 
 
 main : Program () (Model Msg) Msg
@@ -29,7 +30,7 @@ main =
             \_ ->
                 ( init
                     [ MarkdownContent (MultLangStr "Hello world" "Bonjour le monde")
-                    , MarkdownContent (MultLangStr "Bread is so good!" "J'aime le pain!")
+                    , MarkdownContent (MultLangStr "Bread is so good!" "Le pain est trop bon!")
                     ]
                     identity
                 , Cmd.none
@@ -150,7 +151,7 @@ update msg model =
                         |> List.indexedMap Tuple.pair
                         |> Dict.fromList
             in
-            { model | content = newContent }
+                { model | content = newContent }
 
         SwapDown id ->
             let
@@ -160,7 +161,7 @@ update msg model =
                         |> List.indexedMap Tuple.pair
                         |> Dict.fromList
             in
-            { model | content = newContent }
+                { model | content = newContent }
 
         NewMarkdown ->
             { model
@@ -190,34 +191,34 @@ update msg model =
                 ( newEditor, mbPluginRes ) =
                     MarkdownEditor.update markdownEditorMsg model.markdownEditor
             in
-            case mbPluginRes of
-                Nothing ->
-                    { model | markdownEditor = newEditor }
+                case mbPluginRes of
+                    Nothing ->
+                        { model | markdownEditor = newEditor }
 
-                Just PluginQuit ->
-                    { model
-                        | markdownEditor = newEditor
-                        , displayMode = Preview
-                    }
+                    Just PluginQuit ->
+                        { model
+                            | markdownEditor = newEditor
+                            , displayMode = Preview
+                        }
 
-                Just (PluginData data) ->
-                    case model.selectedItem of
-                        Nothing ->
-                            { model
-                                | markdownEditor = newEditor
-                                , displayMode = Preview
-                            }
+                    Just (PluginData data) ->
+                        case model.selectedItem of
+                            Nothing ->
+                                { model
+                                    | markdownEditor = newEditor
+                                    , displayMode = Preview
+                                }
 
-                        Just id ->
-                            { model
-                                | markdownEditor = newEditor
-                                , content =
-                                    Dict.insert
-                                        id
-                                        (MarkdownContent data)
-                                        model.content
-                                , displayMode = Preview
-                            }
+                            Just id ->
+                                { model
+                                    | markdownEditor = newEditor
+                                    , content =
+                                        Dict.insert
+                                            id
+                                            (MarkdownContent data)
+                                            model.content
+                                    , displayMode = Preview
+                                }
 
         NoOp ->
             model
@@ -259,11 +260,19 @@ view config model =
 previewView : ViewConfig -> Model msg -> Element Msg
 previewView config model =
     column
-        [ width fill ]
+        [ width fill
+        , height fill
+        , paddingEach { top = 0, right = 45, bottom = 45, left = 45 }
+        , spacing 30
+        , Background.color lightGrey
+        ]
         [ row
-            [ width fill ]
+            [ centerX
+            , width fill
+            , Border.widthEach { bottom = 1, left = 0, right = 0, top = 0 }
+            ]
             [ Input.button
-                []
+                buttonStyle
                 { onPress = Just NewMarkdown
                 , label =
                     textM config.lang
@@ -272,7 +281,7 @@ previewView config model =
                         }
                 }
             , Input.button
-                []
+                buttonStyle
                 { onPress = Just NewPicRow
                 , label =
                     textM config.lang
@@ -281,7 +290,7 @@ previewView config model =
                         }
                 }
             , Input.button
-                []
+                buttonStyle
                 { onPress = Just AddNewsBlock
                 , label =
                     textM config.lang
@@ -292,16 +301,28 @@ previewView config model =
             ]
         , Dict.map (editableItem config) model.content
             --Dict Int (Element Msg)
-            |> Dict.values
+            |>
+                Dict.values
             --List (Element Msg)
-            |> column []
+            |>
+                column
+                    [ Background.color grey
+                    , width fill
+                    , centerX
+                    , padding 10
+                    , spacing 20
+                    ]
         ]
 
 
 editableItem : ViewConfig -> Int -> FrontPageItem -> Element Msg
 editableItem config id item =
     row
-        []
+        [ centerX
+        , spacing 30
+        , paddingEach { top = 0, right = 0, bottom = 0, left = 20 }
+        , Border.widthEach { sides | bottom = 1 }
+        ]
         [ frontPageItemView config item
         , itemControlView config id
         ]
@@ -336,11 +357,14 @@ frontPageItemView config item =
 itemControlView : ViewConfig -> Int -> Element Msg
 itemControlView config id =
     row
-        [ spacing 15 ]
+        [ spacing 15
+        , padding 5
+        , Border.widthEach { bottom = 0, left = 1, right = 1, top = 1 }
+        ]
         [ column
-            [ spacing 15 ]
+            [ spacing 10 ]
             [ Input.button
-                []
+                iconsStyle
                 { onPress = Just <| SwapUp id
                 , label =
                     Icons.arrowUp
@@ -350,7 +374,7 @@ itemControlView config id =
                         )
                 }
             , Input.button
-                []
+                iconsStyle
                 { onPress = Just <| SwapDown id
                 , label =
                     Icons.arrowDown
@@ -361,9 +385,9 @@ itemControlView config id =
                 }
             ]
         , column
-            [ spacing 15 ]
+            [ spacing 10 ]
             [ Input.button
-                []
+                iconsStyle
                 { onPress = Just <| EditItem id
                 , label =
                     Icons.pencil
@@ -373,10 +397,10 @@ itemControlView config id =
                         )
                 }
             , Input.button
-                []
+                iconsStyle
                 { onPress = Just <| DeleteItem id
                 , label =
-                    Icons.trashcan
+                    Icons.x
                         (Icons.defOptions
                             |> Icons.color black
                             |> Icons.size 25
