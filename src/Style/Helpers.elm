@@ -11,10 +11,36 @@ import Element.Lazy exposing (lazy)
 import Element.Region as Region
 import Html as Html
 import Html.Attributes as HtmlAttr
+import Style.Palette exposing (..)
 
 
 noAttr =
     htmlAttribute <| HtmlAttr.class ""
+
+
+longText =
+    "Il était une fois, au milieu d'une forêt épaisse, une petite maison où habitait une jolie petite fille nommée Petit Chaperon Rouge. Un jour ensoleillé, sa maman l'appela dans la cuisine de leur petite maison."
+
+
+buttonStyle =
+    [ centerX
+    , padding 20
+    , Font.family
+        [ Font.external
+            { name = "Montserrat"
+            , url = "https://fonts.googleapis.com/css?family=Montserrat"
+            }
+        , Font.sansSerif
+        ]
+    , mouseOver
+        [ Background.color lightYellow ]
+    ]
+
+
+iconsStyle =
+    [ mouseOver
+        [ Background.color lightYellow ]
+    ]
 
 
 sides =
