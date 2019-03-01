@@ -1,7 +1,15 @@
-module Bookings.DatePicker.DatePicker exposing (..)
+module Bookings.DatePicker.DatePicker
+    exposing
+        ( Availability(..)
+        , Model
+        , Msg
+        , init
+        , setCurrentDate
+        , update
+        , view
+        )
 
 import Bookings.DatePicker.Date exposing (..)
-import Browser.Dom exposing (focus)
 import Date exposing (..)
 import Element exposing (..)
 import Element.Background as Background

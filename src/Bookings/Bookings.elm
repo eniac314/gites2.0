@@ -24,7 +24,7 @@ main =
     Browser.element
         { init = \_ -> init identity
         , update = update
-        , view = view { lang = French }
+        , view = view { lang = English }
         , subscriptions = subscriptions
         }
 
