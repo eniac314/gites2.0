@@ -1,6 +1,7 @@
 module Bookings.DatePicker.DatePicker exposing (..)
 
 import Bookings.DatePicker.Date exposing (..)
+import Browser.Dom exposing (focus)
 import Date exposing (..)
 import Element exposing (..)
 import Element.Background as Background
@@ -13,6 +14,7 @@ import Element.Lazy exposing (lazy)
 import Element.Region as Region
 import Html as Html
 import Html.Attributes as HtmlAttr
+import Html.Events exposing (custom)
 import Json.Decode as D
 import MultLang.MultLang exposing (..)
 import Style.Helpers exposing (..)
@@ -87,8 +89,10 @@ init mbStartDate outMsg =
         , canPickDateInPast = False
         , outMsg = outMsg
         }
-    , Cmd.map outMsg <|
-        Task.perform CurrentDate today
+    , [ Task.perform CurrentDate today
+      ]
+        |> Cmd.batch
+        |> Cmd.map outMsg
     )
 
 
@@ -191,6 +195,18 @@ type alias Config =
 
 view : Config -> Model msg -> Element msg
 view config model =
+    let
+        onPicker ev msg =
+            htmlAttribute <|
+                custom
+                    ev
+                    (D.succeed
+                        { message = msg
+                        , stopPropagation = True
+                        , preventDefault = True
+                        }
+                    )
+    in
     Element.map model.outMsg <|
         column
             [ width fill
@@ -204,6 +220,7 @@ view config model =
                         , moveUp 1
                         , Events.onMouseEnter MouseEnter
                         , Events.onMouseLeave MouseLeave
+                        , onPicker "mousedown" NoOp
                         ]
                         [ monthSelectorView config model
                         , weekdaysView config model
@@ -235,6 +252,7 @@ pickedDateView config model =
             Events.onClick Open
         , pointer
         , Font.size 16
+        , htmlAttribute <| HtmlAttr.readonly True -- "readonly" "true"
         ]
         { onChange = always NoOp
         , text =

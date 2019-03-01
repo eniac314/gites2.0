@@ -120,10 +120,10 @@ type Msg
 init outMsg =
     let
         ( checkInPicker, checkInPickerCmd ) =
-            DP.init Nothing (outMsg << CheckInPickerMsg)
+            DP.init Nothing CheckInPickerMsg
 
         ( checkOutPicker, checkOutPickerCmd ) =
-            DP.init Nothing (outMsg << CheckOutPickerMsg)
+            DP.init Nothing CheckOutPickerMsg
     in
     ( { checkInPicker = checkInPicker
       , checkInDate = Nothing
@@ -408,8 +408,7 @@ view config model =
                 , width fill
                 , Font.size 16
                 ]
-                [ checkInView config model
-                , checkOutView config model
+                [ dateChoiceView config model
                 , Select.view
                     { outMsg = TitleSelectorMsg
                     , items =
@@ -432,6 +431,17 @@ view config model =
                     }
                     model.titleSelector
                 ]
+
+
+dateChoiceView : { a | lang : Lang } -> Model msg -> Element msg
+dateChoiceView config model =
+    column
+        [ spacing 15
+        , width fill
+        ]
+        [ checkInView config model
+        , checkOutView config model
+        ]
 
 
 checkInView : { a | lang : Lang } -> Model msg -> Element msg
