@@ -272,7 +272,7 @@ previewView config model =
             , Border.widthEach { bottom = 1, left = 0, right = 0, top = 0 }
             ]
             [ Input.button
-                buttonStyle
+                buttonStyleSha
                 { onPress = Just NewMarkdown
                 , label =
                     textM config.lang
@@ -320,8 +320,12 @@ editableItem config id item =
     row
         [ centerX
         , spacing 30
-        , paddingEach { top = 0, right = 0, bottom = 0, left = 20 }
-        , Border.widthEach { sides | bottom = 1 }
+        , padding 20
+        , Border.width 1
+        , Border.color lightCharcoal
+        , Border.rounded 1
+        , mouseOver
+            [ Border.color lightGray ]
         ]
         [ frontPageItemView config item
         , itemControlView config id
@@ -359,7 +363,8 @@ itemControlView config id =
     row
         [ spacing 15
         , padding 5
-        , Border.widthEach { bottom = 0, left = 1, right = 1, top = 1 }
+        , Border.width 1
+        , Border.rounded 1
         ]
         [ column
             [ spacing 10 ]

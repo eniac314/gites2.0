@@ -37,6 +37,27 @@ buttonStyle =
     ]
 
 
+buttonStyleSha =
+    [ centerX
+    , padding 20
+    , Font.family
+        [ Font.external
+            { name = "Montserrat"
+            , url = "https://fonts.googleapis.com/css?family=Montserrat"
+            }
+        , Font.sansSerif
+        ]
+    , mouseOver
+        [ Border.shadow
+            { offset = ( 0, 0 )
+            , size = 2
+            , blur = 0
+            , color = (rgb255 47 79 79)
+            }
+        ]
+    ]
+
+
 iconsStyle =
     [ mouseOver
         [ Background.color lightYellow ]
