@@ -1,6 +1,5 @@
-module FrontPage.FrontPage exposing (..)
+module FrontPage.FrontPageAdmin exposing (..)
 
-import Browser exposing (element)
 import Dict exposing (..)
 import Element exposing (..)
 import Element.Background as Background
@@ -21,28 +20,6 @@ import MultLang.MultLang exposing (..)
 import Style.Icons as Icons exposing (..)
 import Style.Palette exposing (..)
 import Style.Helpers exposing (..)
-
-
-main : Program () (Model Msg) Msg
-main =
-    Browser.element
-        { init =
-            \_ ->
-                ( init
-                    [ MarkdownContent (MultLangStr "Hello world" "Bonjour le monde")
-                    , MarkdownContent (MultLangStr "Bread is so good!" "Le pain est trop bon!")
-                    ]
-                    identity
-                , Cmd.none
-                )
-        , update = \msg model -> ( update msg model, Cmd.none )
-        , view = \model -> Element.layout [] <| view { lang = French } model
-        , subscriptions = subscriptions
-        }
-
-
-subscriptions model =
-    Sub.batch []
 
 
 type alias FrontPageContent =
@@ -348,14 +325,6 @@ frontPageItemView config item =
 
         NewsBlock ->
             Element.none
-
-
-
---(Icons.chevronLeft
---    (Icons.defOptions
---       |> Icons.color grey
---    )
---)
 
 
 itemControlView : ViewConfig -> Int -> Element Msg

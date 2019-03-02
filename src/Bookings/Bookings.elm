@@ -1,7 +1,6 @@
 port module Bookings.Bookings exposing (..)
 
 import Bookings.DatePicker.DatePicker as DP
-import Browser exposing (element)
 import Date exposing (..)
 import Element exposing (..)
 import Element.Background as Background
@@ -19,30 +18,16 @@ import MultLang.MultLang exposing (..)
 import Style.Palette exposing (..)
 
 
-main : Program () (Model Msg) Msg
-main =
-    Browser.element
-        { init = \_ -> init identity
-        , update = update
-        , view = view { lang = English }
-        , subscriptions = subscriptions
-        }
-
-
-subscriptions model =
-    Sub.batch []
-
-
 type alias Model msg =
-    { checkInPicker : DP.Model msg
+    { checkInPicker : DP.Model Msg
     , checkInDate : Maybe Date
     , checkInAvailability : Date -> DP.Availability
-    , checkOutPicker : DP.Model msg
+    , checkOutPicker : DP.Model Msg
     , checkOutDate : Maybe Date
     , checkOutAvailability : Date -> DP.Availability
-    , slots : Slots
-
-    --
+    , slots :
+        Slots
+        --
     , selectedTitle : Maybe Title
     , titleSelector : Select.Model
     , firstName : Maybe String
@@ -57,9 +42,9 @@ type alias Model msg =
     , email : Maybe String
     , confEmail : Maybe String
     , confEmailFocused : Bool
-    , comment : Maybe String
-
-    --
+    , comment :
+        Maybe String
+        --
     , displayMode : DisplayMode
     , outMsg : Msg -> msg
     }
@@ -125,43 +110,44 @@ init outMsg =
         ( checkOutPicker, checkOutPickerCmd ) =
             DP.init Nothing CheckOutPickerMsg
     in
-    ( { checkInPicker = checkInPicker
-      , checkInDate = Nothing
-      , checkInAvailability = always DP.Available
-      , checkOutPicker = checkOutPicker
-      , checkOutDate = Nothing
-      , checkOutAvailability = always DP.Available
-      , slots =
-            Slots [] [] [] []
+        ( { checkInPicker = checkInPicker
+          , checkInDate = Nothing
+          , checkInAvailability = always DP.Available
+          , checkOutPicker = checkOutPicker
+          , checkOutDate = Nothing
+          , checkOutAvailability = always DP.Available
+          , slots =
+                Slots [] [] [] []
+                --
+          , selectedTitle = Nothing
+          , titleSelector = Select.init
+          , firstName = Nothing
+          , lastName = Nothing
+          , address = Nothing
+          , addAddress = Nothing
+          , postcode = Nothing
+          , city = Nothing
+          , country = Nothing
+          , phone1 = Nothing
+          , phone2 = Nothing
+          , email = Nothing
+          , confEmail = Nothing
+          , confEmailFocused = False
+          , comment =
+                Nothing
+                --
+          , displayMode = DateChoice
+          , outMsg = outMsg
+          }
+        , Cmd.map outMsg <|
+            Cmd.batch
+                [ checkInPickerCmd
+                , checkOutPickerCmd
+                ]
+        )
 
-      --
-      , selectedTitle = Nothing
-      , titleSelector = Select.init
-      , firstName = Nothing
-      , lastName = Nothing
-      , address = Nothing
-      , addAddress = Nothing
-      , postcode = Nothing
-      , city = Nothing
-      , country = Nothing
-      , phone1 = Nothing
-      , phone2 = Nothing
-      , email = Nothing
-      , confEmail = Nothing
-      , confEmailFocused = False
-      , comment = Nothing
 
-      --
-      , displayMode = DateChoice
-      , outMsg = outMsg
-      }
-    , Cmd.batch
-        [ checkInPickerCmd
-        , checkOutPickerCmd
-        ]
-    )
-
-
+update : Msg -> Model msg -> ( Model msg, Cmd msg )
 update msg model =
     case msg of
         CheckInPickerMsg pickerMsg ->
@@ -169,50 +155,50 @@ update msg model =
                 ( newCheckInPicker, cmd, mbDate ) =
                     DP.update pickerMsg model.checkInPicker
             in
-            case mbDate of
-                Nothing ->
-                    ( { model
-                        | checkInPicker = newCheckInPicker
-                      }
-                    , cmd
-                    )
+                case mbDate of
+                    Nothing ->
+                        ( { model
+                            | checkInPicker = newCheckInPicker
+                          }
+                        , Cmd.map model.outMsg cmd
+                        )
 
-                Just checkIn ->
-                    ( { model
-                        | checkInPicker = newCheckInPicker
-                        , checkInDate = mbDate
-                        , checkOutPicker =
-                            DP.setCurrentDate checkIn model.checkOutPicker
-                        , checkOutAvailability =
-                            newCheckOutAvailability model.slots checkIn
-                      }
-                    , cmd
-                    )
+                    Just checkIn ->
+                        ( { model
+                            | checkInPicker = newCheckInPicker
+                            , checkInDate = mbDate
+                            , checkOutPicker =
+                                DP.setCurrentDate checkIn model.checkOutPicker
+                            , checkOutAvailability =
+                                newCheckOutAvailability model.slots checkIn
+                          }
+                        , Cmd.map model.outMsg cmd
+                        )
 
         CheckOutPickerMsg pickerMsg ->
             let
                 ( newCheckOutPicker, cmd, mbDate ) =
                     DP.update pickerMsg model.checkOutPicker
             in
-            case mbDate of
-                Nothing ->
-                    ( { model
-                        | checkOutPicker = newCheckOutPicker
-                      }
-                    , cmd
-                    )
+                case mbDate of
+                    Nothing ->
+                        ( { model
+                            | checkOutPicker = newCheckOutPicker
+                          }
+                        , Cmd.map model.outMsg cmd
+                        )
 
-                Just checkOut ->
-                    ( { model
-                        | checkOutPicker = newCheckOutPicker
-                        , checkOutDate = mbDate
-                        , checkInPicker =
-                            DP.setCurrentDate checkOut model.checkInPicker
-                        , checkInAvailability =
-                            newCheckInAvailability model.slots checkOut
-                      }
-                    , cmd
-                    )
+                    Just checkOut ->
+                        ( { model
+                            | checkOutPicker = newCheckOutPicker
+                            , checkOutDate = mbDate
+                            , checkInPicker =
+                                DP.setCurrentDate checkOut model.checkInPicker
+                            , checkInAvailability =
+                                newCheckInAvailability model.slots checkOut
+                          }
+                        , Cmd.map model.outMsg cmd
+                        )
 
         TitleSelectorMsg selMsg ->
             ( { model
@@ -400,40 +386,39 @@ newCheckOutAvailability { booked, notAvailable, noCheckIn, noCheckOut } checkInD
 
 
 view config model =
-    Element.layout [] <|
-        Element.map model.outMsg <|
-            column
-                [ spacing 15
-                , padding 15
-                , width fill
-                , Font.size 16
-                ]
-                [ dateChoiceView config model
-                , Select.view
-                    { outMsg = TitleSelectorMsg
-                    , items =
-                        [ ( "Mr", SelectTitle Mr )
-                        , ( "Ms", SelectTitle Ms )
-                        , ( "Other", SelectTitle Other )
-                        ]
-                    , selected =
-                        model.selectedTitle
-                            |> Maybe.map
-                                (\t -> strM config.lang (titleMLS t))
-                    , placeholder =
-                        Just <|
-                            strM config.lang
-                                (MultLangStr
-                                    "Title"
-                                    "Civilité"
-                                )
-                    , label = Nothing
-                    }
-                    model.titleSelector
-                ]
+    Element.map model.outMsg <|
+        column
+            [ spacing 15
+            , padding 15
+            , width fill
+            , Font.size 16
+            ]
+            [ dateChoiceView config model
+            , Select.view
+                { outMsg = TitleSelectorMsg
+                , items =
+                    [ ( "Mr", SelectTitle Mr )
+                    , ( "Ms", SelectTitle Ms )
+                    , ( "Other", SelectTitle Other )
+                    ]
+                , selected =
+                    model.selectedTitle
+                        |> Maybe.map
+                            (\t -> strM config.lang (titleMLS t))
+                , placeholder =
+                    Just <|
+                        strM config.lang
+                            (MultLangStr
+                                "Title"
+                                "Civilité"
+                            )
+                , label = Nothing
+                }
+                model.titleSelector
+            ]
 
 
-dateChoiceView : { a | lang : Lang } -> Model msg -> Element msg
+dateChoiceView : { a | lang : Lang } -> Model msg -> Element Msg
 dateChoiceView config model =
     column
         [ spacing 15
@@ -444,7 +429,7 @@ dateChoiceView config model =
         ]
 
 
-checkInView : { a | lang : Lang } -> Model msg -> Element msg
+checkInView : { a | lang : Lang } -> Model msg -> Element Msg
 checkInView config model =
     column
         [ spacing 15
@@ -522,7 +507,7 @@ checkInView config model =
         ]
 
 
-checkOutView : { a | lang : Lang } -> Model msg -> Element msg
+checkOutView : { a | lang : Lang } -> Model msg -> Element Msg
 checkOutView config model =
     column
         [ spacing 15
