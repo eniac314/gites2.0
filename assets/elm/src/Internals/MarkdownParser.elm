@@ -19,157 +19,14 @@ import Style.Helpers exposing (..)
 import Style.Palette exposing (..)
 
 
-main =
-    Browser.element
-        { init = init
-        , update = update
-        , view = view
-        , subscriptions = subscriptions
-        }
-
-
-type Msg
-    = StrInput String
-    | Parse
-    | NoOp
-
-
-type alias Model b i =
-    { input : Maybe String
-    , blocks : List (Block b i)
-    }
-
-
-init : () -> ( Model b i, Cmd Msg )
-init _ =
-    ( { input = Nothing
-      , blocks = []
-      }
-    , Cmd.none
-    )
-
-
-update msg model =
-    case msg of
-        StrInput s ->
-            ( { model
-                | input =
-                    if s == "" then
-                        Nothing
-                    else
-                        Just s
-              }
-            , Cmd.none
-            )
-
-        Parse ->
-            ( { model
-                | blocks =
-                    case model.input of
-                        Just s ->
-                            Block.parse Nothing s
-
-                        Nothing ->
-                            []
-              }
-            , Cmd.none
-            )
-
-        NoOp ->
-            ( model, Cmd.none )
-
-
-view model =
-    layout [] <|
-        column
-            []
-            [ row
-                [ spacing 20 ]
-                [ column
-                    [ spacing 15
-                    , alignTop
-                    ]
-                    [ Input.multiline
-                        [ width (px 500)
-                        , height (px 600)
-                        ]
-                        { onChange = StrInput
-                        , text =
-                            model.input
-                                |> Maybe.withDefault ""
-                        , placeholder = Nothing
-                        , label = Input.labelHidden ""
-                        , spellcheck = False
-                        }
-                    , Input.button
-                        []
-                        { onPress =
-                            case model.input of
-                                Just _ ->
-                                    Just Parse
-
-                                _ ->
-                                    Nothing
-                        , label =
-                            el
-                                [ Background.color (rgb255 127 127 127)
-                                , paddingXY 10 7
-                                ]
-                                (text "Push me!")
-                        }
-                    ]
-                , column
-                    [ alignTop
-                    , spacing 15
-                    , width fill
-                    ]
-                    (List.map
-                        (\b ->
-                            paragraph
-                                [ width fill ]
-                                [ text <| Debug.toString b ]
-                        )
-                        model.blocks
-                    )
-                ]
-            , row
-                [ spacing 20
-                , width fill
-                ]
-                [ el
-                    [ alignTop
-                    , width (maximum 550 fill)
-                    , Background.color (rgba255 255 0 0 0.3)
-                    , clipX
-                    , scrollbarX
-                    ]
-                    (html <|
-                        Html.div []
-                            (Markdown.toHtml Nothing
-                                (Maybe.withDefault "" model.input)
-                            )
-                    )
-                , column
-                    [ alignTop
-                    , width (maximum 550 fill)
-                    , Background.color (rgba255 255 255 0 0.3)
-                    , spacing 15
-                    ]
-                    (blocksToElements model.blocks)
-                ]
-            ]
-
-
-subscriptions model =
-    Sub.batch []
-
-
 renderMarkdown : String -> Element msg
 renderMarkdown s =
     Block.parse Nothing s
         |> blocksToElements
         |> column
-            [ width fill ]
+            [ width fill
+            , spacing 15
+            ]
 
 
 blocksToElements : List (Block b i) -> List (Element msg)
@@ -181,7 +38,7 @@ blockToElement : Int -> Block b i -> Element msg
 blockToElement offset block =
     case block of
         BlankLine s ->
-            el [] (html <| Html.br [] [])
+            Element.none
 
         ThematicBreak ->
             Element.none
@@ -197,7 +54,7 @@ blockToElement offset block =
                 )
 
         Paragraph raw inlines ->
-            wrappedRow
+            paragraph
                 []
                 (List.concatMap inlinesToElements inlines)
 
@@ -234,10 +91,10 @@ blockToElement offset block =
                                 ]
                             ]
             in
-            column
-                [ paddingXY 40 0
-                ]
-                (List.concatMap liView llistBlocks)
+                column
+                    [ paddingXY 40 0
+                    ]
+                    (List.concatMap liView llistBlocks)
 
         PlainInlines inlines ->
             paragraph
@@ -264,7 +121,7 @@ inlinesToElements : Inline i -> List (Element msg)
 inlinesToElements inline =
     case inline of
         Text s ->
-            [ paragraph [] [ text s ] ]
+            [ text s ]
 
         HardLineBreak ->
             [ el [] (html <| Html.br [] []) ]
@@ -283,14 +140,7 @@ inlinesToElements inline =
             ]
 
         Image url mbTitle inlines ->
-            [ --el
-              --    [ Background.color (rgb255 0 0 255)
-              --    , Background.image url
-              --    , width (px 400)
-              --    --, height (px 233)
-              --    ]
-              --    (text "image")
-              image
+            [ image
                 [ width fill ]
                 { src = url
                 , description = Inline.extractText inlines

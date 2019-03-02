@@ -44,6 +44,7 @@ defmodule Gites.MixProject do
       {:jason, "~> 1.0"},
       {:plug_cowboy, "~> 2.0"},
       {:comeonin, "~> 5.1.0"},
+      {:guardian, "~> 1.0.0"},
       {:pbkdf2_elixir, "~> 1.0.1"}
     ]
   end

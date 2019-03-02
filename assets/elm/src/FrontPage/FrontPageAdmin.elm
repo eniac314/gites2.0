@@ -214,6 +214,7 @@ nextId dict =
 
 type alias ViewConfig =
     { lang : Lang
+    , width : Int
     }
 
 
@@ -276,19 +277,22 @@ previewView config model =
                         }
                 }
             ]
-        , Dict.map (editableItem config) model.content
-            --Dict Int (Element Msg)
-            |>
-                Dict.values
-            --List (Element Msg)
-            |>
-                column
-                    [ Background.color grey
-                    , width fill
-                    , centerX
-                    , padding 10
-                    , spacing 20
-                    ]
+        , if model.content == Dict.empty then
+            Element.none
+          else
+            Dict.map (editableItem config) model.content
+                --Dict Int (Element Msg)
+                |>
+                    Dict.values
+                --List (Element Msg)
+                |>
+                    column
+                        [ Background.color grey
+                        , width fill
+                        , centerX
+                        , padding 10
+                        , spacing 20
+                        ]
         ]
 
 

@@ -9,6 +9,7 @@ import Element.Font as Font
 import Element.Input as Input
 import FrontPage.FrontPageAdmin as FrontPageAdmin
 import MultLang.MultLang exposing (..)
+import Browser.Events exposing (onResize)
 
 
 --import Auth.AuthPlugin as Auth
@@ -25,18 +26,25 @@ main =
 
 
 type alias Flags =
-    ()
+    { currentTime : Int
+    , width : Int
+    , height : Int
+    }
 
 
 type alias Model =
     { displayMode : DisplayMode
     , lang : Lang
+    , width : Int
+    , height : Int
+    , currentTime : Int
     , frontPageAdmin : FrontPageAdmin.Model Msg
     }
 
 
 type Msg
     = FrontPageAdminMsg FrontPageAdmin.Msg
+    | WinResize Int Int
     | NoOp
 
 
@@ -50,7 +58,7 @@ type DisplayMode
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        []
+        [ onResize WinResize ]
 
 
 init : Flags -> ( Model, Cmd Msg )
@@ -61,6 +69,12 @@ init flags =
     in
         ( { displayMode = DisplayFrontPageAdmin
           , lang = English
+          , width =
+                flags.width
+          , height =
+                flags.height
+          , currentTime =
+                flags.currentTime
           , frontPageAdmin = newFrontPageAdmin
           }
         , Cmd.none
@@ -78,6 +92,14 @@ update msg model =
                 ( { model | frontPageAdmin = newFrontPageAdmin }
                 , Cmd.none
                 )
+
+        WinResize width height ->
+            ( { model
+                | width = width
+                , height = height
+              }
+            , Cmd.none
+            )
 
         NoOp ->
             ( model, Cmd.none )
@@ -98,7 +120,9 @@ view model =
                 [ case model.displayMode of
                     DisplayFrontPageAdmin ->
                         FrontPageAdmin.view
-                            { lang = model.lang }
+                            { lang = model.lang
+                            , width = model.width
+                            }
                             model.frontPageAdmin
 
                     DisplayBookingsAdmin ->

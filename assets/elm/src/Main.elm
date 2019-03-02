@@ -22,7 +22,7 @@ import Html.Attributes as HtmlAttr
 import Browser.Events exposing (onResize)
 
 
-main : Program () Model Msg
+main : Program Flags Model Msg
 main =
     Browser.application
         { init = init
@@ -69,7 +69,7 @@ type alias Flags =
     }
 
 
-init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
+init : Flags -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
     let
         ( newBookings, bookingsCmd ) =
@@ -81,14 +81,11 @@ init flags url key =
           , key = key
           , url = url
           , width =
-                1280
-                --flags.width
+                flags.width
           , height =
-                1024
-                --flags.height
+                flags.height
           , currentTime =
-                0
-                --flags.currentTime
+                flags.currentTime
           }
         , Cmd.batch
             [ bookingsCmd ]

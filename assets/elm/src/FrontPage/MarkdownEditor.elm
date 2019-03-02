@@ -97,7 +97,7 @@ update msg model =
                 ( model, Nothing )
 
 
-view : { a | lang : Lang } -> Model msg -> Element msg
+view : { a | lang : Lang, width : Int } -> Model msg -> Element msg
 view config model =
     let
         baseMls =
@@ -107,44 +107,59 @@ view config model =
         Element.map model.outMsg <|
             column
                 [ width fill
+                , height fill
                 , Background.color lightGrey
                 ]
                 [ column
                     [ paddingXY 10 10
                     , spacing 15
                     , centerX
-                    , centerY
+                      --, Background.color red
+                    , width fill
                     ]
-                    [ Input.multiline
-                        [ width (px 500)
-                        , height (px 600)
+                    [ (if config.width < 970 then
+                        column
+                       else
+                        row
+                      )
+                        [ spacing 15
+                        , width fill
+                        , centerX
+                          --, Background.color lightBlue
                         ]
-                        { onChange = StrInputFr
-                        , text =
-                            baseMls.fr
-                        , placeholder = Nothing
-                        , label =
-                            Input.labelAbove
-                                [ padding 10 ]
-                                (textM config.lang (MultLangStr "French" "Français"))
-                        , spellcheck = False
-                        }
-                    , Input.multiline
-                        [ width (px 500)
-                        , height (px 600)
+                        [ Input.multiline
+                            [ width (fill)
+                            , height (px 350)
+                            , centerX
+                            ]
+                            { onChange = StrInputFr
+                            , text =
+                                baseMls.fr
+                            , placeholder = Nothing
+                            , label =
+                                Input.labelAbove
+                                    [ padding 10 ]
+                                    (textM config.lang (MultLangStr "French" "Français"))
+                            , spellcheck = False
+                            }
+                        , Input.multiline
+                            [ width (fill)
+                            , height (px 350)
+                            , centerX
+                            ]
+                            { onChange = StrInputEn
+                            , text =
+                                baseMls.en
+                            , placeholder = Nothing
+                            , label =
+                                Input.labelAbove
+                                    [ padding 10 ]
+                                    (textM config.lang (MultLangStr "English" "Anglais"))
+                            , spellcheck = False
+                            }
                         ]
-                        { onChange = StrInputEn
-                        , text =
-                            baseMls.en
-                        , placeholder = Nothing
-                        , label =
-                            Input.labelAbove
-                                [ padding 10 ]
-                                (textM config.lang (MultLangStr "English" "Anglais"))
-                        , spellcheck = False
-                        }
                     , row
-                        [ width fill
+                        [ width (fill)
                         , padding 15
                         , spacing 15
                         , Border.width 1
@@ -152,16 +167,23 @@ view config model =
                         ]
                         [ MarkdownParser.renderMarkdown
                             (strM model.previewLang baseMls)
-                        , Input.button
+                        , column
                             []
-                            { onPress = Just TooglePreviewLang
-                            , label =
-                                Icons.eye
-                                    (Icons.defOptions
-                                        |> Icons.color black
-                                        |> Icons.size 25
-                                    )
-                            }
+                            [ image
+                                [ width (px 30)
+                                , Events.onClick TooglePreviewLang
+                                , pointer
+                                ]
+                                { src =
+                                    case model.previewLang of
+                                        English ->
+                                            "/images/english.png"
+
+                                        French ->
+                                            "/images/french.png"
+                                , description = ""
+                                }
+                            ]
                         ]
                     , row
                         [ Background.color lightGreen

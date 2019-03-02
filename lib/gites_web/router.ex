@@ -12,15 +12,19 @@ defmodule GitesWeb.Router do
   pipeline :api do
     plug :accepts, ["json"]
   end
+  
 
   scope "/", GitesWeb do
     pipe_through :browser
 
     get "/", PageController, :index
+    get "/admin", AdminController, :index
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", GitesWeb do
-  #   pipe_through :api
-  # end
+  scope "/api", GitesWeb do
+    pipe_through :api
+
+    get "/users", UserController, :index 
+    post "/signup", UserController, :create
+  end
 end
