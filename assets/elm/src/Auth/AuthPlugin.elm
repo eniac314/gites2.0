@@ -9,13 +9,11 @@ import Element.Input as Input
 import Element.Lazy as Lazy
 import Element.Region as Region
 import Http exposing (..)
-
-
---import Internals.CommonHelpers exposing (..)
---import Internals.CommonStyleHelpers exposing (..)
---import Internals.ToolHelpers exposing (..)
---import Internals.Helpers exposing (PluginResult(..), Log)
-
+import Jwt
+import Jwt.Decoders
+import Jwt.Http
+import Style.Helpers exposing (..)
+import Internals.Helpers exposing (..)
 import Json.Decode as Decode
 import Json.Encode as Encode exposing (..)
 import Task exposing (..)
@@ -25,8 +23,8 @@ import Time exposing (..)
 cmdIfLogged : LogInfo -> (String -> Cmd msg) -> Cmd msg
 cmdIfLogged logInfo cmd =
     case logInfo of
-        LoggedIn { sessionId } ->
-            cmd sessionId
+        LoggedIn { jwt } ->
+            cmd jwt
 
         _ ->
             Cmd.none
@@ -35,7 +33,7 @@ cmdIfLogged logInfo cmd =
 type LogInfo
     = LoggedIn
         { username : String
-        , sessionId : String
+        , jwt : String
         }
     | LoggedOut
 
@@ -43,6 +41,7 @@ type LogInfo
 type alias Model msg =
     { username : String
     , password : String
+    , email : String
     , confirmPassword : String
     , logInfo : LogInfo
     , pluginMode : PluginMode
@@ -56,6 +55,7 @@ init externalMsg =
     { username = ""
     , password = ""
     , confirmPassword = ""
+    , email = ""
     , logInfo = LoggedOut
     , pluginMode = LoginMode Initial
     , logs =
@@ -70,6 +70,7 @@ reset model =
         | username = ""
         , password = ""
         , confirmPassword = ""
+        , email = ""
         , pluginMode = LoginMode Initial
         , logs = []
       }
@@ -91,6 +92,7 @@ type Msg
     = SetUsername String
     | SetPassword String
     | SetConfirmPassword String
+    | SetEmail String
     | Login
     | ConfirmLogin (Result Http.Error LogInfo)
     | SignUp
@@ -98,7 +100,6 @@ type Msg
     | Logout
     | ConfirmLogout (Result Http.Error Bool)
     | ChangePluginMode PluginMode
-      --| AddLog (Posix -> Log) Posix
     | AddLog Log
     | Quit
     | NoOp
@@ -106,10 +107,10 @@ type Msg
 
 update msg model =
     let
-        ( newModel, cmds, mbToolResult ) =
+        ( newModel, cmds, mbPluginResult ) =
             internalUpdate msg model
     in
-        ( newModel, Cmd.map model.externalMsg cmds, mbToolResult )
+        ( newModel, Cmd.map model.externalMsg cmds, mbPluginResult )
 
 
 internalUpdate msg model =
@@ -128,6 +129,12 @@ internalUpdate msg model =
 
         SetConfirmPassword s ->
             ( { model | confirmPassword = s }
+            , Cmd.none
+            , Nothing
+            )
+
+        SetEmail s ->
+            ( { model | email = s }
             , Cmd.none
             , Nothing
             )
@@ -234,7 +241,7 @@ internalUpdate msg model =
             )
 
         Quit ->
-            ( model, Cmd.none, Just ToolQuit )
+            ( model, Cmd.none, Just PluginQuit )
 
         NoOp ->
             ( model, Cmd.none, Nothing )
@@ -245,17 +252,21 @@ login model =
     let
         body =
             Encode.object
-                [ ( "username"
-                  , Encode.string (.username model)
-                  )
-                , ( "password"
-                  , Encode.string (.password model)
+                [ ( "login"
+                  , Encode.object
+                        [ ( "username"
+                          , Encode.string (.username model)
+                          )
+                        , ( "password"
+                          , Encode.string (.password model)
+                          )
+                        ]
                   )
                 ]
                 |> Http.jsonBody
     in
         Http.post
-            { url = "login.php"
+            { url = "/api/login"
             , body = body
             , expect = Http.expectJson ConfirmLogin decodeLoginResult
             }
@@ -263,9 +274,9 @@ login model =
 
 decodeLoginResult : Decode.Decoder LogInfo
 decodeLoginResult =
-    Decode.map2 (\a b -> LoggedIn { username = a, sessionId = b })
+    Decode.map2 (\a b -> LoggedIn { username = a, jwt = b })
         (Decode.field "username" Decode.string)
-        (Decode.field "sessionId" Decode.string)
+        (Decode.field "jwt" Decode.string)
 
 
 signUp : Model msg -> Cmd Msg
@@ -283,7 +294,7 @@ signUp model =
                 |> Http.jsonBody
     in
         Http.post
-            { url = "signup.php"
+            { url = "/api/signup"
             , body = body
             , expect = Http.expectJson ConfirmSignUp decodeSignupResult
             }
@@ -323,7 +334,7 @@ signUpView config status model =
         initialView =
             column
                 [ spacing 15 ]
-                [ Input.text textInputStyle
+                [ Input.text textInputStyle_
                     { onChange =
                         SetUsername
                     , text =
@@ -331,9 +342,19 @@ signUpView config status model =
                     , placeholder = Nothing
                     , label =
                         Input.labelLeft [ centerY ]
-                            (el [ width (px 110) ] (text "Nom utilisateur: "))
+                            (el [ width (px 110) ] (text "Identifiant: "))
                     }
-                , Input.newPassword textInputStyle
+                , Input.text textInputStyle_
+                    { onChange =
+                        SetEmail
+                    , text =
+                        model.email
+                    , placeholder = Nothing
+                    , label =
+                        Input.labelLeft [ centerY ]
+                            (el [ width (px 110) ] (text "Email: "))
+                    }
+                , Input.newPassword textInputStyle_
                     { onChange =
                         SetPassword
                     , text =
@@ -344,7 +365,7 @@ signUpView config status model =
                             (el [ width (px 110) ] (text "Mot de passe: "))
                     , show = False
                     }
-                , Input.newPassword textInputStyle
+                , Input.newPassword textInputStyle_
                     { onChange =
                         SetConfirmPassword
                     , text =
@@ -357,11 +378,11 @@ signUpView config status model =
                     }
                 , row
                     [ spacing 15 ]
-                    [ Input.button (buttonStyle True)
+                    [ Input.button (buttonStyle_ True)
                         { onPress = Just SignUp
                         , label = text "Envoyer"
                         }
-                    , Input.button (buttonStyle True)
+                    , Input.button (buttonStyle_ True)
                         { onPress = Just <| ChangePluginMode (LoginMode Initial)
                         , label = text "Retour"
                         }
@@ -378,15 +399,11 @@ signUpView config status model =
                 [ spacing 15 ]
                 [ text "Inscription réussie!"
                 , row [ spacing 15 ]
-                    [ Input.button (buttonStyle True)
+                    [ Input.button (buttonStyle_ True)
                         { onPress =
                             Just <| ChangePluginMode (LoginMode Initial)
                         , label = text "Connexion"
                         }
-                      --, Input.button (buttonStyle True)
-                      --    { onPress = Just Quit
-                      --    , label = text "Retour"
-                      --    }
                     ]
                 ]
 
@@ -396,17 +413,12 @@ signUpView config status model =
                 [ text "Echec inscription!"
                 , logsView model.logs config.zone
                 , row [ spacing 15 ]
-                    [ Input.button (buttonStyle True)
+                    [ Input.button (buttonStyle_ True)
                         { onPress =
                             Just <| ChangePluginMode (SignUpMode Initial)
                         , label = text "Réessayer"
                         }
-                      --, Input.button (buttonStyle True)
-                      --    { onPress =
-                      --        Just <| ChangePluginMode (LoginMode Initial)
-                      --    , label = text "Connexion"
-                      --    }
-                    , Input.button (buttonStyle True)
+                    , Input.button (buttonStyle_ True)
                         { onPress = Just <| ChangePluginMode (LoginMode Initial)
                         , label = text "Retour"
                         }
@@ -440,7 +452,7 @@ loginView config status model =
         initialView =
             column
                 [ spacing 15 ]
-                [ Input.text textInputStyle
+                [ Input.text textInputStyle_
                     { onChange =
                         SetUsername
                     , text =
@@ -448,9 +460,9 @@ loginView config status model =
                     , placeholder = Nothing
                     , label =
                         Input.labelLeft [ centerY ]
-                            (el [ width (px 110) ] (text "Nom utilisateur: "))
+                            (el [ width (px 110) ] (text "Identifiant: "))
                     }
-                , Input.currentPassword textInputStyle
+                , Input.currentPassword textInputStyle_
                     { onChange =
                         SetPassword
                     , text =
@@ -462,11 +474,11 @@ loginView config status model =
                     , show = False
                     }
                 , row [ spacing 15 ]
-                    [ Input.button (buttonStyle True)
+                    [ Input.button (buttonStyle_ True)
                         { onPress = Just Login
                         , label = text "Connexion"
                         }
-                    , Input.button (buttonStyle True)
+                    , Input.button (buttonStyle_ True)
                         { onPress = Just <| ChangePluginMode (SignUpMode Initial)
                         , label = text "Nouvel utilisateur"
                         }
@@ -483,14 +495,10 @@ loginView config status model =
                 [ spacing 15 ]
                 [ text "Connexion réussie!"
                 , row [ spacing 15 ]
-                    [ Input.button (buttonStyle True)
+                    [ Input.button (buttonStyle_ True)
                         { onPress = Just <| ChangePluginMode (LogoutMode Initial)
                         , label = text "Deconnexion"
                         }
-                      --, Input.button (buttonStyle True)
-                      --    { onPress = Just Quit
-                      --    , label = text "Retour"
-                      --    }
                     ]
                 ]
 
@@ -500,15 +508,11 @@ loginView config status model =
                 [ text "Echec Connexion!"
                 , logsView model.logs config.zone
                 , row [ spacing 15 ]
-                    [ Input.button (buttonStyle True)
+                    [ Input.button (buttonStyle_ True)
                         { onPress =
                             Just <| ChangePluginMode (LoginMode Initial)
                         , label = text "Réessayer"
                         }
-                      --, Input.button (buttonStyle True)
-                      --    { onPress = Just Quit
-                      --    , label = text "Retour"
-                      --    }
                     ]
                 ]
     in
@@ -539,7 +543,7 @@ logoutView config status model =
         initialView =
             column
                 [ spacing 15 ]
-                [ Input.button (buttonStyle True)
+                [ Input.button (buttonStyle_ True)
                     { onPress = Just Logout
                     , label = text "Se déconnecter"
                     }
@@ -555,14 +559,10 @@ logoutView config status model =
                 [ spacing 15 ]
                 [ text "Déconnexion réussie!"
                 , row [ spacing 15 ]
-                    [ Input.button (buttonStyle True)
+                    [ Input.button (buttonStyle_ True)
                         { onPress = Just <| ChangePluginMode (LoginMode Initial)
                         , label = text "Connexion"
                         }
-                      --, Input.button (buttonStyle True)
-                      --    { onPress = Just Quit
-                      --    , label = text "Retour"
-                      --    }
                     ]
                 ]
 
@@ -572,15 +572,11 @@ logoutView config status model =
                 [ text "Echec déconnexion!"
                 , logsView model.logs config.zone
                 , row [ spacing 15 ]
-                    [ Input.button (buttonStyle True)
+                    [ Input.button (buttonStyle_ True)
                         { onPress =
                             Just <| ChangePluginMode (LogoutMode Initial)
                         , label = text "Réessayer"
                         }
-                      --, Input.button (buttonStyle True)
-                      --    { onPress = Just Quit
-                      --    , label = text "Retour"
-                      --    }
                     ]
                 ]
     in

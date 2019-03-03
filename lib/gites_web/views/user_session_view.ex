@@ -1,8 +1,8 @@
 defmodule GitesWeb.UserSessionView do
   use GitesWeb, :view
   
-  def render("login_success.json", %{jwt: jwt}) do 
-  	%{jwt: jwt}
+  def render("login_success.json", %{username: username, jwt: jwt}) do 
+  	%{username: username, jwt: jwt}
   end 
 
   def render("login_error.json", %{reason: reason}) do 

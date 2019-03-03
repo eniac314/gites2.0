@@ -14,9 +14,10 @@ import Jwt
 import Jwt.Decoders
 import Jwt.Http
 import Http exposing (expectString)
-
-
---import Auth.AuthPlugin as Auth
+import Auth.AuthPlugin as Auth
+import Internals.Helpers exposing (..)
+import Time exposing (here)
+import Task exposing (perform)
 
 
 main : Program Flags Model Msg
@@ -42,18 +43,23 @@ type alias Model =
     , width : Int
     , height : Int
     , currentTime : Int
+    , zone : Time.Zone
+    , authPlugin : Auth.Model Msg
     , frontPageAdmin : FrontPageAdmin.Model Msg
     }
 
 
 type Msg
-    = FrontPageAdminMsg FrontPageAdmin.Msg
+    = AuthMsg Auth.Msg
+    | FrontPageAdminMsg FrontPageAdmin.Msg
     | WinResize Int Int
+    | SetZone Time.Zone
     | NoOp
 
 
 type DisplayMode
-    = DisplayFrontPageAdmin
+    = DisplayAuth
+    | DisplayFrontPageAdmin
     | DisplayBookingsAdmin
     | DisplayNearbyAdmin
     | DisplayRatesAdmin
@@ -71,7 +77,7 @@ init flags =
         newFrontPageAdmin =
             FrontPageAdmin.init [] FrontPageAdminMsg
     in
-        ( { displayMode = DisplayFrontPageAdmin
+        ( { displayMode = DisplayAuth
           , lang = English
           , width =
                 flags.width
@@ -79,19 +85,39 @@ init flags =
                 flags.height
           , currentTime =
                 flags.currentTime
+          , zone = Time.utc
+          , authPlugin = Auth.init AuthMsg
           , frontPageAdmin = newFrontPageAdmin
           }
-        , Jwt.Http.get
-            "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJHaXRlcyIsImV4cCI6MTU1NDIxOTQxNCwiaWF0IjoxNTUxNjI3NDE0LCJpc3MiOiJHaXRlcyIsImp0aSI6IjYxZDYxM2I1LWVhYzktNDgxOC04Zjg5LTQ3YzhiYWM4NDFlMyIsIm5iZiI6MTU1MTYyNzQxMywic3ViIjoiVXNlcjoyIiwidHlwIjoiYWNjZXNzIn0.fTneFcxc0Ax9Zn5pF9-MKdAmpUXmammCQk75ZNM3kq1pk2sF2mQrSx1qXPZ5_RCgXlEAWRBJIdHHMNjhS2rXDw"
-            { url = "/api/restricted/users"
-            , expect = expectString (\_ -> NoOp)
-            }
+        , Cmd.batch
+            [ Task.perform SetZone Time.here
+            ]
         )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        AuthMsg authPluginMsg ->
+            let
+                logInfo =
+                    Auth.getLogInfo newAuthPlugin
+
+                ( newAuthPlugin, authToolCmds, mbPluginResult ) =
+                    Auth.update authPluginMsg model.authPlugin
+            in
+                ( { model
+                    | authPlugin = newAuthPlugin
+                    , displayMode =
+                        if mbPluginResult == Just PluginQuit then
+                            DisplayFrontPageAdmin
+                        else
+                            model.displayMode
+                  }
+                , Cmd.batch <|
+                    [ authToolCmds ]
+                )
+
         FrontPageAdminMsg fpaMsg ->
             let
                 newFrontPageAdmin =
@@ -106,6 +132,11 @@ update msg model =
                 | width = width
                 , height = height
               }
+            , Cmd.none
+            )
+
+        SetZone zone ->
+            ( { model | zone = zone }
             , Cmd.none
             )
 
@@ -126,6 +157,9 @@ view model =
                 , height fill
                 ]
                 [ case model.displayMode of
+                    DisplayAuth ->
+                        Auth.view { zone = model.zone } model.authPlugin
+
                     DisplayFrontPageAdmin ->
                         FrontPageAdmin.view
                             { lang = model.lang

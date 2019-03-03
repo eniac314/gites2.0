@@ -17,7 +17,7 @@ defmodule GitesWeb.UserSessionController do
         new_conn
           |> put_resp_header("authorization", "Bearer #{jwt}")
           |> put_resp_header("x-expires", "#{exp}")
-          |> render("login_success.json", jwt: jwt)
+          |> render("login_success.json", username: userinfo["username"], jwt: jwt)
    
       {:error, reason, conn} ->
         conn
@@ -46,7 +46,7 @@ defmodule GitesWeb.UserSessionController do
   		user -> 
   			{:error, :unauthorized, conn}
   		true -> 
-  			Comeonin.Pbkdf2.dummy_checkpw()
+  			Pbkdf2.no_user_verify()
   			{:error, :not_found, conn}
   	end
   end 
