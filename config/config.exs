@@ -17,6 +17,16 @@ config :gites, GitesWeb.Endpoint,
   render_errors: [view: GitesWeb.ErrorView, accepts: ~w(html json)],
   pubsub: [name: Gites.PubSub, adapter: Phoenix.PubSub.PG2]
 
+# Configures guardian 
+config :gites, Gites.Guardian,
+  allowed_algos: ["HS512"],
+  secret_key: "XQVPY+a4yktES2iSpfF4PO9xvhZvryyeD10iu7IlNqdw/ks1FdslLM3ecMDQ+cuM",
+
+  issuer: "Gites",
+  ttl: { 30, :days },
+  serializer: Gites.Guardian
+
+
 # Configures Elixir's Logger
 config :logger, :console,
   format: "$time $metadata[$level] $message\n",
@@ -24,6 +34,7 @@ config :logger, :console,
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
+
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

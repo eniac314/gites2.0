@@ -13,6 +13,12 @@ defmodule GitesWeb.Router do
     plug :accepts, ["json"]
   end
   
+  pipeline :api_auth do 
+    plug Guardian.Plug.Pipeline, module: Gites.Guardian,
+                                 error_handler: GitesWeb.AuthErrorHandler
+    plug Guardian.Plug.VerifyHeader, realm: "Bearer"
+    plug Guardian.Plug.LoadResource
+  end 
 
   scope "/", GitesWeb do
     pipe_through :browser
@@ -23,8 +29,17 @@ defmodule GitesWeb.Router do
 
   scope "/api", GitesWeb do
     pipe_through :api
-
-    get "/users", UserController, :index 
+    
     post "/signup", UserController, :create
+    post "/login", UserSessionController, :create
+
   end
+
+  scope "/api/restricted", GitesWeb do 
+    pipe_through [ :api, :api_auth ]
+    get "/users", UserController, :index 
+    get "/logout", UserSessionController, :delete 
+  end 
+
+
 end

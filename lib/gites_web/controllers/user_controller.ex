@@ -1,6 +1,9 @@
 defmodule GitesWeb.UserController do
   use GitesWeb, :controller
 
+  # Check user authenticated, otherwise halt
+  plug Guardian.Plug.EnsureAuthenticated when action in [:index]
+
   alias Gites.Auth 
 
   def index(conn, _params) do
@@ -11,7 +14,7 @@ defmodule GitesWeb.UserController do
 
   def create(conn, %{"new_user" => user_params}) do
   	case Auth.create_user(user_params) do 
-  		{:ok, user} -> 
+  		{:ok, _user} -> 
   			render conn, "success.json", %{}
   		{:error, %Ecto.Changeset{} = changeset} ->
   			render conn, "error.json", changeset

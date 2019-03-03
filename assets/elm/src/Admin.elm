@@ -10,6 +10,10 @@ import Element.Input as Input
 import FrontPage.FrontPageAdmin as FrontPageAdmin
 import MultLang.MultLang exposing (..)
 import Browser.Events exposing (onResize)
+import Jwt
+import Jwt.Decoders
+import Jwt.Http
+import Http exposing (expectString)
 
 
 --import Auth.AuthPlugin as Auth
@@ -77,7 +81,11 @@ init flags =
                 flags.currentTime
           , frontPageAdmin = newFrontPageAdmin
           }
-        , Cmd.none
+        , Jwt.Http.get
+            "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJHaXRlcyIsImV4cCI6MTU1NDIxOTQxNCwiaWF0IjoxNTUxNjI3NDE0LCJpc3MiOiJHaXRlcyIsImp0aSI6IjYxZDYxM2I1LWVhYzktNDgxOC04Zjg5LTQ3YzhiYWM4NDFlMyIsIm5iZiI6MTU1MTYyNzQxMywic3ViIjoiVXNlcjoyIiwidHlwIjoiYWNjZXNzIn0.fTneFcxc0Ax9Zn5pF9-MKdAmpUXmammCQk75ZNM3kq1pk2sF2mQrSx1qXPZ5_RCgXlEAWRBJIdHHMNjhS2rXDw"
+            { url = "/api/restricted/users"
+            , expect = expectString (\_ -> NoOp)
+            }
         )
 
 

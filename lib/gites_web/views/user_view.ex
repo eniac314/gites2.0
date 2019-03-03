@@ -1,6 +1,5 @@
 defmodule GitesWeb.UserView do
   use GitesWeb, :view
-  alias GitesWeb.UserView
   alias Ecto.Changeset
 
   def render("users.json", %{users: users}) do 
@@ -12,7 +11,7 @@ defmodule GitesWeb.UserView do
   end 
 
   def render("error.json", changeset) do 
-  	%{serverError: Ecto.Changeset.traverse_errors(changeset, &translate_error/1)}
+  	%{serverError: Changeset.traverse_errors(changeset, &translate_error/1)}
   end
 
   def user_json(user) do 
