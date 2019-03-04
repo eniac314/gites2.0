@@ -1,13 +1,9 @@
 module Main exposing (..)
 
-import Browser exposing (application, UrlRequest(..))
-import Browser.Navigation as Nav
 import Bookings.Bookings as Bookings
-import Style.Helpers as StyleHelpers
-import Style.Icons as Icons
-import Style.Palette as Palette
-import Json.Decode as D
-import Json.Encode as E
+import Browser exposing (UrlRequest(..), application)
+import Browser.Events exposing (onResize)
+import Browser.Navigation as Nav
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -16,10 +12,14 @@ import Element.Font as Font
 import Element.Input as Input
 import Element.Keyed as Keyed
 import Element.Region as Region
-import MultLang.MultLang exposing (..)
-import Url as Url
 import Html.Attributes as HtmlAttr
-import Browser.Events exposing (onResize)
+import Json.Decode as D
+import Json.Encode as E
+import MultLang.MultLang exposing (..)
+import Style.Helpers as StyleHelpers
+import Style.Icons as Icons
+import Style.Palette as Palette
+import Url as Url
 
 
 main : Program Flags Model Msg
@@ -75,28 +75,27 @@ init flags url key =
         ( newBookings, bookingsCmd ) =
             Bookings.init BookingsMsg
     in
-        ( { bookings = newBookings
-          , lang = English
-          , displayMode = DisplayBookings
-          , key = key
-          , url = url
-          , width =
-                flags.width
-          , height =
-                flags.height
-          , currentTime =
-                flags.currentTime
-          }
-        , Cmd.batch
-            [ bookingsCmd ]
-        )
+    ( { bookings = newBookings
+      , lang = English
+      , displayMode = DisplayBookings
+      , key = key
+      , url = url
+      , width =
+            flags.width
+      , height =
+            flags.height
+      , currentTime =
+            flags.currentTime
+      }
+    , Cmd.batch
+        [ bookingsCmd ]
+    )
 
 
 subscriptions model =
     Sub.batch
-        ([ onResize WinResize
-         ]
-        )
+        [ onResize WinResize
+        ]
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -134,9 +133,9 @@ update msg model =
                 ( newBookings, bookingsCmd ) =
                     Bookings.update bookingsMsg model.bookings
             in
-                ( { model | bookings = newBookings }
-                , bookingsCmd
-                )
+            ( { model | bookings = newBookings }
+            , bookingsCmd
+            )
 
         NoOp ->
             ( model, Cmd.none )
@@ -152,13 +151,15 @@ view model =
             ]
             (el
                 [ width fill
-                , height (px model.height)
-                , clip
-                  --, Background.image ""
+
+                --, height (px model.height)
+                --, clip
+                --, Background.image ""
                 ]
                 (column
                     [ width fill
-                    , scrollbarY
+
+                    --, scrollbarY
                     , htmlAttribute <| HtmlAttr.style "id" "mainContainer"
                     ]
                     [ case model.displayMode of

@@ -1,4 +1,4 @@
-port module Auth.AuthPlugin exposing (LogInfo(..), Model, Msg, cmdIfLogged, getLogInfo, init, subscriptions, update, view)
+port module Auth.AuthPlugin exposing (LogInfo(..), Model, Msg, cmdIfLogged, getLogInfo, init, secureGet, securePost, subscriptions, update, view)
 
 import Element exposing (..)
 import Element.Background as Background
@@ -9,13 +9,13 @@ import Element.Input as Input
 import Element.Lazy as Lazy
 import Element.Region as Region
 import Http exposing (..)
+import Internals.Helpers exposing (..)
+import Json.Decode as Decode
+import Json.Encode as Encode exposing (..)
 import Jwt
 import Jwt.Decoders
 import Jwt.Http
 import Style.Helpers exposing (..)
-import Internals.Helpers exposing (..)
-import Json.Decode as Decode
-import Json.Encode as Encode exposing (..)
 import Task exposing (..)
 import Time exposing (..)
 
@@ -24,6 +24,14 @@ port toAuthLocalStorage : Encode.Value -> Cmd msg
 
 
 port fromAuthLocalStorage : (Decode.Value -> msg) -> Sub msg
+
+
+secureGet =
+    Jwt.Http.get
+
+
+securePost =
+    Jwt.Http.post
 
 
 cmdIfLogged : LogInfo -> (String -> Cmd msg) -> Cmd msg
@@ -53,6 +61,7 @@ type alias Model msg =
     , pluginMode : PluginMode
     , logs :
         List Log
+    , checkForExistingJwtDone : Bool
     , externalMsg : Msg -> msg
     }
 
@@ -65,6 +74,7 @@ init externalMsg =
       , logInfo = LoggedOut
       , pluginMode = LoginMode Initial
       , logs = []
+      , checkForExistingJwtDone = False
       , externalMsg = externalMsg
       }
     , Cmd.map externalMsg <|
@@ -73,22 +83,11 @@ init externalMsg =
     )
 
 
-getJwt =
-    Encode.object
-        [ ( "cmd", Encode.string "get" ) ]
-
-
-setJwt jwt =
-    Encode.object
-        [ ( "cmd", Encode.string "set" )
-        , ( "payload", Encode.string jwt )
-        ]
-
-
 subscriptions model =
     Sub.map model.externalMsg <|
         Sub.batch
             [ fromAuthLocalStorage FromAuthLocalStorage
+            , Time.every (5 * 60 * 1000) (\_ -> Ping)
             ]
 
 
@@ -120,12 +119,12 @@ type Msg
     | SetPassword String
     | SetConfirmPassword String
     | SetEmail String
+    | Ping
     | Login
-    | ConfirmLogin (Result Http.Error ( LogInfo, String ))
+    | ConfirmLogin (Result Http.Error { username : String, jwt : String })
     | SignUp
     | ConfirmSignUp (Result Http.Error Bool)
     | Logout
-    | ConfirmLogout (Result Http.Error Bool)
     | ChangePluginMode PluginMode
     | AddLog Log
     | FromAuthLocalStorage Decode.Value
@@ -138,7 +137,7 @@ update msg model =
         ( newModel, cmds, mbPluginResult ) =
             internalUpdate msg model
     in
-        ( newModel, Cmd.map model.externalMsg cmds, mbPluginResult )
+    ( newModel, Cmd.map model.externalMsg cmds, mbPluginResult )
 
 
 internalUpdate msg model =
@@ -167,6 +166,17 @@ internalUpdate msg model =
             , Nothing
             )
 
+        Ping ->
+            case model.logInfo of
+                LoggedIn { jwt } ->
+                    ( model
+                    , refreshJwt jwt
+                    , Nothing
+                    )
+
+                _ ->
+                    ( model, Cmd.none, Nothing )
+
         Login ->
             ( { model
                 | pluginMode = LoginMode Waiting
@@ -190,12 +200,16 @@ internalUpdate msg model =
                     , Nothing
                     )
 
-                Ok ( logInfo, jwt ) ->
+                Ok { username, jwt } ->
                     ( { model
-                        | logInfo = logInfo
+                        | logInfo =
+                            LoggedIn
+                                { username = username
+                                , jwt = jwt
+                                }
                         , pluginMode = LoginMode Success
                       }
-                    , toAuthLocalStorage (setJwt jwt)
+                    , toAuthLocalStorage (setJwt username jwt)
                     , Nothing
                     )
 
@@ -227,32 +241,12 @@ internalUpdate msg model =
 
         Logout ->
             ( { model
-                | pluginMode = LogoutMode Waiting
+                | pluginMode = LogoutMode Success
+                , logInfo = LoggedOut
               }
-            , logout
+            , toAuthLocalStorage clearJwt
             , Nothing
             )
-
-        ConfirmLogout res ->
-            case res of
-                Err e ->
-                    ( { model | pluginMode = LogoutMode Failure }
-                    , newLog
-                        AddLog
-                        "Echec déconnexion"
-                        (Just <| httpErrorToString e)
-                        True
-                    , Nothing
-                    )
-
-                Ok _ ->
-                    ( { model
-                        | pluginMode = LogoutMode Success
-                        , logInfo = LoggedOut
-                      }
-                    , Cmd.none
-                    , Nothing
-                    )
 
         ChangePluginMode mode ->
             ( { model
@@ -269,13 +263,54 @@ internalUpdate msg model =
             )
 
         FromAuthLocalStorage res ->
-            ( model, Cmd.none, Nothing )
+            case Decode.decodeValue decodeLclStorResult res of
+                Ok LclStorOk ->
+                    ( { model | checkForExistingJwtDone = True }
+                    , Cmd.none
+                    , Nothing
+                    )
+
+                Ok LclStorErr ->
+                    ( { model | checkForExistingJwtDone = True }
+                    , Cmd.none
+                    , Nothing
+                    )
+
+                Ok (LclStorJwt username jwt time) ->
+                    if Jwt.isExpired time jwt == Ok False then
+                        ( { model
+                            | logInfo =
+                                LoggedIn
+                                    { username = username
+                                    , jwt = jwt
+                                    }
+                            , pluginMode = LoginMode Success
+                            , checkForExistingJwtDone = True
+                          }
+                        , Cmd.none
+                        , Nothing
+                        )
+                    else
+                        ( model
+                        , Cmd.none
+                        , Nothing
+                        )
+
+                Err e ->
+                    ( model, Cmd.none, Nothing )
 
         Quit ->
             ( model, Cmd.none, Just PluginQuit )
 
         NoOp ->
             ( model, Cmd.none, Nothing )
+
+
+
+-------------------------------------------------------------------------------
+-------------------
+-- Coms and Json --
+-------------------
 
 
 login : Model msg -> Cmd Msg
@@ -296,20 +331,16 @@ login model =
                 ]
                 |> Http.jsonBody
     in
-        Http.post
-            { url = "/api/login"
-            , body = body
-            , expect = Http.expectJson ConfirmLogin decodeLoginResult
-            }
+    Http.post
+        { url = "/api/login"
+        , body = body
+        , expect = Http.expectJson ConfirmLogin decodeLoginResult
+        }
 
 
-
---decodeLocalStorageResult
-
-
-decodeLoginResult : Decode.Decoder ( LogInfo, String )
+decodeLoginResult : Decode.Decoder { username : String, jwt : String }
 decodeLoginResult =
-    Decode.map2 (\a b -> ( LoggedIn { username = a, jwt = b }, b ))
+    Decode.map2 (\a b -> { username = a, jwt = b })
         (Decode.field "username" Decode.string)
         (Decode.field "jwt" Decode.string)
 
@@ -319,36 +350,97 @@ signUp model =
     let
         body =
             Encode.object
-                [ ( "username"
-                  , Encode.string (.username model)
-                  )
-                , ( "password"
-                  , Encode.string (.password model)
+                [ ( "new_user"
+                  , Encode.object
+                        [ ( "username"
+                          , Encode.string (.username model)
+                          )
+                        , ( "email"
+                          , Encode.string (.email model)
+                          )
+                        , ( "password"
+                          , Encode.string (.password model)
+                          )
+                        ]
                   )
                 ]
                 |> Http.jsonBody
     in
-        Http.post
-            { url = "/api/signup"
-            , body = body
-            , expect = Http.expectJson ConfirmSignUp decodeSignupResult
-            }
-
-
-decodeSignupResult =
-    Decode.field "signUpComplete" Decode.bool
-
-
-logout : Cmd Msg
-logout =
-    Http.get
-        { url = "logout.php"
-        , expect = Http.expectJson ConfirmLogout decodeLogoutResult
+    Http.post
+        { url = "/api/signup"
+        , body = body
+        , expect = Http.expectJson ConfirmSignUp decodeSignupResult
         }
 
 
-decodeLogoutResult =
-    Decode.field "notLoggedIn" Decode.bool
+decodeSignupResult =
+    Decode.field "message" Decode.string
+        |> Decode.map (\s -> s == "success")
+
+
+type LclStorResult
+    = LclStorOk
+    | LclStorErr
+    | LclStorJwt String String Posix
+
+
+decodeLclStorResult : Decode.Decoder LclStorResult
+decodeLclStorResult =
+    Decode.oneOf
+        [ Decode.map3 LclStorJwt
+            (Decode.field "username" Decode.string)
+            (Decode.field "jwt" Decode.string)
+            (Decode.field "time"
+                (Decode.int
+                    |> Decode.map millisToPosix
+                )
+            )
+        , Decode.field "result" Decode.string
+            |> Decode.map
+                (\res ->
+                    if res == "Ok" then
+                        LclStorOk
+                    else
+                        LclStorErr
+                )
+        ]
+
+
+getJwt =
+    Encode.object
+        [ ( "action", Encode.string "get" ) ]
+
+
+setJwt username jwt =
+    Encode.object
+        [ ( "action", Encode.string "set" )
+        , ( "payload"
+          , Encode.object
+                [ ( "jwt", Encode.string jwt )
+                , ( "username", Encode.string username )
+                ]
+          )
+        ]
+
+
+clearJwt =
+    Encode.object
+        [ ( "action", Encode.string "clear" ) ]
+
+
+refreshJwt jwt =
+    Jwt.Http.get
+        jwt
+        { url = "/api/restricted/refreshJwt"
+        , expect = Http.expectJson ConfirmLogin decodeLoginResult
+        }
+
+
+
+-------------------------------------------------------------------------------
+--------------------
+-- View functions --
+--------------------
 
 
 view config model =
@@ -358,7 +450,10 @@ view config model =
                 signUpView config status model
 
             LoginMode status ->
-                loginView config status model
+                if not model.checkForExistingJwtDone then
+                    Element.none
+                else
+                    loginView config status model
 
             LogoutMode status ->
                 logoutView config status model
@@ -460,26 +555,26 @@ signUpView config status model =
                     ]
                 ]
     in
-        column
-            [ padding 15
-            , spacing 15
-            , Font.size 16
-            , alignTop
-            ]
-            [ text "Nouvel utilisateur: "
-            , case status of
-                Initial ->
-                    initialView
+    column
+        [ padding 15
+        , spacing 15
+        , Font.size 16
+        , alignTop
+        ]
+        [ text "Nouvel utilisateur: "
+        , case status of
+            Initial ->
+                initialView
 
-                Waiting ->
-                    waitingView
+            Waiting ->
+                waitingView
 
-                Success ->
-                    successView
+            Success ->
+                successView
 
-                Failure ->
-                    failureView
-            ]
+            Failure ->
+                failureView
+        ]
 
 
 loginView config status model =
@@ -529,18 +624,14 @@ loginView config status model =
             column
                 [ spacing 15 ]
                 [ text "Connexion réussie!"
-                , case model.logInfo of
-                    LoggedIn { jwt } ->
-                        Jwt.getTokenHeader jwt
-                            |> Result.withDefault ""
-                            |> text
-
-                    _ ->
-                        Element.none
                 , row [ spacing 15 ]
                     [ Input.button (buttonStyle_ True)
                         { onPress = Just <| ChangePluginMode (LogoutMode Initial)
                         , label = text "Deconnexion"
+                        }
+                    , Input.button (buttonStyle_ True)
+                        { onPress = Just <| Quit
+                        , label = text "Admin"
                         }
                     ]
                 ]
@@ -559,26 +650,26 @@ loginView config status model =
                     ]
                 ]
     in
-        column
-            [ padding 15
-            , spacing 15
-            , Font.size 16
-            , alignTop
-            ]
-            [ text "Connexion: "
-            , case status of
-                Initial ->
-                    initialView
+    column
+        [ padding 15
+        , spacing 15
+        , Font.size 16
+        , alignTop
+        ]
+        [ text "Connexion: "
+        , case status of
+            Initial ->
+                initialView
 
-                Waiting ->
-                    waitingView
+            Waiting ->
+                waitingView
 
-                Success ->
-                    successView
+            Success ->
+                successView
 
-                Failure ->
-                    failureView
-            ]
+            Failure ->
+                failureView
+        ]
 
 
 logoutView config status model =
@@ -623,23 +714,23 @@ logoutView config status model =
                     ]
                 ]
     in
-        column
-            [ padding 15
-            , spacing 15
-            , Font.size 16
-            , alignTop
-            ]
-            [ text "Déconnexion: "
-            , case status of
-                Initial ->
-                    initialView
+    column
+        [ padding 15
+        , spacing 15
+        , Font.size 16
+        , alignTop
+        ]
+        [ text "Déconnexion: "
+        , case status of
+            Initial ->
+                initialView
 
-                Waiting ->
-                    waitingView
+            Waiting ->
+                waitingView
 
-                Success ->
-                    successView
+            Success ->
+                successView
 
-                Failure ->
-                    failureView
-            ]
+            Failure ->
+                failureView
+        ]

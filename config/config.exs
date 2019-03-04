@@ -23,7 +23,7 @@ config :gites, Gites.Guardian,
   secret_key: "XQVPY+a4yktES2iSpfF4PO9xvhZvryyeD10iu7IlNqdw/ks1FdslLM3ecMDQ+cuM",
 
   issuer: "Gites",
-  ttl: { 1, :minutes },
+  ttl: { 10, :minutes },
   serializer: Gites.Guardian
 
 

@@ -38,6 +38,7 @@ defmodule GitesWeb.Router do
   scope "/api/restricted", GitesWeb do 
     pipe_through [ :api, :api_auth ]
     get "/users", UserController, :index 
+    get "refreshJwt", UserSessionController, :refresh
   end 
 
 

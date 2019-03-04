@@ -1,6 +1,8 @@
 module Admin exposing (..)
 
+import Auth.AuthPlugin as Auth
 import Browser exposing (Document)
+import Browser.Events exposing (onResize)
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -8,16 +10,11 @@ import Element.Events as Events
 import Element.Font as Font
 import Element.Input as Input
 import FrontPage.FrontPageAdmin as FrontPageAdmin
-import MultLang.MultLang exposing (..)
-import Browser.Events exposing (onResize)
-import Jwt
-import Jwt.Decoders
-import Jwt.Http
 import Http exposing (expectString)
-import Auth.AuthPlugin as Auth
 import Internals.Helpers exposing (..)
-import Time exposing (here)
+import MultLang.MultLang exposing (..)
 import Task exposing (perform)
+import Time exposing (here)
 
 
 main : Program Flags Model Msg
@@ -82,23 +79,23 @@ init flags =
         ( newAuthPlugin, authPluginCmd ) =
             Auth.init AuthMsg
     in
-        ( { displayMode = DisplayAuth
-          , lang = English
-          , width =
-                flags.width
-          , height =
-                flags.height
-          , currentTime =
-                flags.currentTime
-          , zone = Time.utc
-          , authPlugin = newAuthPlugin
-          , frontPageAdmin = newFrontPageAdmin
-          }
-        , Cmd.batch
-            [ Task.perform SetZone Time.here
-            , authPluginCmd
-            ]
-        )
+    ( { displayMode = DisplayAuth
+      , lang = English
+      , width =
+            flags.width
+      , height =
+            flags.height
+      , currentTime =
+            flags.currentTime
+      , zone = Time.utc
+      , authPlugin = newAuthPlugin
+      , frontPageAdmin = newFrontPageAdmin
+      }
+    , Cmd.batch
+        [ Task.perform SetZone Time.here
+        , authPluginCmd
+        ]
+    )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -112,26 +109,26 @@ update msg model =
                 ( newAuthPlugin, authToolCmds, mbPluginResult ) =
                     Auth.update authPluginMsg model.authPlugin
             in
-                ( { model
-                    | authPlugin = newAuthPlugin
-                    , displayMode =
-                        if mbPluginResult == Just PluginQuit then
-                            DisplayFrontPageAdmin
-                        else
-                            model.displayMode
-                  }
-                , Cmd.batch <|
-                    [ authToolCmds ]
-                )
+            ( { model
+                | authPlugin = newAuthPlugin
+                , displayMode =
+                    if mbPluginResult == Just PluginQuit then
+                        DisplayFrontPageAdmin
+                    else
+                        model.displayMode
+              }
+            , Cmd.batch <|
+                [ authToolCmds ]
+            )
 
         FrontPageAdminMsg fpaMsg ->
             let
                 newFrontPageAdmin =
                     FrontPageAdmin.update fpaMsg model.frontPageAdmin
             in
-                ( { model | frontPageAdmin = newFrontPageAdmin }
-                , Cmd.none
-                )
+            ( { model | frontPageAdmin = newFrontPageAdmin }
+            , Cmd.none
+            )
 
         WinResize width height ->
             ( { model
@@ -170,6 +167,7 @@ view model =
                         FrontPageAdmin.view
                             { lang = model.lang
                             , width = model.width
+                            , logInfo = Auth.getLogInfo model.authPlugin
                             }
                             model.frontPageAdmin
 

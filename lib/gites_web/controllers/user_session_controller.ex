@@ -3,8 +3,8 @@ defmodule GitesWeb.UserSessionController do
   alias Gites.Repo
   alias Gites.Auth.User
 
-  plug Guardian.Plug.EnsureAuthenticated when action in [:delete]
-
+  plug Guardian.Plug.EnsureAuthenticated when action in [:refresh]
+  # require IEx
 
   def create(conn, %{"login" => userinfo}) do 
   	case sign_in(conn, userinfo["username"], userinfo["password"]) do 
@@ -26,7 +26,20 @@ defmodule GitesWeb.UserSessionController do
     end
   end
 
-  
+  def refresh(conn, _params) do
+    jwt = Gites.Guardian.Plug.current_token(conn)
+    user = Guardian.Plug.current_resource(conn)
+    
+    case Gites.Guardian.refresh(jwt) do
+      {:ok, _old_stuff, {new_token, %{"exp" => _exp} = _new_claims}} -> 
+        # IEx.pry
+        render(conn, "login_success.json", username: user.username, jwt: new_token)
+      {:error, reason} -> 
+        conn
+          |> put_status(500)
+          |> render("login_error.json", reason: reason)
+    end 
+  end
 
   defp sign_in(conn, username, password) do 
   	user = Repo.get_by(User, username: username)
