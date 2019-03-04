@@ -52,7 +52,7 @@ buttonStyleSha =
             { offset = ( 0, 0 )
             , size = 2
             , blur = 0
-            , color = (rgb255 47 79 79)
+            , color = rgb255 47 79 79
             }
         ]
     ]
@@ -149,3 +149,30 @@ textInputStyle_ =
     , spacing 15
     , focused [ Border.glow (rgb 1 1 1) 0 ]
     ]
+
+
+
+-------------------------------------------------------------------------------
+
+
+type alias ImageMeta =
+    { url : String
+    , caption : Maybe String
+    , size : { height : Int, width : Int }
+    }
+
+
+sameHeightImgRow : Int -> List ImageMeta -> Element msg
+sameHeightImgRow containderWidth images =
+    let
+        images_ =
+            List.map
+                (\meta ->
+                    { meta = meta
+                    , newWidth = 0
+                    , newHeight = 0
+                    }
+                )
+                images
+    in
+    row [] []

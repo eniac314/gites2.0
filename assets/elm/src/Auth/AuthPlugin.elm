@@ -291,8 +291,8 @@ internalUpdate msg model =
                         , Nothing
                         )
                     else
-                        ( model
-                        , Cmd.none
+                        ( { model | checkForExistingJwtDone = True }
+                        , toAuthLocalStorage clearJwt
                         , Nothing
                         )
 
@@ -398,7 +398,7 @@ decodeLclStorResult =
         , Decode.field "result" Decode.string
             |> Decode.map
                 (\res ->
-                    if res == "Ok" then
+                    if res == "ok" then
                         LclStorOk
                     else
                         LclStorErr

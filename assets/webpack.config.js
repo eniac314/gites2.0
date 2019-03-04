@@ -41,7 +41,8 @@ module.exports = (env, options) => ({
           loader: 'elm-webpack-loader',
           options: {
             cwd: path.resolve(__dirname, 'elm'),
-            optimize: true
+            // optimize: true
+            debug: true
           }
         }
       }

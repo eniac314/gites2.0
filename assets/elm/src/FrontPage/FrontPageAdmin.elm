@@ -33,13 +33,6 @@ type FrontPageItem
     | NewsBlock
 
 
-type alias ImageMeta =
-    { url : String
-    , caption : Maybe String
-    , size : { height : Int, width : Int }
-    }
-
-
 type alias Model msg =
     { picRowInput : List ImageMeta
     , content : Dict Int FrontPageItem
