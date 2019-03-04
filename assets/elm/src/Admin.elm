@@ -68,7 +68,9 @@ type DisplayMode
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ onResize WinResize ]
+        [ onResize WinResize
+        , Auth.subscriptions model.authPlugin
+        ]
 
 
 init : Flags -> ( Model, Cmd Msg )
@@ -76,6 +78,9 @@ init flags =
     let
         newFrontPageAdmin =
             FrontPageAdmin.init [] FrontPageAdminMsg
+
+        ( newAuthPlugin, authPluginCmd ) =
+            Auth.init AuthMsg
     in
         ( { displayMode = DisplayAuth
           , lang = English
@@ -86,11 +91,12 @@ init flags =
           , currentTime =
                 flags.currentTime
           , zone = Time.utc
-          , authPlugin = Auth.init AuthMsg
+          , authPlugin = newAuthPlugin
           , frontPageAdmin = newFrontPageAdmin
           }
         , Cmd.batch
             [ Task.perform SetZone Time.here
+            , authPluginCmd
             ]
         )
 

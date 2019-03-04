@@ -1,4 +1,4 @@
-module Auth.AuthPlugin exposing (LogInfo(..), Model, Msg, cmdIfLogged, getLogInfo, init, update, view)
+port module Auth.AuthPlugin exposing (LogInfo(..), Model, Msg, cmdIfLogged, getLogInfo, init, subscriptions, update, view)
 
 import Element exposing (..)
 import Element.Background as Background
@@ -18,6 +18,12 @@ import Json.Decode as Decode
 import Json.Encode as Encode exposing (..)
 import Task exposing (..)
 import Time exposing (..)
+
+
+port toAuthLocalStorage : Encode.Value -> Cmd msg
+
+
+port fromAuthLocalStorage : (Decode.Value -> msg) -> Sub msg
 
 
 cmdIfLogged : LogInfo -> (String -> Cmd msg) -> Cmd msg
@@ -52,17 +58,38 @@ type alias Model msg =
 
 
 init externalMsg =
-    { username = ""
-    , password = ""
-    , confirmPassword = ""
-    , email = ""
-    , logInfo = LoggedOut
-    , pluginMode = LoginMode Initial
-    , logs =
-        []
-        --, zone = Time.utc
-    , externalMsg = externalMsg
-    }
+    ( { username = ""
+      , password = ""
+      , confirmPassword = ""
+      , email = ""
+      , logInfo = LoggedOut
+      , pluginMode = LoginMode Initial
+      , logs = []
+      , externalMsg = externalMsg
+      }
+    , Cmd.map externalMsg <|
+        Cmd.batch
+            [ toAuthLocalStorage getJwt ]
+    )
+
+
+getJwt =
+    Encode.object
+        [ ( "cmd", Encode.string "get" ) ]
+
+
+setJwt jwt =
+    Encode.object
+        [ ( "cmd", Encode.string "set" )
+        , ( "payload", Encode.string jwt )
+        ]
+
+
+subscriptions model =
+    Sub.map model.externalMsg <|
+        Sub.batch
+            [ fromAuthLocalStorage FromAuthLocalStorage
+            ]
 
 
 reset model =
@@ -94,13 +121,14 @@ type Msg
     | SetConfirmPassword String
     | SetEmail String
     | Login
-    | ConfirmLogin (Result Http.Error LogInfo)
+    | ConfirmLogin (Result Http.Error ( LogInfo, String ))
     | SignUp
     | ConfirmSignUp (Result Http.Error Bool)
     | Logout
     | ConfirmLogout (Result Http.Error Bool)
     | ChangePluginMode PluginMode
     | AddLog Log
+    | FromAuthLocalStorage Decode.Value
     | Quit
     | NoOp
 
@@ -162,12 +190,12 @@ internalUpdate msg model =
                     , Nothing
                     )
 
-                Ok logInfo ->
+                Ok ( logInfo, jwt ) ->
                     ( { model
                         | logInfo = logInfo
                         , pluginMode = LoginMode Success
                       }
-                    , Cmd.none
+                    , toAuthLocalStorage (setJwt jwt)
                     , Nothing
                     )
 
@@ -240,6 +268,9 @@ internalUpdate msg model =
             , Nothing
             )
 
+        FromAuthLocalStorage res ->
+            ( model, Cmd.none, Nothing )
+
         Quit ->
             ( model, Cmd.none, Just PluginQuit )
 
@@ -272,9 +303,13 @@ login model =
             }
 
 
-decodeLoginResult : Decode.Decoder LogInfo
+
+--decodeLocalStorageResult
+
+
+decodeLoginResult : Decode.Decoder ( LogInfo, String )
 decodeLoginResult =
-    Decode.map2 (\a b -> LoggedIn { username = a, jwt = b })
+    Decode.map2 (\a b -> ( LoggedIn { username = a, jwt = b }, b ))
         (Decode.field "username" Decode.string)
         (Decode.field "jwt" Decode.string)
 
@@ -494,6 +529,14 @@ loginView config status model =
             column
                 [ spacing 15 ]
                 [ text "Connexion réussie!"
+                , case model.logInfo of
+                    LoggedIn { jwt } ->
+                        Jwt.getTokenHeader jwt
+                            |> Result.withDefault ""
+                            |> text
+
+                    _ ->
+                        Element.none
                 , row [ spacing 15 ]
                     [ Input.button (buttonStyle_ True)
                         { onPress = Just <| ChangePluginMode (LogoutMode Initial)

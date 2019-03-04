@@ -26,16 +26,7 @@ defmodule GitesWeb.UserSessionController do
     end
   end
 
-  def delete(conn, _params) do
-    jwt = Gites.Guardian.Plug.current_token(conn)
-    case Gites.Guardian.revoke(jwt) do 
-      {:ok, _old_claims} -> 
-        render(conn, "logged_out.json", %{})
-      {:error, reasons} -> 
-        render(conn, "logout_error.json", reasons)
-    end
-  end
-
+  
 
   defp sign_in(conn, username, password) do 
   	user = Repo.get_by(User, username: username)
