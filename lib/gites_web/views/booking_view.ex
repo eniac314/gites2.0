@@ -27,6 +27,7 @@ defmodule GitesWeb.BookingView do
       email: booking.email,
       nbr_adults: booking.nbr_adults,
       nbr_children: booking.nbr_children,
+      comments: booking.comments,
       confirmed: booking.confirmed}
   end
 end

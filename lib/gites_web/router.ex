@@ -32,13 +32,15 @@ defmodule GitesWeb.Router do
     
     post "/signup", UserController, :create
     post "/login", UserSessionController, :create
+    resources "/bookings", BookingController, only: [:create]
+    resources "/availabilities", AvailabilityController, except: [:index]
 
   end
 
   scope "/api/restricted", GitesWeb do 
     pipe_through [ :api, :api_auth ]
     get "/users", UserController, :index 
-    get "refreshJwt", UserSessionController, :refresh
+    get "/refreshJwt", UserSessionController, :refresh
   end 
 
 

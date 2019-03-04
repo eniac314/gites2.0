@@ -1,12 +1,12 @@
-defmodule Gites.Editable do
+defmodule Gites.BookingSystem do
   @moduledoc """
-  The Editable context.
+  The BookingSystem context.
   """
 
   import Ecto.Query, warn: false
   alias Gites.Repo
 
-  alias Gites.Editable.Booking
+  alias Gites.BookingSystem.Booking
 
   @doc """
   Returns the list of bookings.
@@ -102,7 +102,7 @@ defmodule Gites.Editable do
     Booking.changeset(booking, %{})
   end
 
-  alias Gites.Editable.Availability
+  alias Gites.BookingSystem.Availability
 
   @doc """
   Returns the list of availabilities.
