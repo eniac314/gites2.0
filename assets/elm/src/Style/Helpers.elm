@@ -174,5 +174,47 @@ sameHeightImgRow containderWidth images =
                     }
                 )
                 images
+
+        imgSizes imgs =
+            List.map (\i -> i.meta.size) imgs
+
+        minHeight imgs =
+            imgSizes imgs
+                |> List.map .height
+                |> List.sort
+                |> List.head
+                |> Maybe.withDefault 0
+
+        imgsScaledToMinHeight =
+            let
+                mh =
+                    minHeight images_
+
+                scale { meta } =
+                    { meta = meta
+                    , newHeight = toFloat mh + 5
+                    , newWidth =
+                        toFloat mh
+                            * toFloat meta.size.width
+                            / toFloat meta.size.height
+                    }
+            in
+            List.map scale images_
+
+        totalImgWidth =
+            List.foldr (\i n -> i.newWidth + n) 0 imgsScaledToMinHeight
     in
-    row [] []
+    row
+        [ width fill ]
+        (List.map
+            (\im ->
+                image
+                    [ width <| fillPortion (floor <| 10000 * im.newWidth / totalImgWidth) ]
+                    { src = im.meta.url
+                    , description =
+                        im.meta.caption
+                            |> Maybe.withDefault ""
+                    }
+            )
+            imgsScaledToMinHeight
+        )

@@ -1,6 +1,8 @@
 plan du logement
 
 
+mix phx.server
+
 ###############################################################################
 git memo:
 
@@ -10,3 +12,5 @@ git push origin master
 
 --download files
 git pull
+
+

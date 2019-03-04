@@ -318,7 +318,23 @@ frontPageItemView config item =
                 (strM config.lang mls)
 
         ImageRow images ->
-            Element.none
+            if config.width < 1000 then
+                column
+                    [ spacing 15 ]
+                    (List.map
+                        (\{ url, caption } ->
+                            image
+                                []
+                                { src = url
+                                , description =
+                                    caption
+                                        |> Maybe.withDefault ""
+                                }
+                        )
+                        images
+                    )
+            else
+                sameHeightImgRow config.width images
 
         NewsBlock ->
             Element.none
