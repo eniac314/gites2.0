@@ -79,23 +79,23 @@ init flags =
         ( newAuthPlugin, authPluginCmd ) =
             Auth.init AuthMsg
     in
-    ( { displayMode = DisplayAuth
-      , lang = English
-      , width =
-            flags.width
-      , height =
-            flags.height
-      , currentTime =
-            flags.currentTime
-      , zone = Time.utc
-      , authPlugin = newAuthPlugin
-      , frontPageAdmin = newFrontPageAdmin
-      }
-    , Cmd.batch
-        [ Task.perform SetZone Time.here
-        , authPluginCmd
-        ]
-    )
+        ( { displayMode = DisplayAuth
+          , lang = English
+          , width =
+                flags.width
+          , height =
+                flags.height
+          , currentTime =
+                flags.currentTime
+          , zone = Time.utc
+          , authPlugin = newAuthPlugin
+          , frontPageAdmin = newFrontPageAdmin
+          }
+        , Cmd.batch
+            [ Task.perform SetZone Time.here
+            , authPluginCmd
+            ]
+        )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -109,26 +109,26 @@ update msg model =
                 ( newAuthPlugin, authToolCmds, mbPluginResult ) =
                     Auth.update authPluginMsg model.authPlugin
             in
-            ( { model
-                | authPlugin = newAuthPlugin
-                , displayMode =
-                    if mbPluginResult == Just PluginQuit then
-                        DisplayFrontPageAdmin
-                    else
-                        model.displayMode
-              }
-            , Cmd.batch <|
-                [ authToolCmds ]
-            )
+                ( { model
+                    | authPlugin = newAuthPlugin
+                    , displayMode =
+                        if mbPluginResult == Just PluginQuit then
+                            DisplayFrontPageAdmin
+                        else
+                            model.displayMode
+                  }
+                , Cmd.batch <|
+                    [ authToolCmds ]
+                )
 
         FrontPageAdminMsg fpaMsg ->
             let
                 newFrontPageAdmin =
                     FrontPageAdmin.update fpaMsg model.frontPageAdmin
             in
-            ( { model | frontPageAdmin = newFrontPageAdmin }
-            , Cmd.none
-            )
+                ( { model | frontPageAdmin = newFrontPageAdmin }
+                , Cmd.none
+                )
 
         WinResize width height ->
             ( { model

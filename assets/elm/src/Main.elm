@@ -19,7 +19,7 @@ import Json.Encode as E
 import MultLang.MultLang exposing (..)
 import Style.Helpers as StyleHelpers
 import Style.Icons as Icons
-import Style.Palette as Palette
+import Style.Palette exposing (..)
 import Url as Url
 
 
@@ -87,28 +87,28 @@ init flags url key =
             else
                 url
     in
-    ( { bookings = newBookings
-      , lang = English
-      , displayMode =
-            urlToDisplayMode url_
-                |> Maybe.withDefault DisplayFrontPage
-      , key = key
-      , url = url
-      , width =
-            flags.width
-      , height =
-            flags.height
-      , currentTime =
-            flags.currentTime
-      }
-    , Cmd.batch
-        [ if url /= url_ then
-            Nav.pushUrl key (Url.toString url_)
-          else
-            Cmd.none
-        , bookingsCmd
-        ]
-    )
+        ( { bookings = newBookings
+          , lang = English
+          , displayMode =
+                urlToDisplayMode url_
+                    |> Maybe.withDefault DisplayFrontPage
+          , key = key
+          , url = url
+          , width =
+                flags.width
+          , height =
+                flags.height
+          , currentTime =
+                flags.currentTime
+          }
+        , Cmd.batch
+            [ if url /= url_ then
+                Nav.pushUrl key (Url.toString url_)
+              else
+                Cmd.none
+            , bookingsCmd
+            ]
+        )
 
 
 subscriptions model =
@@ -160,9 +160,9 @@ update msg model =
                 ( newBookings, bookingsCmd ) =
                     Bookings.update bookingsMsg model.bookings
             in
-            ( { model | bookings = newBookings }
-            , bookingsCmd
-            )
+                ( { model | bookings = newBookings }
+                , bookingsCmd
+                )
 
         ChangeLang l ->
             ( { model | lang = l }, Cmd.none )
@@ -211,15 +211,14 @@ view model =
             ]
             (el
                 [ width fill
-                , height fill --(px model.height)
-
-                --, clip
+                , height fill
+                  --(px model.height)
+                  --, clip
                 , Background.tiled "/images/vintage-concreteS.png"
                 ]
                 (column
                     [ width fill
-
-                    --, scrollbarY
+                      --, scrollbarY
                     , htmlAttribute <| HtmlAttr.style "id" "mainContainer"
                     ]
                     [ header model
@@ -258,6 +257,7 @@ header : Model -> Element Msg
 header model =
     column
         [ width fill
+        , Background.color white
         ]
         [ column
             [ alignRight
@@ -283,12 +283,32 @@ header model =
                 , description = ""
                 }
             ]
-        , image
-            []
-            { src = "/image/"
-            , description = ""
-            }
-        , text "Le vieux lilas"
+          --, image
+          --    [ centerX
+          --    , width (px 300)
+          --    ]
+          --    { src = "/images/lilas.png"
+          --    , description = "Le vieux lilas"
+          --    }
+        , el
+            [ Background.uncropped "/images/lilas.png"
+            , Background.color lightGrey
+            , width (px 300)
+            , height (px 300)
+            , centerX
+            ]
+            (Element.none)
+        , el
+            [ centerX
+            , Font.center
+            , Font.family
+                [ Font.typeface "Great Vibes"
+                , Font.serif
+                ]
+            , paddingXY 0 0
+            , Font.size 60
+            ]
+            (text "Le Vieux Lilas")
         ]
 
 
@@ -297,49 +317,54 @@ mainMenu model =
     let
         menuItem mls url =
             link
-                []
+                [ padding 20
+                , centerX
+                , mouseOver [ Background.color lightGreen ]
+                ]
                 { url = url
                 , label =
                     el [] (textM model.lang mls)
                 }
     in
-    (if model.width < 1000 then
-        column
-     else
-        row
-    )
-        [ spacing 15 ]
-        [ menuItem
-            { fr = "Accueil"
-            , en = "Home"
-            }
-            "/home"
-        , menuItem
-            { fr = "Notre gîte"
-            , en = "Our gîte"
-            }
-            "/details"
-        , menuItem
-            { fr = "Les tarifs"
-            , en = "Rates"
-            }
-            "/rates"
-        , menuItem
-            { fr = "Réservations"
-            , en = "Booking"
-            }
-            "/bookings"
-        , menuItem
-            { fr = "Accès"
-            , en = "Access"
-            }
-            "/access"
-        , menuItem
-            { fr = "Dans les environs"
-            , en = "Nearby interests"
-            }
-            "/nearby"
-        ]
+        (if model.width < 1000 then
+            column
+         else
+            row
+        )
+            [ width fill
+            , Background.color green
+            ]
+            [ menuItem
+                { fr = "Accueil"
+                , en = "Home"
+                }
+                "/home"
+            , menuItem
+                { fr = "Notre gîte"
+                , en = "Our gîte"
+                }
+                "/details"
+            , menuItem
+                { fr = "Les tarifs"
+                , en = "Rates"
+                }
+                "/rates"
+            , menuItem
+                { fr = "Réservations"
+                , en = "Booking"
+                }
+                "/bookings"
+            , menuItem
+                { fr = "Accès"
+                , en = "Access"
+                }
+                "/access"
+            , menuItem
+                { fr = "Dans les environs"
+                , en = "Nearby interests"
+                }
+                "/nearby"
+            ]
 
 
 footer : Model -> Element msg
