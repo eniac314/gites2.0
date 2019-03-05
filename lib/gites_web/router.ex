@@ -20,12 +20,6 @@ defmodule GitesWeb.Router do
     plug Guardian.Plug.LoadResource
   end 
 
-  scope "/", GitesWeb do
-    pipe_through :browser
-
-    get "/", PageController, :index
-    get "/admin", AdminController, :index
-  end
 
   scope "/api", GitesWeb do
     pipe_through :api
@@ -43,5 +37,11 @@ defmodule GitesWeb.Router do
     get "/refreshJwt", UserSessionController, :refresh
   end 
 
+  scope "/", GitesWeb do
+    pipe_through :browser
+
+    get "/admin", AdminController, :index
+    get "/*path", PageController, :index
+  end
 
 end

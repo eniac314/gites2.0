@@ -4,6 +4,7 @@ import Bookings.Bookings as Bookings
 import Browser exposing (UrlRequest(..), application)
 import Browser.Events exposing (onResize)
 import Browser.Navigation as Nav
+import Dict exposing (..)
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -36,6 +37,7 @@ main =
 
 type DisplayMode
     = DisplayFrontPage
+    | DisplayDetails
     | DisplayBookings
     | DisplayRates
     | DisplayNearby
@@ -75,10 +77,21 @@ init flags url key =
     let
         ( newBookings, bookingsCmd ) =
             Bookings.init BookingsMsg
+
+        url_ =
+            if
+                (url.path == "/")
+                    || (urlToDisplayMode url == Nothing)
+            then
+                { url | path = "/home" }
+            else
+                url
     in
     ( { bookings = newBookings
       , lang = English
-      , displayMode = DisplayBookings
+      , displayMode =
+            urlToDisplayMode url_
+                |> Maybe.withDefault DisplayFrontPage
       , key = key
       , url = url
       , width =
@@ -89,7 +102,12 @@ init flags url key =
             flags.currentTime
       }
     , Cmd.batch
-        [ bookingsCmd ]
+        [ if url /= url_ then
+            Nav.pushUrl key (Url.toString url_)
+          else
+            Cmd.none
+        , bookingsCmd
+        ]
     )
 
 
@@ -106,9 +124,12 @@ update msg model =
             case urlRequest of
                 Internal url ->
                     ( model
-                    , Nav.pushUrl
-                        model.key
-                        (Url.toString url)
+                    , if urlToDisplayMode url == Nothing then
+                        Cmd.none
+                      else
+                        Nav.pushUrl
+                            model.key
+                            (Url.toString url)
                     )
 
                 External url ->
@@ -117,7 +138,12 @@ update msg model =
                     )
 
         ChangeUrl url ->
-            ( { model | url = url }
+            ( { model
+                | url = url
+                , displayMode =
+                    urlToDisplayMode url
+                        |> Maybe.withDefault model.displayMode
+              }
             , Cmd.none
             )
 
@@ -143,6 +169,36 @@ update msg model =
 
         NoOp ->
             ( model, Cmd.none )
+
+
+
+-------------------------------------------------------------------------------
+
+
+urlDict : Dict String DisplayMode
+urlDict =
+    Dict.fromList
+        [ ( "home", DisplayFrontPage )
+        , ( "details", DisplayDetails )
+        , ( "bookings", DisplayBookings )
+        , ( "rates", DisplayRates )
+        , ( "nearby", DisplayNearby )
+        , ( "access", DisplayAccess )
+        ]
+
+
+urlToDisplayMode : Url.Url -> Maybe DisplayMode
+urlToDisplayMode url =
+    case String.split "/" url.path of
+        "" :: root :: xs ->
+            Dict.get root urlDict
+
+        _ ->
+            Nothing
+
+
+
+-------------------------------------------------------------------------------
 
 
 view : Model -> Browser.Document Msg
@@ -172,9 +228,14 @@ view model =
                         DisplayFrontPage ->
                             Element.none
 
+                        DisplayDetails ->
+                            Element.none
+
                         DisplayBookings ->
                             Bookings.view
-                                { lang = model.lang }
+                                { lang = model.lang
+                                , url = model.url
+                                }
                                 model.bookings
 
                         DisplayRates ->
@@ -247,37 +308,37 @@ mainMenu model =
      else
         row
     )
-        []
+        [ spacing 15 ]
         [ menuItem
             { fr = "Accueil"
             , en = "Home"
             }
-            "/"
+            "/home"
         , menuItem
             { fr = "Notre gîte"
             , en = "Our gîte"
             }
-            "/"
+            "/details"
         , menuItem
             { fr = "Les tarifs"
             , en = "Rates"
             }
-            "/"
+            "/rates"
         , menuItem
             { fr = "Réservations"
             , en = "Booking"
             }
-            "/"
+            "/bookings"
         , menuItem
             { fr = "Accès"
             , en = "Access"
             }
-            "/"
+            "/access"
         , menuItem
             { fr = "Dans les environs"
             , en = "Nearby interests"
             }
-            "/"
+            "/nearby"
         ]
 
 
