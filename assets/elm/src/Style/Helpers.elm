@@ -66,6 +66,22 @@ sides =
     }
 
 
+okMark =
+    el
+        [ Font.bold
+        , Font.color (rgb255 92 184 92)
+        ]
+        (text "✓")
+
+
+redStar =
+    el
+        [ Font.color red
+        , Font.size 18
+        ]
+        (text "*")
+
+
 unselectable =
     List.map htmlAttribute
         [ HtmlAttr.style "-webkit-touch-callout" "none"
@@ -138,9 +154,10 @@ toogleButtonStyle_ isPressed isActive =
 
 
 textInputStyle_ =
-    [ width (px 250)
+    [ width (px 200)
     , paddingXY 5 5
-    , spacing 15
+
+    --, spacing 15
     , focused [ Border.glow (rgb 1 1 1) 0 ]
     ]
 

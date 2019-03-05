@@ -40,7 +40,7 @@ type alias Config msg =
     , items : List ( String, msg )
     , selected : Maybe String
     , placeholder : Maybe String
-    , label : Maybe String
+    , label : Maybe (Input.Label msg)
     }
 
 
@@ -106,7 +106,8 @@ view config model =
                 )
                 config.placeholder
         , label =
-            Input.labelHidden ""
+            config.label
+                |> Maybe.withDefault (Input.labelHidden "")
         }
 
 

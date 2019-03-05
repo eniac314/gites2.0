@@ -1,5 +1,6 @@
 port module Bookings.Bookings exposing (..)
 
+import Bookings.DatePicker.Date exposing (formatDate)
 import Bookings.DatePicker.DatePicker as DP
 import Date exposing (..)
 import Element exposing (..)
@@ -15,7 +16,9 @@ import Html as Html
 import Html.Attributes as HtmlAttr
 import Internals.DropdownSelect as Select exposing (..)
 import MultLang.MultLang exposing (..)
+import Style.Helpers exposing (..)
 import Style.Palette exposing (..)
+import Url
 
 
 type alias Model msg =
@@ -27,7 +30,8 @@ type alias Model msg =
     , checkOutAvailability : Date -> DP.Availability
     , slots :
         Slots
-        --
+
+    --
     , selectedTitle : Maybe Title
     , titleSelector : Select.Model
     , firstName : Maybe String
@@ -42,10 +46,9 @@ type alias Model msg =
     , email : Maybe String
     , confEmail : Maybe String
     , confEmailFocused : Bool
-    , comment :
-        Maybe String
-        --
-    , displayMode : DisplayMode
+    , comments : Maybe String
+
+    --
     , outMsg : Msg -> msg
     }
 
@@ -110,41 +113,41 @@ init outMsg =
         ( checkOutPicker, checkOutPickerCmd ) =
             DP.init Nothing CheckOutPickerMsg
     in
-        ( { checkInPicker = checkInPicker
-          , checkInDate = Nothing
-          , checkInAvailability = always DP.Available
-          , checkOutPicker = checkOutPicker
-          , checkOutDate = Nothing
-          , checkOutAvailability = always DP.Available
-          , slots =
-                Slots [] [] [] []
-                --
-          , selectedTitle = Nothing
-          , titleSelector = Select.init
-          , firstName = Nothing
-          , lastName = Nothing
-          , address = Nothing
-          , addAddress = Nothing
-          , postcode = Nothing
-          , city = Nothing
-          , country = Nothing
-          , phone1 = Nothing
-          , phone2 = Nothing
-          , email = Nothing
-          , confEmail = Nothing
-          , confEmailFocused = False
-          , comment =
-                Nothing
-                --
-          , displayMode = DateChoice
-          , outMsg = outMsg
-          }
-        , Cmd.map outMsg <|
-            Cmd.batch
-                [ checkInPickerCmd
-                , checkOutPickerCmd
-                ]
-        )
+    ( { checkInPicker = checkInPicker
+      , checkInDate = Nothing
+      , checkInAvailability = always DP.Available
+      , checkOutPicker = checkOutPicker
+      , checkOutDate = Nothing
+      , checkOutAvailability = always DP.Available
+      , slots =
+            Slots [] [] [] []
+
+      --
+      , selectedTitle = Nothing
+      , titleSelector = Select.init
+      , firstName = Nothing
+      , lastName = Nothing
+      , address = Nothing
+      , addAddress = Nothing
+      , postcode = Nothing
+      , city = Nothing
+      , country = Nothing
+      , phone1 = Nothing
+      , phone2 = Nothing
+      , email = Nothing
+      , confEmail = Nothing
+      , confEmailFocused = False
+      , comments = Nothing
+
+      --
+      , outMsg = outMsg
+      }
+    , Cmd.map outMsg <|
+        Cmd.batch
+            [ checkInPickerCmd
+            , checkOutPickerCmd
+            ]
+    )
 
 
 update : Msg -> Model msg -> ( Model msg, Cmd msg )
@@ -155,50 +158,50 @@ update msg model =
                 ( newCheckInPicker, cmd, mbDate ) =
                     DP.update pickerMsg model.checkInPicker
             in
-                case mbDate of
-                    Nothing ->
-                        ( { model
-                            | checkInPicker = newCheckInPicker
-                          }
-                        , Cmd.map model.outMsg cmd
-                        )
+            case mbDate of
+                Nothing ->
+                    ( { model
+                        | checkInPicker = newCheckInPicker
+                      }
+                    , Cmd.map model.outMsg cmd
+                    )
 
-                    Just checkIn ->
-                        ( { model
-                            | checkInPicker = newCheckInPicker
-                            , checkInDate = mbDate
-                            , checkOutPicker =
-                                DP.setCurrentDate checkIn model.checkOutPicker
-                            , checkOutAvailability =
-                                newCheckOutAvailability model.slots checkIn
-                          }
-                        , Cmd.map model.outMsg cmd
-                        )
+                Just checkIn ->
+                    ( { model
+                        | checkInPicker = newCheckInPicker
+                        , checkInDate = mbDate
+                        , checkOutPicker =
+                            DP.setCurrentDate checkIn model.checkOutPicker
+                        , checkOutAvailability =
+                            newCheckOutAvailability model.slots checkIn
+                      }
+                    , Cmd.map model.outMsg cmd
+                    )
 
         CheckOutPickerMsg pickerMsg ->
             let
                 ( newCheckOutPicker, cmd, mbDate ) =
                     DP.update pickerMsg model.checkOutPicker
             in
-                case mbDate of
-                    Nothing ->
-                        ( { model
-                            | checkOutPicker = newCheckOutPicker
-                          }
-                        , Cmd.map model.outMsg cmd
-                        )
+            case mbDate of
+                Nothing ->
+                    ( { model
+                        | checkOutPicker = newCheckOutPicker
+                      }
+                    , Cmd.map model.outMsg cmd
+                    )
 
-                    Just checkOut ->
-                        ( { model
-                            | checkOutPicker = newCheckOutPicker
-                            , checkOutDate = mbDate
-                            , checkInPicker =
-                                DP.setCurrentDate checkOut model.checkInPicker
-                            , checkInAvailability =
-                                newCheckInAvailability model.slots checkOut
-                          }
-                        , Cmd.map model.outMsg cmd
-                        )
+                Just checkOut ->
+                    ( { model
+                        | checkOutPicker = newCheckOutPicker
+                        , checkOutDate = mbDate
+                        , checkInPicker =
+                            DP.setCurrentDate checkOut model.checkInPicker
+                        , checkInAvailability =
+                            newCheckInAvailability model.slots checkOut
+                      }
+                    , Cmd.map model.outMsg cmd
+                    )
 
         TitleSelectorMsg selMsg ->
             ( { model
@@ -336,7 +339,7 @@ update msg model =
 
         SetComment s ->
             ( { model
-                | comment =
+                | comments =
                     if s == "" then
                         Nothing
                     else
@@ -385,6 +388,15 @@ newCheckOutAvailability { booked, notAvailable, noCheckIn, noCheckOut } checkInD
 --view : { a | lang : Lang } -> Model msg -> Html msg
 
 
+type alias ViewConfig =
+    { lang : Lang
+    , url : Url.Url
+
+    --, width : Int
+    }
+
+
+view : ViewConfig -> Model msg -> Element msg
 view config model =
     Element.map model.outMsg <|
         column
@@ -393,32 +405,23 @@ view config model =
             , width fill
             , Font.size 16
             ]
-            [ dateChoiceView config model
-            , Select.view
-                { outMsg = TitleSelectorMsg
-                , items =
-                    [ ( "Mr", SelectTitle Mr )
-                    , ( "Ms", SelectTitle Ms )
-                    , ( "Other", SelectTitle Other )
-                    ]
-                , selected =
-                    model.selectedTitle
-                        |> Maybe.map
-                            (\t -> strM config.lang (titleMLS t))
-                , placeholder =
-                    Just <|
-                        strM config.lang
-                            (MultLangStr
-                                "Title"
-                                "Civilité"
-                            )
-                , label = Nothing
-                }
-                model.titleSelector
-            ]
+            (case String.split "/" config.url.path of
+                "" :: "bookings" :: [] ->
+                    [ dateChoiceView config model ]
+
+                "" :: "bookings" :: "form" :: [] ->
+                    [ formView config model ]
+
+                _ ->
+                    []
+            )
 
 
-dateChoiceView : { a | lang : Lang } -> Model msg -> Element Msg
+
+-------------------------------------------------------------------------------
+
+
+dateChoiceView : ViewConfig -> Model msg -> Element Msg
 dateChoiceView config model =
     column
         [ spacing 15
@@ -426,6 +429,13 @@ dateChoiceView config model =
         ]
         [ checkInView config model
         , checkOutView config model
+        , link
+            []
+            { url = "/bookings/form"
+            , label =
+                textM config.lang
+                    (MultLangStr "Next" "Suivant")
+            }
         ]
 
 
@@ -584,3 +594,241 @@ checkOutView config model =
             }
             model.checkOutPicker
         ]
+
+
+
+-------------------------------------------------------------------------------
+
+
+formView : ViewConfig -> Model msg -> Element Msg
+formView config model =
+    case ( model.checkInDate, model.checkOutDate ) of
+        ( Just cInDate, Just cOutDate ) ->
+            column
+                [ padding 10
+                , spacing 10
+                ]
+                [ row
+                    [ spacing 20 ]
+                    [ el
+                        []
+                        (text <|
+                            strM config.lang
+                                (MultLangStr
+                                    "Check-In"
+                                    "Date d'arrivée"
+                                )
+                                ++ " : "
+                                ++ formatDate config.lang cInDate
+                        )
+                    , el
+                        []
+                        (text <|
+                            strM config.lang
+                                (MultLangStr
+                                    "Check-out"
+                                    "Date de départ"
+                                )
+                                ++ " : "
+                                ++ formatDate config.lang cOutDate
+                        )
+                    ]
+                , Select.view
+                    { outMsg = TitleSelectorMsg
+                    , items =
+                        [ ( "Mr", SelectTitle Mr )
+                        , ( "Ms", SelectTitle Ms )
+                        , ( "Other", SelectTitle Other )
+                        ]
+                    , selected =
+                        model.selectedTitle
+                            |> Maybe.map
+                                (\t -> strM config.lang (titleMLS t))
+                    , placeholder =
+                        Just "-"
+                    , label =
+                        Just <|
+                            mandatoryLabel config
+                                (MultLangStr
+                                    "Title"
+                                    "Civilité"
+                                )
+                    }
+                    model.titleSelector
+                , Input.text
+                    textInputStyle_
+                    { onChange = SetFirstName
+                    , text =
+                        model.firstName
+                            |> Maybe.withDefault ""
+                    , label =
+                        mandatoryLabel config
+                            (MultLangStr "First Name"
+                                "Prénom"
+                            )
+                    , placeholder = Nothing
+                    }
+                , Input.text
+                    textInputStyle_
+                    { onChange = SetLastName
+                    , text =
+                        model.lastName
+                            |> Maybe.withDefault ""
+                    , label =
+                        mandatoryLabel config
+                            (MultLangStr "Last Name"
+                                "Nom"
+                            )
+                    , placeholder = Nothing
+                    }
+                , Input.text
+                    textInputStyle_
+                    { onChange = SetAddress
+                    , text =
+                        model.address
+                            |> Maybe.withDefault ""
+                    , label =
+                        mandatoryLabel config
+                            (MultLangStr "Address"
+                                "Adresse"
+                            )
+                    , placeholder = Nothing
+                    }
+                , Input.text
+                    textInputStyle_
+                    { onChange = SetAddAddress
+                    , text =
+                        model.addAddress
+                            |> Maybe.withDefault ""
+                    , label =
+                        regLabel config
+                            (MultLangStr "Additional address"
+                                "Complément d'adresse"
+                            )
+                    , placeholder = Nothing
+                    }
+                , Input.text
+                    textInputStyle_
+                    { onChange = SetPostCode
+                    , text =
+                        model.postcode
+                            |> Maybe.map String.fromInt
+                            |> Maybe.withDefault ""
+                    , label =
+                        mandatoryLabel config
+                            (MultLangStr "Post Code"
+                                "Code postal"
+                            )
+                    , placeholder = Nothing
+                    }
+                , Input.text
+                    textInputStyle_
+                    { onChange = SetCity
+                    , text =
+                        model.city
+                            |> Maybe.withDefault ""
+                    , label =
+                        mandatoryLabel config
+                            (MultLangStr "City"
+                                "Ville"
+                            )
+                    , placeholder = Nothing
+                    }
+                , Input.text
+                    textInputStyle_
+                    { onChange = SetCountry
+                    , text =
+                        model.country
+                            |> Maybe.withDefault ""
+                    , label =
+                        mandatoryLabel config
+                            (MultLangStr "Country"
+                                "Pays"
+                            )
+                    , placeholder = Nothing
+                    }
+                , Input.text
+                    textInputStyle_
+                    { onChange = SetPhone1
+                    , text =
+                        model.phone1
+                            |> Maybe.withDefault ""
+                    , label =
+                        mandatoryLabel config
+                            (MultLangStr "Phone number 1"
+                                "Téléphone 1"
+                            )
+                    , placeholder = Nothing
+                    }
+                , Input.text
+                    textInputStyle_
+                    { onChange = SetPhone2
+                    , text =
+                        model.phone2
+                            |> Maybe.withDefault ""
+                    , label =
+                        regLabel config
+                            (MultLangStr "Phone number 2"
+                                "Téléphone 2"
+                            )
+                    , placeholder = Nothing
+                    }
+                , Input.text
+                    textInputStyle_
+                    { onChange = SetEmail
+                    , text =
+                        model.email
+                            |> Maybe.withDefault ""
+                    , label =
+                        mandatoryLabel config
+                            (MultLangStr "Email"
+                                "Email"
+                            )
+                    , placeholder = Nothing
+                    }
+                , Input.text
+                    textInputStyle_
+                    { onChange = SetConfEmail
+                    , text =
+                        model.confEmail
+                            |> Maybe.withDefault ""
+                    , label =
+                        mandatoryLabel config
+                            (MultLangStr "Confirm Email"
+                                "Confirmation Email"
+                            )
+                    , placeholder = Nothing
+                    }
+                ]
+
+        _ ->
+            Element.none
+
+
+regLabel config mls =
+    (if False then
+        Input.labelAbove
+     else
+        Input.labelLeft
+    )
+        [ centerY
+        , width (px 170)
+        ]
+        (text <| strM config.lang mls)
+
+
+mandatoryLabel config mls =
+    (if False then
+        Input.labelAbove
+     else
+        Input.labelLeft
+    )
+        [ centerY
+        , width (px 170)
+        ]
+        (row
+            [ spacing 2 ]
+            [ text <| strM config.lang mls
+            , redStar
+            ]
+        )
