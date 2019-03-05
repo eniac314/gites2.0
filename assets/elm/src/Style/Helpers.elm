@@ -26,10 +26,7 @@ buttonStyle =
     [ centerX
     , padding 20
     , Font.family
-        [ Font.external
-            { name = "Montserrat"
-            , url = "https://fonts.googleapis.com/css?family=Montserrat"
-            }
+        [ Font.typeface "Montserrat"
         , Font.sansSerif
         ]
     , mouseOver
@@ -41,10 +38,7 @@ buttonStyleSha =
     [ centerX
     , padding 20
     , Font.family
-        [ Font.external
-            { name = "Montserrat"
-            , url = "https://fonts.googleapis.com/css?family=Montserrat"
-            }
+        [ Font.typeface "Montserrat"
         , Font.sansSerif
         ]
     , mouseOver

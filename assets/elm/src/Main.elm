@@ -59,6 +59,7 @@ type Msg
     | ClickedLink UrlRequest
     | WinResize Int Int
     | BookingsMsg Bookings.Msg
+    | ChangeLang Lang
     | NoOp
 
 
@@ -137,6 +138,9 @@ update msg model =
             , bookingsCmd
             )
 
+        ChangeLang l ->
+            ( { model | lang = l }, Cmd.none )
+
         NoOp ->
             ( model, Cmd.none )
 
@@ -151,10 +155,10 @@ view model =
             ]
             (el
                 [ width fill
+                , height fill --(px model.height)
 
-                --, height (px model.height)
                 --, clip
-                --, Background.image ""
+                , Background.tiled "/images/vintage-concreteS.png"
                 ]
                 (column
                     [ width fill
@@ -162,7 +166,9 @@ view model =
                     --, scrollbarY
                     , htmlAttribute <| HtmlAttr.style "id" "mainContainer"
                     ]
-                    [ case model.displayMode of
+                    [ header model
+                    , mainMenu model
+                    , case model.displayMode of
                         DisplayFrontPage ->
                             Element.none
 
@@ -179,8 +185,104 @@ view model =
 
                         DisplayAccess ->
                             Element.none
+                    , footer model
                     ]
                 )
             )
         ]
     }
+
+
+header : Model -> Element Msg
+header model =
+    column
+        [ width fill
+        ]
+        [ column
+            [ alignRight
+            , alignTop
+            ]
+            [ image
+                [ width (px 30)
+                , Events.onClick
+                    (if model.lang == French then
+                        ChangeLang English
+                     else
+                        ChangeLang French
+                    )
+                , pointer
+                ]
+                { src =
+                    case model.lang of
+                        English ->
+                            "/images/english.png"
+
+                        French ->
+                            "/images/french.png"
+                , description = ""
+                }
+            ]
+        , image
+            []
+            { src = "/image/"
+            , description = ""
+            }
+        , text "Le vieux lilas"
+        ]
+
+
+mainMenu : Model -> Element Msg
+mainMenu model =
+    let
+        menuItem mls url =
+            link
+                []
+                { url = url
+                , label =
+                    el [] (textM model.lang mls)
+                }
+    in
+    (if model.width < 1000 then
+        column
+     else
+        row
+    )
+        []
+        [ menuItem
+            { fr = "Accueil"
+            , en = "Home"
+            }
+            "/"
+        , menuItem
+            { fr = "Notre gîte"
+            , en = "Our gîte"
+            }
+            "/"
+        , menuItem
+            { fr = "Les tarifs"
+            , en = "Rates"
+            }
+            "/"
+        , menuItem
+            { fr = "Réservations"
+            , en = "Booking"
+            }
+            "/"
+        , menuItem
+            { fr = "Accès"
+            , en = "Access"
+            }
+            "/"
+        , menuItem
+            { fr = "Dans les environs"
+            , en = "Nearby interests"
+            }
+            "/"
+        ]
+
+
+footer : Model -> Element msg
+footer model =
+    row
+        []
+        []
