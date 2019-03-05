@@ -87,28 +87,28 @@ init flags url key =
             else
                 url
     in
-        ( { bookings = newBookings
-          , lang = English
-          , displayMode =
-                urlToDisplayMode url_
-                    |> Maybe.withDefault DisplayFrontPage
-          , key = key
-          , url = url
-          , width =
-                flags.width
-          , height =
-                flags.height
-          , currentTime =
-                flags.currentTime
-          }
-        , Cmd.batch
-            [ if url /= url_ then
-                Nav.pushUrl key (Url.toString url_)
-              else
-                Cmd.none
-            , bookingsCmd
-            ]
-        )
+    ( { bookings = newBookings
+      , lang = English
+      , displayMode =
+            urlToDisplayMode url_
+                |> Maybe.withDefault DisplayFrontPage
+      , key = key
+      , url = url
+      , width =
+            flags.width
+      , height =
+            flags.height
+      , currentTime =
+            flags.currentTime
+      }
+    , Cmd.batch
+        [ if url /= url_ then
+            Nav.pushUrl key (Url.toString url_)
+          else
+            Cmd.none
+        , bookingsCmd
+        ]
+    )
 
 
 subscriptions model =
@@ -160,9 +160,9 @@ update msg model =
                 ( newBookings, bookingsCmd ) =
                     Bookings.update bookingsMsg model.bookings
             in
-                ( { model | bookings = newBookings }
-                , bookingsCmd
-                )
+            ( { model | bookings = newBookings }
+            , bookingsCmd
+            )
 
         ChangeLang l ->
             ( { model | lang = l }, Cmd.none )
@@ -212,39 +212,47 @@ view model =
             (el
                 [ width fill
                 , height fill
-                  --(px model.height)
-                  --, clip
+
+                --(px model.height)
+                --, clip
                 , Background.tiled "/images/vintage-concreteS.png"
                 ]
                 (column
                     [ width fill
-                      --, scrollbarY
+
+                    --, scrollbarY
                     , htmlAttribute <| HtmlAttr.style "id" "mainContainer"
                     ]
                     [ header model
                     , mainMenu model
-                    , case model.displayMode of
-                        DisplayFrontPage ->
-                            Element.none
+                    , column
+                        [ width (maximum 1000 fill)
+                        , centerX
+                        ]
+                        [ case model.displayMode of
+                            DisplayFrontPage ->
+                                Element.none
 
-                        DisplayDetails ->
-                            Element.none
+                            DisplayDetails ->
+                                Element.none
 
-                        DisplayBookings ->
-                            Bookings.view
-                                { lang = model.lang
-                                , url = model.url
-                                }
-                                model.bookings
+                            DisplayBookings ->
+                                Bookings.view
+                                    { lang = model.lang
+                                    , url = model.url
+                                    , width = model.width
+                                    }
+                                    model.bookings
 
-                        DisplayRates ->
-                            Element.none
+                            DisplayRates ->
+                                Element.none
 
-                        DisplayNearby ->
-                            Element.none
+                            DisplayNearby ->
+                                Element.none
 
-                        DisplayAccess ->
-                            Element.none
+                            DisplayAccess ->
+                                Element.none
+                        ]
                     , footer model
                     ]
                 )
@@ -283,13 +291,14 @@ header model =
                 , description = ""
                 }
             ]
-          --, image
-          --    [ centerX
-          --    , width (px 300)
-          --    ]
-          --    { src = "/images/lilas.png"
-          --    , description = "Le vieux lilas"
-          --    }
+
+        --, image
+        --    [ centerX
+        --    , width (px 300)
+        --    ]
+        --    { src = "/images/lilas.png"
+        --    , description = "Le vieux lilas"
+        --    }
         , el
             [ Background.uncropped "/images/lilas.png"
             , Background.color lightGrey
@@ -297,7 +306,7 @@ header model =
             , height (px 300)
             , centerX
             ]
-            (Element.none)
+            Element.none
         , el
             [ centerX
             , Font.center
@@ -326,45 +335,45 @@ mainMenu model =
                     el [] (textM model.lang mls)
                 }
     in
-        (if model.width < 1000 then
-            column
-         else
-            row
-        )
-            [ width fill
-            , Background.color green
-            ]
-            [ menuItem
-                { fr = "Accueil"
-                , en = "Home"
-                }
-                "/home"
-            , menuItem
-                { fr = "Notre gîte"
-                , en = "Our gîte"
-                }
-                "/details"
-            , menuItem
-                { fr = "Les tarifs"
-                , en = "Rates"
-                }
-                "/rates"
-            , menuItem
-                { fr = "Réservations"
-                , en = "Booking"
-                }
-                "/bookings"
-            , menuItem
-                { fr = "Accès"
-                , en = "Access"
-                }
-                "/access"
-            , menuItem
-                { fr = "Dans les environs"
-                , en = "Nearby interests"
-                }
-                "/nearby"
-            ]
+    (if model.width < 1000 then
+        column
+     else
+        row
+    )
+        [ width fill
+        , Background.color green
+        ]
+        [ menuItem
+            { fr = "Accueil"
+            , en = "Home"
+            }
+            "/home"
+        , menuItem
+            { fr = "Notre gîte"
+            , en = "Our gîte"
+            }
+            "/details"
+        , menuItem
+            { fr = "Les tarifs"
+            , en = "Rates"
+            }
+            "/rates"
+        , menuItem
+            { fr = "Réservations"
+            , en = "Booking"
+            }
+            "/bookings"
+        , menuItem
+            { fr = "Accès"
+            , en = "Access"
+            }
+            "/access"
+        , menuItem
+            { fr = "Dans les environs"
+            , en = "Nearby interests"
+            }
+            "/nearby"
+        ]
 
 
 footer : Model -> Element msg

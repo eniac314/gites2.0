@@ -46,6 +46,10 @@ type alias Model msg =
     , email : Maybe String
     , confEmail : Maybe String
     , confEmailFocused : Bool
+    , nbrAdults : Maybe Int
+    , nbrAdultSelector : Select.Model
+    , nbrChildren : Maybe Int
+    , nbrChildrenSelector : Select.Model
     , comments : Maybe String
 
     --
@@ -100,8 +104,12 @@ type Msg
     | SetPhone1 String
     | SetPhone2 String
     | SetEmail String
-    | SetComment String
     | SetConfEmail String
+    | SelectNbrAdults Int
+    | NbrAdultSelectorMsg Select.Msg
+    | SelectNbrChildren Int
+    | NbrChildrenSelectorMsg Select.Msg
+    | SetComment String
     | NoOp
 
 
@@ -137,6 +145,10 @@ init outMsg =
       , email = Nothing
       , confEmail = Nothing
       , confEmailFocused = False
+      , nbrAdults = Nothing
+      , nbrAdultSelector = Select.init
+      , nbrChildren = Nothing
+      , nbrChildrenSelector = Select.init
       , comments = Nothing
 
       --
@@ -337,6 +349,32 @@ update msg model =
             , Cmd.none
             )
 
+        SelectNbrAdults n ->
+            ( { model | nbrAdults = Just n }
+            , Cmd.none
+            )
+
+        NbrAdultSelectorMsg selMsg ->
+            ( { model
+                | nbrAdultSelector =
+                    Select.update selMsg model.nbrAdultSelector
+              }
+            , Cmd.none
+            )
+
+        SelectNbrChildren n ->
+            ( { model | nbrChildren = Just n }
+            , Cmd.none
+            )
+
+        NbrChildrenSelectorMsg selMsg ->
+            ( { model
+                | nbrChildrenSelector =
+                    Select.update selMsg model.nbrChildrenSelector
+              }
+            , Cmd.none
+            )
+
         SetComment s ->
             ( { model
                 | comments =
@@ -391,8 +429,7 @@ newCheckOutAvailability { booked, notAvailable, noCheckIn, noCheckOut } checkInD
 type alias ViewConfig =
     { lang : Lang
     , url : Url.Url
-
-    --, width : Int
+    , width : Int
     }
 
 
@@ -773,7 +810,7 @@ formView config model =
                             )
                     , placeholder = Nothing
                     }
-                , Input.text
+                , Input.email
                     textInputStyle_
                     { onChange = SetEmail
                     , text =
@@ -786,7 +823,7 @@ formView config model =
                             )
                     , placeholder = Nothing
                     }
-                , Input.text
+                , Input.email
                     textInputStyle_
                     { onChange = SetConfEmail
                     , text =
@@ -799,6 +836,73 @@ formView config model =
                             )
                     , placeholder = Nothing
                     }
+                , Select.view
+                    { outMsg = NbrAdultSelectorMsg
+                    , items =
+                        [ ( "1", SelectNbrAdults 1 )
+                        , ( "2", SelectNbrAdults 2 )
+                        , ( "3", SelectNbrAdults 3 )
+                        , ( "4", SelectNbrAdults 4 )
+                        , ( "5", SelectNbrAdults 5 )
+                        , ( "6", SelectNbrAdults 6 )
+                        ]
+                    , selected =
+                        model.nbrAdults
+                            |> Maybe.map String.fromInt
+                    , placeholder =
+                        Just "-"
+                    , label =
+                        Just <|
+                            mandatoryLabel config
+                                (MultLangStr
+                                    "Number of adults"
+                                    "Nombre d'adultes"
+                                )
+                    }
+                    model.nbrAdultSelector
+                , Select.view
+                    { outMsg = NbrChildrenSelectorMsg
+                    , items =
+                        [ ( "1", SelectNbrChildren 1 )
+                        , ( "2", SelectNbrChildren 2 )
+                        , ( "3", SelectNbrChildren 3 )
+                        , ( "4", SelectNbrChildren 4 )
+                        , ( "5", SelectNbrChildren 5 )
+                        , ( "6", SelectNbrChildren 6 )
+                        ]
+                    , selected =
+                        model.nbrChildren
+                            |> Maybe.map String.fromInt
+                    , placeholder =
+                        Just "-"
+                    , label =
+                        Just <|
+                            mandatoryLabel config
+                                (MultLangStr
+                                    "Number of children"
+                                    "Nombre d'enfants"
+                                )
+                    }
+                    model.nbrChildrenSelector
+                , Input.multiline
+                    [ height (px 100)
+                    , width (px 400)
+                    ]
+                    { onChange = SetComment
+                    , text =
+                        model.comments
+                            |> Maybe.withDefault ""
+                    , placeholder = Nothing
+                    , label =
+                        Input.labelAbove
+                            [ paddingXY 0 10 ]
+                            (textM config.lang
+                                (MultLangStr "Remarks / Requests"
+                                    "Remarques / Demandes particulières"
+                                )
+                            )
+                    , spellcheck = False
+                    }
                 ]
 
         _ ->
@@ -806,25 +910,25 @@ formView config model =
 
 
 regLabel config mls =
-    (if False then
+    (if config.width < 800 then
         Input.labelAbove
      else
         Input.labelLeft
     )
         [ centerY
-        , width (px 170)
+        , width (px 200)
         ]
         (text <| strM config.lang mls)
 
 
 mandatoryLabel config mls =
-    (if False then
+    (if config.width < 800 then
         Input.labelAbove
      else
         Input.labelLeft
     )
         [ centerY
-        , width (px 170)
+        , width (px 200)
         ]
         (row
             [ spacing 2 ]
