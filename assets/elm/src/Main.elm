@@ -87,28 +87,28 @@ init flags url key =
             else
                 url
     in
-    ( { bookings = newBookings
-      , lang = English
-      , displayMode =
-            urlToDisplayMode url_
-                |> Maybe.withDefault DisplayFrontPage
-      , key = key
-      , url = url
-      , width =
-            flags.width
-      , height =
-            flags.height
-      , currentTime =
-            flags.currentTime
-      }
-    , Cmd.batch
-        [ if url /= url_ then
-            Nav.pushUrl key (Url.toString url_)
-          else
-            Cmd.none
-        , bookingsCmd
-        ]
-    )
+        ( { bookings = newBookings
+          , lang = English
+          , displayMode =
+                urlToDisplayMode url_
+                    |> Maybe.withDefault DisplayFrontPage
+          , key = key
+          , url = url
+          , width =
+                flags.width
+          , height =
+                flags.height
+          , currentTime =
+                flags.currentTime
+          }
+        , Cmd.batch
+            [ if url /= url_ then
+                Nav.pushUrl key (Url.toString url_)
+              else
+                Cmd.none
+            , bookingsCmd
+            ]
+        )
 
 
 subscriptions model =
@@ -161,9 +161,9 @@ update msg model =
                 ( newBookings, bookingsCmd ) =
                     Bookings.update bookingsMsg model.bookings
             in
-            ( { model | bookings = newBookings }
-            , bookingsCmd
-            )
+                ( { model | bookings = newBookings }
+                , bookingsCmd
+                )
 
         ChangeLang l ->
             ( { model | lang = l }, Cmd.none )
@@ -213,15 +213,13 @@ view model =
             (el
                 [ width fill
                 , height fill
-
-                --(px model.height)
-                --, clip
+                  --(px model.height)
+                  --, clip
                 , Background.tiled "/images/vintage-concreteS.png"
                 ]
                 (column
                     [ width fill
-
-                    --, scrollbarY
+                      --, scrollbarY
                     , htmlAttribute <| HtmlAttr.style "id" "mainContainer"
                     ]
                     [ header model
@@ -293,33 +291,75 @@ header model =
                 , description = ""
                 }
             ]
-
-        --, image
-        --    [ centerX
-        --    , width (px 300)
-        --    ]
-        --    { src = "/images/lilas.png"
-        --    , description = "Le vieux lilas"
-        --    }
-        , el
-            [ Background.uncropped "/images/lilas.png"
-            , Background.color lightGrey
-            , width (px 300)
-            , height (px 300)
+          --, image
+          --    [ centerX
+          --    , width (px 300)
+          --    ]
+          --    { src = "/images/lilas.png"
+          --    , description = "Le vieux lilas"
+          --    }
+        , row
+            [ width (px 350)
+              --, Background.color red
             , centerX
+            , inFront
+                (el
+                    [ Font.family
+                        [ Font.typeface "Great Vibes"
+                        , Font.serif
+                        ]
+                    , Font.size 55
+                    , Font.color darkCharcoal
+                    , Font.shadow
+                        { offset = ( 1, 1 )
+                        , blur = 0
+                        , color = white
+                        }
+                    , Font.family
+                        [ Font.typeface "Great Vibes"
+                        , Font.serif
+                        ]
+                    , moveLeft 50
+                    ]
+                    (text "Le Vieux Lilas")
+                )
             ]
-            Element.none
-        , el
-            [ centerX
-            , Font.center
-            , Font.family
-                [ Font.typeface "Great Vibes"
-                , Font.serif
+            [ el
+                [ Background.uncropped "/images/lilacW.png"
+                , Background.color lightGrey
+                , width (px 300)
+                , height (px 300)
+                , centerX
+                  --, Font.color darkCharcoal
+                  --, Font.shadow
+                  --    { offset = ( 1, 1 )
+                  --    , blur = 0
+                  --    , color = white
+                  --    }
+                  --, Font.family
+                  --    [ Font.typeface "Great Vibes"
+                  --    , Font.serif
+                  --    ]
+                , paddingEach { top = 15, right = 0, bottom = 0, left = 0 }
+                  --, Font.size 50
+                  --, Border.width 1
+                  --, Border.color black
+                , alignRight
                 ]
-            , paddingXY 0 0
-            , Font.size 60
+                (text "")
+              --"Le Vieux Lilas                                 d")
+              --, el
+              --    [ centerX
+              --    , Font.center
+              --    , Font.family
+              --        [ Font.typeface "Great Vibes"
+              --        , Font.serif
+              --        ]
+              --    , paddingXY 0 0
+              --    , Font.size 60
+              --    ]
+              --    (text "Le Vieux Lilas")
             ]
-            (text "Le Vieux Lilas")
         ]
 
 
@@ -328,54 +368,62 @@ mainMenu model =
     let
         menuItem mls url =
             link
-                [ padding 20
+                [ padding 15
                 , centerX
-                , mouseOver [ Background.color lightGreen ]
+                , mouseOver
+                    [ Background.color darkYellow
+                    ]
+                , Font.family
+                    [ Font.typeface "Great Vibes"
+                    , Font.serif
+                    ]
+                , Font.size 25
+                , Font.color lightGray
                 ]
                 { url = url
                 , label =
                     el [] (textM model.lang mls)
                 }
     in
-    (if model.width < 1000 then
-        column
-     else
-        row
-    )
-        [ width fill
-        , Background.color green
-        ]
-        [ menuItem
-            { fr = "Accueil"
-            , en = "Home"
-            }
-            "/home"
-        , menuItem
-            { fr = "Notre gîte"
-            , en = "Our gîte"
-            }
-            "/details"
-        , menuItem
-            { fr = "Les tarifs"
-            , en = "Rates"
-            }
-            "/rates"
-        , menuItem
-            { fr = "Réservations"
-            , en = "Booking"
-            }
-            "/bookings"
-        , menuItem
-            { fr = "Accès"
-            , en = "Access"
-            }
-            "/access"
-        , menuItem
-            { fr = "Dans les environs"
-            , en = "Nearby interests"
-            }
-            "/nearby"
-        ]
+        (if model.width < 1000 then
+            column
+         else
+            row
+        )
+            [ width fill
+            , Background.color darkGreen
+            ]
+            [ menuItem
+                { fr = "Accueil"
+                , en = "Home"
+                }
+                "/home"
+            , menuItem
+                { fr = "Notre gîte"
+                , en = "Our gîte"
+                }
+                "/details"
+            , menuItem
+                { fr = "Les tarifs"
+                , en = "Rates"
+                }
+                "/rates"
+            , menuItem
+                { fr = "Réservations"
+                , en = "Booking"
+                }
+                "/bookings"
+            , menuItem
+                { fr = "Accès"
+                , en = "Access"
+                }
+                "/access"
+            , menuItem
+                { fr = "Dans les environs"
+                , en = "Nearby interests"
+                }
+                "/nearby"
+            ]
 
 
 footer : Model -> Element msg
