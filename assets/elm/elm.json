@@ -7,6 +7,7 @@
     "dependencies": {
         "direct": {
             "AdrianRibao/elm-derberos-date": "1.2.1",
+            "andrewMacmurray/elm-delay": "3.0.0",
             "avh4/elm-color": "1.0.0",
             "capitalist/elm-octicons": "2.3.0",
             "elm/browser": "1.0.1",

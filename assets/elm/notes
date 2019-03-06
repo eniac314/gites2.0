@@ -1,5 +1,5 @@
 plan du logement
-
+add forfait ménage
 
 mix phx.server
 
@@ -10,6 +10,8 @@ git add -A
 git commit -m "put some comments here"
 git push origin master
 
+curl -X "DELETE" http://localhost:4000/api/bookings/2
+
 --download files
 git pull
 
@@ -17,3 +19,4 @@ ref:
 
 https://www.gites-de-la-treille.com/contactus-dordogne-gite
 https://www.mairie-lainsecq.fr/mairie-commune-eglise-fontaine-clocher-yonne-puisaye_fr.html
+

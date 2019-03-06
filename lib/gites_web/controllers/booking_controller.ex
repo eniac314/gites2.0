@@ -16,7 +16,7 @@ defmodule GitesWeb.BookingController do
       conn
       |> put_status(:created)
       |> put_resp_header("location", Routes.booking_path(conn, :show, booking))
-      |> render("show.json", booking: booking)
+      |> render("booking_sucess.json", booking: booking)
     end
   end
 
@@ -40,4 +40,5 @@ defmodule GitesWeb.BookingController do
       send_resp(conn, :no_content, "")
     end
   end
+
 end

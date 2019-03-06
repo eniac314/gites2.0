@@ -3,6 +3,7 @@ port module Bookings.Bookings exposing (..)
 import Bookings.DatePicker.Date exposing (formatDate)
 import Bookings.DatePicker.DatePicker as DP
 import Date exposing (..)
+import Delay
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -14,11 +15,28 @@ import Element.Lazy exposing (lazy)
 import Element.Region as Region
 import Html as Html
 import Html.Attributes as HtmlAttr
+import Html.Events as HtmlEvents
+import Http exposing (..)
 import Internals.DropdownSelect as Select exposing (..)
+import Internals.Helpers exposing (Status(..))
+import Json.Decode as Decode
+import Json.Encode as Encode
 import MultLang.MultLang exposing (..)
 import Style.Helpers exposing (..)
 import Style.Palette exposing (..)
+import Time exposing (..)
 import Url
+
+
+port loadCaptcha : String -> Cmd msg
+
+
+port captcha_port : (String -> msg) -> Sub msg
+
+
+subscriptions : Model msg -> Sub msg
+subscriptions model =
+    Sub.map model.outMsg <| captcha_port CaptchaResponse
 
 
 type alias Model msg =
@@ -53,6 +71,8 @@ type alias Model msg =
     , comments : Maybe String
 
     --
+    , captchaResp : String
+    , bookingProcessed : Status
     , outMsg : Msg -> msg
     }
 
@@ -110,6 +130,11 @@ type Msg
     | SelectNbrChildren Int
     | NbrChildrenSelectorMsg Select.Msg
     | SetComment String
+    | LoadCaptcha
+    | CaptchaResponse String
+    | SendBookingData
+    | BookingProcessed (Result Http.Error Bool)
+    | Delay Float Msg
     | NoOp
 
 
@@ -122,36 +147,57 @@ init outMsg =
             DP.init Nothing CheckOutPickerMsg
     in
     ( { checkInPicker = checkInPicker
-      , checkInDate = Nothing
+      , checkInDate = Just <| Date.fromCalendarDate 2020 Time.Jan 2 --Nothing
       , checkInAvailability = always DP.Available
       , checkOutPicker = checkOutPicker
-      , checkOutDate = Nothing
+      , checkOutDate = Just <| Date.fromCalendarDate 2020 Time.Jan 12 --Nothing
       , checkOutAvailability = always DP.Available
       , slots =
             Slots [] [] [] []
 
       --
-      , selectedTitle = Nothing
+      --, selectedTitle = Nothing
+      --, titleSelector = Select.init
+      --, firstName = Nothing
+      --, lastName = Nothing
+      --, address = Nothing
+      --, addAddress = Nothing
+      --, postcode = Nothing
+      --, city = Nothing
+      --, country = Nothing
+      --, phone1 = Nothing
+      --, phone2 = Nothing
+      --, email = Nothing
+      --, confEmail = Nothing
+      --, confEmailFocused = False
+      --, nbrAdults = Nothing
+      --, nbrAdultSelector = Select.init
+      --, nbrChildren = Nothing
+      --, nbrChildrenSelector = Select.init
+      --, comments = Nothing
+      , selectedTitle = Just Mr
       , titleSelector = Select.init
-      , firstName = Nothing
-      , lastName = Nothing
-      , address = Nothing
+      , firstName = Just "Florian"
+      , lastName = Just "Gillard"
+      , address = Just "5 place de l'église"
       , addAddress = Nothing
-      , postcode = Nothing
-      , city = Nothing
-      , country = Nothing
-      , phone1 = Nothing
+      , postcode = Just 89520
+      , city = Just "Lainsecq"
+      , country = Just "France"
+      , phone1 = Just "0652110572"
       , phone2 = Nothing
-      , email = Nothing
-      , confEmail = Nothing
+      , email = Just "florian.gillard@tutanota.com"
+      , confEmail = Just "florian.gillard@tutanota.com"
       , confEmailFocused = False
-      , nbrAdults = Nothing
+      , nbrAdults = Just 1
       , nbrAdultSelector = Select.init
       , nbrChildren = Nothing
       , nbrChildrenSelector = Select.init
       , comments = Nothing
 
       --
+      , captchaResp = ""
+      , bookingProcessed = Initial
       , outMsg = outMsg
       }
     , Cmd.map outMsg <|
@@ -384,6 +430,38 @@ update msg model =
                         Just s
               }
             , Cmd.none
+            )
+
+        LoadCaptcha ->
+            ( model
+            , Cmd.map model.outMsg <| loadCaptcha "6Lf9cjgUAAAAAPL3Nu0Z7dHXSbBOW7rEuFLgVsDy"
+            )
+
+        CaptchaResponse s ->
+            ( { model | captchaResp = s }, Cmd.none )
+
+        SendBookingData ->
+            ( { model | bookingProcessed = Waiting }
+            , sendBookingData model
+                |> Cmd.map model.outMsg
+            )
+
+        BookingProcessed res ->
+            case res of
+                Ok True ->
+                    ( { model | bookingProcessed = Success }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( { model | bookingProcessed = Failure }
+                    , Cmd.none
+                    )
+
+        Delay n msg_ ->
+            ( model
+            , Delay.after n Delay.Millisecond msg_
+                |> Cmd.map model.outMsg
             )
 
         NoOp ->
@@ -992,7 +1070,13 @@ confirmView config model =
                     nightsCount cInDate cOutDate
             in
             column
-                [ spacing 20 ]
+                [ spacing 20
+
+                --, if not model.captchaLoaded then
+                --    Events.onMouseEnter LoadCaptcha
+                --  else
+                --    noAttr
+                ]
                 [ el
                     [ Font.bold
                     , Font.size 22
@@ -1168,10 +1252,188 @@ confirmView config model =
 
                     _ ->
                         Element.none
+                , html <|
+                    Html.img
+                        [ HtmlAttr.hidden True
+                        , HtmlEvents.on "load"
+                            (Decode.succeed (Delay 200 LoadCaptcha))
+                        , HtmlAttr.src "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                        ]
+                        []
+                , el
+                    [ htmlAttribute <|
+                        HtmlAttr.class "g-recaptcha"
+                    , paddingEach
+                        { sides | top = 10 }
+                    ]
+                    Element.none
+                , case model.bookingProcessed of
+                    Initial ->
+                        Input.button
+                            (buttonStyle_ (model.captchaResp /= ""))
+                            { onPress =
+                                if model.captchaResp /= "" then
+                                    Just SendBookingData
+                                else
+                                    Nothing
+                            , label =
+                                textM config.lang
+                                    (MultLangStr "Send"
+                                        "Envoyer"
+                                    )
+                            }
+
+                    Waiting ->
+                        el
+                            []
+                            (textM config.lang
+                                (MultLangStr "Your request is being processed, please wait... "
+                                    "Votre demande est en cours de traitement, veuillez patienter... "
+                                )
+                            )
+
+                    Success ->
+                        el
+                            []
+                            (textM config.lang
+                                (MultLangStr "Your request has been processed, you will receive a confirmation email in the next 24H."
+                                    "Votre demande à été prise en compte, vous allez recevoir un email de confirmation dans les prochaines 24H."
+                                )
+                            )
+
+                    Failure ->
+                        el
+                            []
+                            (text <| "Failure")
                 ]
 
         _ ->
             Element.none
+
+
+
+-------------------------------------------------------------------------------
+------------------
+-- Http && Json --
+------------------
+
+
+sendBookingData : Model msg -> Cmd Msg
+sendBookingData model =
+    let
+        body =
+            Encode.object
+                [ ( "booking"
+                  , encodeBookingData model
+                  )
+                ]
+                |> Http.jsonBody
+    in
+    Http.post
+        { url = "/api/bookings"
+        , body = body
+        , expect = Http.expectJson BookingProcessed decodeBookingResult
+        }
+
+
+decodeBookingResult =
+    Decode.field "message" (Decode.succeed "success")
+        |> Decode.map (\s -> s == "success")
+
+
+encodeTitle : Title -> Encode.Value
+encodeTitle title =
+    case title of
+        Mr ->
+            Encode.string "Mr"
+
+        Ms ->
+            Encode.string "Ms"
+
+        Other ->
+            Encode.string "Other"
+
+
+encodeBookingData : Model msg -> Encode.Value
+encodeBookingData model =
+    let
+        strEncode s =
+            Maybe.map Encode.string s
+                |> Maybe.withDefault Encode.null
+    in
+    Encode.object
+        [ ( "check_in"
+          , model.checkInDate
+                |> Maybe.map Date.toRataDie
+                |> Maybe.map Encode.int
+                |> Maybe.withDefault Encode.null
+          )
+        , ( "check_out"
+          , model.checkOutDate
+                |> Maybe.map Date.toRataDie
+                |> Maybe.map Encode.int
+                |> Maybe.withDefault Encode.null
+          )
+        , ( "title"
+          , model.selectedTitle
+                |> Maybe.map encodeTitle
+                |> Maybe.withDefault Encode.null
+          )
+        , ( "first_name"
+          , strEncode model.firstName
+          )
+        , ( "last_name"
+          , strEncode model.lastName
+          )
+        , ( "address"
+          , strEncode model.address
+          )
+        , ( "add_address"
+          , strEncode model.addAddress
+          )
+        , ( "postcode"
+          , model.postcode
+                |> Maybe.map Encode.int
+                |> Maybe.withDefault Encode.null
+          )
+        , ( "city"
+          , strEncode model.city
+          )
+        , ( "country"
+          , strEncode model.country
+          )
+        , ( "phone1"
+          , strEncode model.phone1
+          )
+        , ( "phone2"
+          , strEncode model.phone2
+          )
+        , ( "email"
+          , strEncode model.email
+          )
+        , ( "nbr_adults"
+          , model.nbrAdults
+                |> Maybe.map Encode.int
+                |> Maybe.withDefault Encode.null
+          )
+        , ( "nbr_children"
+          , model.nbrChildren
+                |> Maybe.map Encode.int
+                |> Maybe.withDefault Encode.null
+          )
+        , ( "comments"
+          , strEncode model.comments
+          )
+        , ( "days_booked"
+          , Maybe.map2 daysBooked
+                (.checkInDate model)
+                (.checkOutDate model)
+                |> Maybe.withDefault []
+                |> List.map Date.toRataDie
+                |> Encode.list Encode.int
+          )
+        , ( "captcha_response", Encode.string model.captchaResp )
+        ]
 
 
 
@@ -1237,3 +1499,8 @@ validateForm { selectedTitle, firstName, lastName, address, postcode, city, coun
 nightsCount : Date -> Date -> Int
 nightsCount d1 d2 =
     Date.diff Date.Days d1 d2
+
+
+daysBooked : Date -> Date -> List Date
+daysBooked d1 d2 =
+    Date.range Date.Day 1 d1 (Date.add Date.Days -1 d2)

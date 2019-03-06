@@ -26,8 +26,8 @@ defmodule GitesWeb.Router do
     
     post "/signup", UserController, :create
     post "/login", UserSessionController, :create
-    resources "/bookings", BookingController, only: [:create]
-    resources "/availabilities", AvailabilityController, except: [:index]
+    resources "/bookings", BookingController, only: [:create, :show, :index, :delete]
+    resources "/availabilities", AvailabilityController, only: [:index]
 
   end
 

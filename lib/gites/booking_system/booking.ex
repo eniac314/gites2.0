@@ -29,6 +29,6 @@ defmodule Gites.BookingSystem.Booking do
   def changeset(booking, attrs) do
     booking
     |> cast(attrs, [:check_in, :check_out, :title, :first_name, :last_name, :address, :add_address, :postcode, :city, :country, :phone1, :phone2, :email, :nbr_adults, :nbr_children, :comments, :confirmed])
-    |> validate_required([:check_in, :check_out, :title, :first_name, :last_name, :address, :add_address, :postcode, :city, :country, :phone1, :phone2, :email, :nbr_adults, :nbr_children, :comments, :confirmed])
+    |> validate_required([:check_in, :check_out, :title, :first_name, :last_name, :address, :postcode, :city, :country, :phone1, :email, :nbr_adults])
   end
 end

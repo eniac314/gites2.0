@@ -114,6 +114,7 @@ init flags url key =
 subscriptions model =
     Sub.batch
         [ onResize WinResize
+        , Bookings.subscriptions model.bookings
         ]
 
 
@@ -227,6 +228,7 @@ view model =
                     , mainMenu model
                     , column
                         [ width (maximum 1000 fill)
+                        , height (minimum 500 fill)
                         , centerX
                         ]
                         [ case model.displayMode of
