@@ -449,6 +449,9 @@ view config model =
                 "" :: "bookings" :: "form" :: [] ->
                     [ formView config model ]
 
+                "" :: "bookings" :: "confirmation" :: [] ->
+                    [ confirmView config model ]
+
                 _ ->
                     []
             )
@@ -673,9 +676,27 @@ formView config model =
                 , Select.view
                     { outMsg = TitleSelectorMsg
                     , items =
-                        [ ( "Mr", SelectTitle Mr )
-                        , ( "Ms", SelectTitle Ms )
-                        , ( "Other", SelectTitle Other )
+                        [ ( strM config.lang
+                                (MultLangStr
+                                    "Mr"
+                                    "M."
+                                )
+                          , SelectTitle Mr
+                          )
+                        , ( strM config.lang
+                                (MultLangStr
+                                    "Ms"
+                                    "Mme"
+                                )
+                          , SelectTitle Ms
+                          )
+                        , ( strM config.lang
+                                (MultLangStr
+                                    "Other"
+                                    "Autre"
+                                )
+                          , SelectTitle Other
+                          )
                         ]
                     , selected =
                         model.selectedTitle
@@ -903,6 +924,23 @@ formView config model =
                             )
                     , spellcheck = False
                     }
+                , row
+                    [ spacing 15 ]
+                    [ link
+                        []
+                        { url = "/bookings/form"
+                        , label =
+                            textM config.lang
+                                (MultLangStr "Go back" "Retour")
+                        }
+                    , link
+                        []
+                        { url = "/bookings/confirmation"
+                        , label =
+                            textM config.lang
+                                (MultLangStr "Next" "Suivant")
+                        }
+                    ]
                 ]
 
         _ ->
@@ -936,3 +974,266 @@ mandatoryLabel config mls =
             , redStar
             ]
         )
+
+
+
+-------------------------------------------------------------------------------
+
+
+confirmView : ViewConfig -> Model msg -> Element Msg
+confirmView config model =
+    case ( model.checkInDate, model.checkOutDate, validateForm model ) of
+        ( Just cInDate, Just cOutDate, True ) ->
+            let
+                textS mbStr =
+                    text <| Maybe.withDefault "" mbStr
+
+                nc =
+                    nightsCount cInDate cOutDate
+            in
+            column
+                [ spacing 20 ]
+                [ el
+                    [ Font.bold
+                    , Font.size 22
+                    ]
+                    (textM config.lang
+                        (MultLangStr "Confirmation"
+                            "Confirmation"
+                        )
+                    )
+                , column
+                    [ spacing 15 ]
+                    [ el
+                        [ Font.size 20
+                        ]
+                        (textM config.lang
+                            (MultLangStr "Customer details"
+                                "Informations client"
+                            )
+                        )
+                    , row
+                        [ spacing 5 ]
+                        [ textM config.lang <|
+                            case Maybe.withDefault Mr model.selectedTitle of
+                                Mr ->
+                                    MultLangStr "Mr"
+                                        "M."
+
+                                Ms ->
+                                    MultLangStr "Ms"
+                                        "Mme"
+
+                                Other ->
+                                    MultLangStr "Other"
+                                        "Autre"
+                        , el [] (textS model.firstName)
+                        , el [] (textS model.lastName)
+                        ]
+                    , paragraph [] [ textS model.address ]
+                    , case model.addAddress of
+                        Just addAddress ->
+                            paragraph [] [ text addAddress ]
+
+                        _ ->
+                            Element.none
+                    , el [] (textS (Maybe.map String.fromInt model.postcode))
+                    , el [] (textS model.city)
+                    , el [] (textS model.country)
+                    ]
+                , column
+                    [ spacing 15 ]
+                    [ el
+                        [ Font.size 20
+                        ]
+                        (text "Contact")
+                    , el [] (textS model.phone1)
+                    , case model.phone2 of
+                        Just phone2 ->
+                            el [] (text phone2)
+
+                        _ ->
+                            Element.none
+                    , el [] (textS model.email)
+                    ]
+                , column
+                    [ spacing 15 ]
+                    [ el
+                        [ Font.size 20
+                        ]
+                        (textM config.lang
+                            (MultLangStr "Your booking"
+                                "Votre réservation"
+                            )
+                        )
+                    , row
+                        [ spacing 20 ]
+                        [ el
+                            []
+                            (text <|
+                                strM config.lang
+                                    (MultLangStr
+                                        "Check-In"
+                                        "Date d'arrivée"
+                                    )
+                                    ++ " : "
+                                    ++ formatDate config.lang cInDate
+                            )
+                        , el
+                            []
+                            (text <|
+                                strM config.lang
+                                    (MultLangStr
+                                        "Check-out"
+                                        "Date de départ"
+                                    )
+                                    ++ " : "
+                                    ++ formatDate config.lang cOutDate
+                            )
+                        ]
+                    , case model.nbrAdults of
+                        Just n ->
+                            el
+                                []
+                                (text <|
+                                    strM config.lang
+                                        (MultLangStr
+                                            "Number of adults"
+                                            "Nombre d'adultes"
+                                        )
+                                        ++ " : "
+                                        ++ String.fromInt n
+                                )
+
+                        Nothing ->
+                            Element.none
+                    , case model.nbrChildren of
+                        Just n ->
+                            el
+                                []
+                                (text <|
+                                    strM config.lang
+                                        (MultLangStr
+                                            "Number of children"
+                                            "Nombre d'enfants"
+                                        )
+                                        ++ " : "
+                                        ++ String.fromInt n
+                                )
+
+                        Nothing ->
+                            Element.none
+                    , el
+                        []
+                        (text <|
+                            strM config.lang
+                                (MultLangStr "Your stay: "
+                                    "Réservation pour "
+                                )
+                                ++ String.fromInt nc
+                                ++ (if nc > 1 then
+                                        strM config.lang
+                                            (MultLangStr " nights"
+                                                " nuits"
+                                            )
+                                    else
+                                        strM config.lang
+                                            (MultLangStr " night"
+                                                " nuit"
+                                            )
+                                   )
+                        )
+                    , el
+                        []
+                        (text <|
+                            "Total: "
+                                ++ String.fromInt (nc * 50)
+                                ++ " €"
+                        )
+                    ]
+                , case model.comments of
+                    Just _ ->
+                        column
+                            [ spacing 15 ]
+                            [ el
+                                [ Font.size 20
+                                ]
+                                (textM config.lang
+                                    (MultLangStr "Remarks / Requests"
+                                        "Remarques / Demandes particulières"
+                                    )
+                                )
+                            , paragraph [] [ textS model.comments ]
+                            ]
+
+                    _ ->
+                        Element.none
+                ]
+
+        _ ->
+            Element.none
+
+
+
+-------------------------------------------------------------------------------
+
+
+validateForm : Model msg -> Bool
+validateForm { selectedTitle, firstName, lastName, address, postcode, city, country, phone1, email, confEmail, nbrAdults } =
+    let
+        validTitle =
+            case selectedTitle of
+                Nothing ->
+                    False
+
+                Just _ ->
+                    True
+
+        validFstName =
+            firstName /= Nothing
+
+        validLstName =
+            lastName /= Nothing
+
+        validAddr =
+            address /= Nothing
+
+        validPostcode =
+            postcode /= Nothing
+
+        validCity =
+            city /= Nothing
+
+        validCountry =
+            country /= Nothing
+
+        validPhone1 =
+            phone1 /= Nothing
+
+        validEmail =
+            (email /= Nothing)
+                && (email == confEmail)
+
+        validNbrAdults =
+            case nbrAdults of
+                Nothing ->
+                    False
+
+                Just _ ->
+                    True
+    in
+    validTitle
+        && validFstName
+        && validLstName
+        && validAddr
+        && validPostcode
+        && validCity
+        && validCountry
+        && validPhone1
+        && validEmail
+        && validNbrAdults
+
+
+nightsCount : Date -> Date -> Int
+nightsCount d1 d2 =
+    Date.diff Date.Days d1 d2
