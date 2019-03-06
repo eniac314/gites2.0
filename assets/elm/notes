@@ -1,7 +1,10 @@
+!! REMOVE DEV ROUTES BEFORE LAUNCHING TO PROD ENV !!
+
 plan du logement
 add forfait ménage
 
 mix phx.server
+source .env && mix phx.server
 
 ###############################################################################
 git memo:

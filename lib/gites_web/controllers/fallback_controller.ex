@@ -19,4 +19,11 @@ defmodule GitesWeb.FallbackController do
     |> put_view(GitesWeb.ErrorView)
     |> render(:"404")
   end
+
+  def call(conn, {:error, error}) do 
+    conn
+    |> put_view(GitesWeb.ErrorView)
+    |> render("fallback_error.json", error: error)
+  end 
+
 end

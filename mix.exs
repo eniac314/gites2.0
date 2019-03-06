@@ -46,7 +46,8 @@ defmodule Gites.MixProject do
       {:comeonin, "~> 5.1.0"},
       {:guardian, "~> 1.2.1"},
       {:pbkdf2_elixir, "~> 1.0.1"},
-      {:poison, "~> 3.0"}
+      {:poison, "~> 3.0"},
+      {:recaptcha, "~> 2.3"},
     ]
   end
 
