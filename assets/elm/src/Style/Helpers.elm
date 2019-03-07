@@ -22,39 +22,35 @@ longText =
     "Il était une fois, au milieu d'une forêt épaisse, une petite maison où habitait une jolie petite fille nommée Petit Chaperon Rouge. Un jour ensoleillé, sa maman l'appela dans la cuisine de leur petite maison."
 
 
-buttonStyle =
+buttonStyle isActive =
     [ centerX
-    , padding 20
+    , padding 10
+    , Background.color white
     , Font.family
         [ Font.typeface "Montserrat"
-        , Font.sansSerif
+        , Font.monospace
         ]
+    , Border.width 1
+    , Border.rounded 2
     , mouseOver
-        [ Background.color lightYellow ]
-    ]
-
-
-buttonStyleSha =
-    [ centerX
-    , padding 20
-    , Font.family
-        [ Font.typeface "Montserrat"
-        , Font.sansSerif
-        ]
-    , mouseOver
-        [ Border.shadow
-            { offset = ( 0, 0 )
-            , size = 2
-            , blur = 0
-            , color = rgb255 47 79 79
-            }
+        [ Background.color grey
+          --, Border.shadow
+          --    { offset = ( 0, 0 )
+          --    , size = 1
+          --    , blur = 0
+          --    , color = rgb255 47 79 79
+          --    }
         ]
     ]
 
 
 iconsStyle =
-    [ mouseOver
-        [ Background.color lightYellow ]
+    [ Border.width 1
+    , Border.color white
+    , Border.rounded 5
+    , Background.color white
+    , mouseOver
+        [ Border.color black ]
     ]
 
 
@@ -156,8 +152,7 @@ toogleButtonStyle_ isPressed isActive =
 textInputStyle_ =
     [ width (px 200)
     , paddingXY 5 5
-
-    --, spacing 15
+      --, spacing 15
     , focused [ Border.glow (rgb 1 1 1) 0 ]
     ]
 
@@ -210,22 +205,22 @@ sameHeightImgRow containderWidth images =
                             / toFloat meta.size.height
                     }
             in
-            List.map scale images_
+                List.map scale images_
 
         totalImgWidth =
             List.foldr (\i n -> i.newWidth + n) 0 imgsScaledToMinHeight
     in
-    row
-        [ width fill ]
-        (List.map
-            (\im ->
-                image
-                    [ width <| fillPortion (floor <| 10000 * im.newWidth / totalImgWidth) ]
-                    { src = im.meta.url
-                    , description =
-                        im.meta.caption
-                            |> Maybe.withDefault ""
-                    }
+        row
+            [ width fill ]
+            (List.map
+                (\im ->
+                    image
+                        [ width <| fillPortion (floor <| 10000 * im.newWidth / totalImgWidth) ]
+                        { src = im.meta.url
+                        , description =
+                            im.meta.caption
+                                |> Maybe.withDefault ""
+                        }
+                )
+                imgsScaledToMinHeight
             )
-            imgsScaledToMinHeight
-        )

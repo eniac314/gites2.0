@@ -186,17 +186,17 @@ view config model =
                             ]
                         ]
                     , row
-                        [ Background.color lightGreen
-                        , centerX
+                        [ centerX
+                        , spacing 10
                         ]
                         [ Input.button
-                            buttonStyle
+                            (buttonStyle True)
                             { onPress = Just GoBack
                             , label =
                                 textM config.lang (MultLangStr "Back" "Retour")
                             }
                         , Input.button
-                            buttonStyle
+                            (buttonStyle True)
                             { onPress = Just Save
                             , label =
                                 textM config.lang (MultLangStr "Save and quit" "Valider")

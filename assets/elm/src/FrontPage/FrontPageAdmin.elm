@@ -122,7 +122,7 @@ update msg model =
                         |> List.indexedMap Tuple.pair
                         |> Dict.fromList
             in
-            { model | content = newContent }
+                { model | content = newContent }
 
         SwapDown id ->
             let
@@ -132,7 +132,7 @@ update msg model =
                         |> List.indexedMap Tuple.pair
                         |> Dict.fromList
             in
-            { model | content = newContent }
+                { model | content = newContent }
 
         NewMarkdown ->
             { model
@@ -162,34 +162,34 @@ update msg model =
                 ( newEditor, mbPluginRes ) =
                     MarkdownEditor.update markdownEditorMsg model.markdownEditor
             in
-            case mbPluginRes of
-                Nothing ->
-                    { model | markdownEditor = newEditor }
+                case mbPluginRes of
+                    Nothing ->
+                        { model | markdownEditor = newEditor }
 
-                Just PluginQuit ->
-                    { model
-                        | markdownEditor = newEditor
-                        , displayMode = Preview
-                    }
+                    Just PluginQuit ->
+                        { model
+                            | markdownEditor = newEditor
+                            , displayMode = Preview
+                        }
 
-                Just (PluginData data) ->
-                    case model.selectedItem of
-                        Nothing ->
-                            { model
-                                | markdownEditor = newEditor
-                                , displayMode = Preview
-                            }
+                    Just (PluginData data) ->
+                        case model.selectedItem of
+                            Nothing ->
+                                { model
+                                    | markdownEditor = newEditor
+                                    , displayMode = Preview
+                                }
 
-                        Just id ->
-                            { model
-                                | markdownEditor = newEditor
-                                , content =
-                                    Dict.insert
-                                        id
-                                        (MarkdownContent data)
-                                        model.content
-                                , displayMode = Preview
-                            }
+                            Just id ->
+                                { model
+                                    | markdownEditor = newEditor
+                                    , content =
+                                        Dict.insert
+                                            id
+                                            (MarkdownContent data)
+                                            model.content
+                                    , displayMode = Preview
+                                }
 
         NoOp ->
             model
@@ -242,10 +242,12 @@ previewView config model =
         [ row
             [ centerX
             , width fill
+            , padding 10
+            , spacing 10
             , Border.widthEach { bottom = 1, left = 0, right = 0, top = 0 }
             ]
             [ Input.button
-                buttonStyleSha
+                (buttonStyle True)
                 { onPress = Just NewMarkdown
                 , label =
                     textM config.lang
@@ -254,7 +256,7 @@ previewView config model =
                         }
                 }
             , Input.button
-                buttonStyle
+                (buttonStyle True)
                 { onPress = Just NewPicRow
                 , label =
                     textM config.lang
@@ -263,7 +265,7 @@ previewView config model =
                         }
                 }
             , Input.button
-                buttonStyle
+                (buttonStyle True)
                 { onPress = Just AddNewsBlock
                 , label =
                     textM config.lang
@@ -277,15 +279,17 @@ previewView config model =
           else
             Dict.map (editableItem config) model.content
                 --Dict Int (Element Msg)
-                |> Dict.values
+                |>
+                    Dict.values
                 --List (Element Msg)
-                |> column
-                    [ Background.color grey
-                    , width fill
-                    , centerX
-                    , padding 10
-                    , spacing 20
-                    ]
+                |>
+                    column
+                        [ Background.color grey
+                        , width fill
+                        , centerX
+                        , padding 10
+                        , spacing 20
+                        ]
         ]
 
 
@@ -296,10 +300,10 @@ editableItem config id item =
         , spacing 30
         , padding 20
         , Border.width 1
-        , Border.color lightCharcoal
+        , Border.color lightGray
         , Border.rounded 1
         , mouseOver
-            [ Border.color lightGray ]
+            [ Border.color lightCharcoal ]
         ]
         [ frontPageItemView config item
         , itemControlView config id
@@ -344,9 +348,9 @@ itemControlView : ViewConfig -> Int -> Element Msg
 itemControlView config id =
     row
         [ spacing 15
-        , padding 5
+        , padding 10
         , Border.width 1
-        , Border.rounded 1
+        , Border.rounded 3
         ]
         [ column
             [ spacing 10 ]
