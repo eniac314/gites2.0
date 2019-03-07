@@ -12,6 +12,7 @@ import Element.Input as Input
 import FrontPage.FrontPageAdmin as FrontPageAdmin
 import Http exposing (expectString)
 import Internals.Helpers exposing (..)
+import Internals.Uploader as Uploader
 import MultLang.MultLang exposing (..)
 import Task exposing (perform)
 import Time exposing (here)
@@ -42,6 +43,7 @@ type alias Model =
     , currentTime : Int
     , zone : Time.Zone
     , authPlugin : Auth.Model Msg
+    , uploader : Uploader.Model Msg
     , frontPageAdmin : FrontPageAdmin.Model Msg
     }
 
@@ -49,6 +51,7 @@ type alias Model =
 type Msg
     = AuthMsg Auth.Msg
     | FrontPageAdminMsg FrontPageAdmin.Msg
+    | UploaderMsg Uploader.Msg
     | WinResize Int Int
     | SetZone Time.Zone
     | NoOp
@@ -79,23 +82,24 @@ init flags =
         ( newAuthPlugin, authPluginCmd ) =
             Auth.init AuthMsg
     in
-        ( { displayMode = DisplayAuth
-          , lang = English
-          , width =
-                flags.width
-          , height =
-                flags.height
-          , currentTime =
-                flags.currentTime
-          , zone = Time.utc
-          , authPlugin = newAuthPlugin
-          , frontPageAdmin = newFrontPageAdmin
-          }
-        , Cmd.batch
-            [ Task.perform SetZone Time.here
-            , authPluginCmd
-            ]
-        )
+    ( { displayMode = DisplayAuth
+      , lang = English
+      , width =
+            flags.width
+      , height =
+            flags.height
+      , currentTime =
+            flags.currentTime
+      , zone = Time.utc
+      , authPlugin = newAuthPlugin
+      , uploader = Uploader.init UploaderMsg
+      , frontPageAdmin = newFrontPageAdmin
+      }
+    , Cmd.batch
+        [ Task.perform SetZone Time.here
+        , authPluginCmd
+        ]
+    )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -109,26 +113,37 @@ update msg model =
                 ( newAuthPlugin, authToolCmds, mbPluginResult ) =
                     Auth.update authPluginMsg model.authPlugin
             in
-                ( { model
-                    | authPlugin = newAuthPlugin
-                    , displayMode =
-                        if mbPluginResult == Just PluginQuit then
-                            DisplayFrontPageAdmin
-                        else
-                            model.displayMode
-                  }
-                , Cmd.batch <|
-                    [ authToolCmds ]
-                )
+            ( { model
+                | authPlugin = newAuthPlugin
+                , displayMode =
+                    if mbPluginResult == Just PluginQuit then
+                        DisplayBookingsAdmin
+                    else
+                        model.displayMode
+              }
+            , Cmd.batch <|
+                [ authToolCmds ]
+            )
 
         FrontPageAdminMsg fpaMsg ->
             let
                 newFrontPageAdmin =
                     FrontPageAdmin.update fpaMsg model.frontPageAdmin
             in
-                ( { model | frontPageAdmin = newFrontPageAdmin }
-                , Cmd.none
-                )
+            ( { model | frontPageAdmin = newFrontPageAdmin }
+            , Cmd.none
+            )
+
+        UploaderMsg uploaderMsg ->
+            let
+                ( uploader, cmds ) =
+                    Uploader.update uploaderMsg model.uploader
+            in
+            ( { model
+                | uploader = uploader
+              }
+            , cmds
+            )
 
         WinResize width height ->
             ( { model
@@ -172,7 +187,8 @@ view model =
                             model.frontPageAdmin
 
                     DisplayBookingsAdmin ->
-                        Element.none
+                        Uploader.view
+                            model.uploader
 
                     DisplayNearbyAdmin ->
                         Element.none
