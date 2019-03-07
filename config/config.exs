@@ -40,6 +40,15 @@ config :recaptcha,
     public_key: {:system, "RECAPTCHA_PUBLIC_KEY"},
     secret: {:system, "RECAPTCHA_PRIVATE_KEY"}
 
+config :ex_aws,
+  access_key_id:     System.get_env("AWS_ACCESS_KEY_ID"),
+  secret_access_key: System.get_env("AWS_SECRET_ACCESS_KEY"),
+  region: "eu-west-3",
+  s3: [
+    scheme: "https://",
+    host: "s3.eu-west-3.amazonaws.com",
+    region: "eu-west-3" ]
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{Mix.env()}.exs"

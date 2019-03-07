@@ -48,6 +48,10 @@ defmodule Gites.MixProject do
       {:pbkdf2_elixir, "~> 1.0.1"},
       {:poison, "~> 3.0"},
       {:recaptcha, "~> 2.3"},
+      {:ex_aws, "~> 2.1"},
+      {:ex_aws_s3, "~> 2.0"},
+      {:hackney, "~> 1.9"},
+      {:sweet_xml, "~> 0.6"},
     ]
   end
 

@@ -26,6 +26,7 @@ defmodule GitesWeb.Router do
     
     post "/signup", UserController, :create
     post "/login", UserSessionController, :create
+    get "/presigned_url/:id", AwsUploadController, :get_url
     resources "/bookings", BookingController, only: [:create, :show, :index, :delete]
     resources "/availabilities", AvailabilityController, only: [:index]
 

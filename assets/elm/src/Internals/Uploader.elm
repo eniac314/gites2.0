@@ -18,6 +18,7 @@ import Json.Encode as E
 type alias Model msg =
     { toUpload : Maybe ToUpload
     , presignedUrl : Maybe String
+    , debug : String
     , outMsg : Msg -> msg
     }
 
@@ -26,6 +27,7 @@ init : (Msg -> msg) -> Model msg
 init outMsg =
     { toUpload = Nothing
     , presignedUrl = Nothing
+    , debug = ""
     , outMsg = outMsg
     }
 
@@ -59,6 +61,7 @@ type Msg
     = NoOp
     | Upload
     | PresignedUrl (Result Http.Error String)
+    | Debug (Result Http.Error String)
 
 
 update : Msg -> Model msg -> ( Model msg, Cmd msg )
@@ -82,8 +85,22 @@ update msg model =
                         uploadBase64Pic data url
                     )
 
+                ( Just (FileHandler f), Just url ) ->
+                    ( model
+                    , Cmd.map model.outMsg <|
+                        uploadFile f url
+                    )
+
                 _ ->
                     ( model, Cmd.none )
+
+        Debug r ->
+            case r of
+                Ok s ->
+                    ( { model | debug = s }, Cmd.none )
+
+                _ ->
+                    ( { model | debug = "error" }, Cmd.none )
 
         NoOp ->
             ( model, Cmd.none )
@@ -93,7 +110,7 @@ getPresignedUrl filename =
     Http.get
         { url = "api/presigned_url/" ++ filename
         , expect =
-            Http.expectJson PresignedUrl (D.field "presigned_url" D.string)
+            Http.expectJson PresignedUrl (D.field "presigned_s3_url" D.string)
         }
 
 
@@ -102,8 +119,20 @@ uploadBase64Pic data url =
         { method = "PUT"
         , headers = []
         , url = url
-        , body = Http.stringBody "image/jpeg" data
+        , body = Http.stringBody "image/png" data
         , expect = Http.expectWhatever (\_ -> NoOp)
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
+uploadFile file url =
+    Http.request
+        { method = "PUT"
+        , headers = []
+        , url = url
+        , body = Http.fileBody file
+        , expect = Http.expectString Debug
         , timeout = Nothing
         , tracker = Nothing
         }
@@ -113,8 +142,21 @@ view : Model msg -> Element msg
 view model =
     Element.map model.outMsg <|
         column
-            [ spacing 15 ]
-            [ text (Maybe.withDefault "" model.presignedUrl)
+            [ spacing 15
+            ]
+            [ paragraph
+                []
+                [ text (Maybe.withDefault "" model.presignedUrl) ]
+            , case model.toUpload of
+                Just (Base64Img { data }) ->
+                    image
+                        []
+                        { src = data
+                        , description = ""
+                        }
+
+                _ ->
+                    Element.none
             , Input.button
                 []
                 { onPress = Just Upload
