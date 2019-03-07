@@ -17,6 +17,7 @@ import Markdown.Block as Block exposing (..)
 import Markdown.Inline as Inline exposing (..)
 import Style.Helpers exposing (..)
 import Style.Palette exposing (..)
+import Dict exposing (..)
 
 
 renderMarkdown : String -> Element msg
@@ -92,7 +93,7 @@ blockToElement offset block =
                             ]
             in
                 column
-                    [ paddingXY 40 0
+                    [ paddingXY 5 0
                     ]
                     (List.concatMap liView llistBlocks)
 
@@ -106,15 +107,38 @@ blockToElement offset block =
 
 
 headings raw level inlines =
-    paragraph
-        [ Region.heading level
-        , if level == 1 then
-            Font.color blue
-          else
-            Font.color purple
-        , Font.size (16 * (6 - level))
-        ]
-        (List.concatMap inlinesToElements inlines)
+    let
+        headingStyles =
+            Dict.fromList
+                [ ( 1
+                  , [ Font.size 45 ]
+                  )
+                , ( 2
+                  , [ Font.size 25 ]
+                  )
+                , ( 3
+                  , []
+                  )
+                , ( 4
+                  , []
+                  )
+                , ( 5
+                  , []
+                  )
+                , ( 6
+                  , []
+                  )
+                ]
+    in
+        paragraph
+            ([ Region.heading level
+             , Font.color black
+             ]
+                ++ (Dict.get level headingStyles
+                        |> Maybe.withDefault []
+                   )
+            )
+            (List.concatMap inlinesToElements inlines)
 
 
 inlinesToElements : Inline i -> List (Element msg)

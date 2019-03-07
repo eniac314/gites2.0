@@ -28,7 +28,7 @@ buttonStyle isActive =
     , Background.color white
     , Font.family
         [ Font.typeface "Montserrat"
-        , Font.monospace
+        , Font.sansSerif
         ]
     , Border.width 1
     , Border.rounded 2
