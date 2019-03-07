@@ -53,10 +53,10 @@ type LogInfo
 
 
 type alias Model msg =
-    { username : String
-    , password : String
-    , email : String
-    , confirmPassword : String
+    { username : Maybe String
+    , password : Maybe String
+    , email : Maybe String
+    , confirmPassword : Maybe String
     , logInfo : LogInfo
     , pluginMode : PluginMode
     , logs :
@@ -67,10 +67,10 @@ type alias Model msg =
 
 
 init externalMsg =
-    ( { username = ""
-      , password = ""
-      , confirmPassword = ""
-      , email = ""
+    ( { username = Nothing
+      , password = Nothing
+      , confirmPassword = Nothing
+      , email = Nothing
       , logInfo = LoggedOut
       , pluginMode = LoginMode Initial
       , logs = []
@@ -87,16 +87,16 @@ subscriptions model =
     Sub.map model.externalMsg <|
         Sub.batch
             [ fromAuthLocalStorage FromAuthLocalStorage
-            , Time.every (5 * 60 * 1000) (\_ -> Ping)
+            , Time.every (60 * 1000) (\_ -> Ping)
             ]
 
 
 reset model =
     ( { model
-        | username = ""
-        , password = ""
-        , confirmPassword = ""
-        , email = ""
+        | username = Nothing
+        , password = Nothing
+        , confirmPassword = Nothing
+        , email = Nothing
         , pluginMode = LoginMode Initial
         , logs = []
       }
@@ -132,6 +132,7 @@ type Msg
     | NoOp
 
 
+update : Msg -> Model msg -> ( Model msg, Cmd msg, Maybe (PluginResult LogInfo) )
 update msg model =
     let
         ( newModel, cmds, mbPluginResult ) =
@@ -143,25 +144,49 @@ update msg model =
 internalUpdate msg model =
     case msg of
         SetUsername s ->
-            ( { model | username = s }
+            ( { model
+                | username =
+                    if s == "" then
+                        Nothing
+                    else
+                        Just s
+              }
             , Cmd.none
             , Nothing
             )
 
         SetPassword s ->
-            ( { model | password = s }
+            ( { model
+                | password =
+                    if s == "" then
+                        Nothing
+                    else
+                        Just s
+              }
             , Cmd.none
             , Nothing
             )
 
         SetConfirmPassword s ->
-            ( { model | confirmPassword = s }
+            ( { model
+                | confirmPassword =
+                    if s == "" then
+                        Nothing
+                    else
+                        Just s
+              }
             , Cmd.none
             , Nothing
             )
 
         SetEmail s ->
-            ( { model | email = s }
+            ( { model
+                | email =
+                    if s == "" then
+                        Nothing
+                    else
+                        Just s
+              }
             , Cmd.none
             , Nothing
             )
@@ -191,6 +216,7 @@ internalUpdate msg model =
                     ( { model
                         | logInfo = LoggedOut
                         , pluginMode = LoginMode Failure
+                        , password = Nothing
                       }
                     , newLog
                         AddLog
@@ -207,6 +233,7 @@ internalUpdate msg model =
                                 { username = username
                                 , jwt = jwt
                                 }
+                        , password = Nothing
                         , pluginMode = LoginMode Success
                       }
                     , toAuthLocalStorage (setJwt username jwt)
@@ -321,10 +348,14 @@ login model =
                 [ ( "login"
                   , Encode.object
                         [ ( "username"
-                          , Encode.string (.username model)
+                          , model.username
+                                |> Maybe.withDefault ""
+                                |> Encode.string
                           )
                         , ( "password"
-                          , Encode.string (.password model)
+                          , model.password
+                                |> Maybe.withDefault ""
+                                |> Encode.string
                           )
                         ]
                   )
@@ -353,13 +384,19 @@ signUp model =
                 [ ( "new_user"
                   , Encode.object
                         [ ( "username"
-                          , Encode.string (.username model)
+                          , model.username
+                                |> Maybe.withDefault ""
+                                |> Encode.string
                           )
                         , ( "email"
-                          , Encode.string (.email model)
+                          , model.email
+                                |> Maybe.withDefault ""
+                                |> Encode.string
                           )
                         , ( "password"
-                          , Encode.string (.password model)
+                          , model.password
+                                |> Maybe.withDefault ""
+                                |> Encode.string
                           )
                         ]
                   )
@@ -443,6 +480,7 @@ refreshJwt jwt =
 --------------------
 
 
+view : { a | zone : Zone } -> Model msg -> Element msg
 view config model =
     Element.map model.externalMsg <|
         case model.pluginMode of
@@ -461,6 +499,16 @@ view config model =
 
 signUpView config status model =
     let
+        canSignUp =
+            (model.username /= Nothing)
+                && (model.password /= Nothing)
+                && (Maybe.map String.length model.password
+                        |> Maybe.map (\l -> l >= 6 && l <= 20)
+                        |> Maybe.withDefault False
+                   )
+                && (model.confirmPassword == model.password)
+                && (model.email /= Nothing)
+
         initialView =
             column
                 [ spacing 15 ]
@@ -469,6 +517,7 @@ signUpView config status model =
                         SetUsername
                     , text =
                         model.username
+                            |> Maybe.withDefault ""
                     , placeholder = Nothing
                     , label =
                         Input.labelLeft [ centerY ]
@@ -479,6 +528,7 @@ signUpView config status model =
                         SetEmail
                     , text =
                         model.email
+                            |> Maybe.withDefault ""
                     , placeholder = Nothing
                     , label =
                         Input.labelLeft [ centerY ]
@@ -489,6 +539,7 @@ signUpView config status model =
                         SetPassword
                     , text =
                         model.password
+                            |> Maybe.withDefault ""
                     , placeholder = Nothing
                     , label =
                         Input.labelLeft [ centerY ]
@@ -500,6 +551,7 @@ signUpView config status model =
                         SetConfirmPassword
                     , text =
                         model.confirmPassword
+                            |> Maybe.withDefault ""
                     , placeholder = Nothing
                     , label =
                         Input.labelLeft [ centerY ]
@@ -508,8 +560,12 @@ signUpView config status model =
                     }
                 , row
                     [ spacing 15 ]
-                    [ Input.button (buttonStyle_ True)
-                        { onPress = Just SignUp
+                    [ Input.button (buttonStyle_ canSignUp)
+                        { onPress =
+                            if canSignUp then
+                                Just SignUp
+                            else
+                                Nothing
                         , label = text "Envoyer"
                         }
                     , Input.button (buttonStyle_ True)
@@ -579,6 +635,10 @@ signUpView config status model =
 
 loginView config status model =
     let
+        canLogin =
+            (model.username /= Nothing)
+                && (model.password /= Nothing)
+
         initialView =
             column
                 [ spacing 15 ]
@@ -587,6 +647,7 @@ loginView config status model =
                         SetUsername
                     , text =
                         model.username
+                            |> Maybe.withDefault ""
                     , placeholder = Nothing
                     , label =
                         Input.labelLeft [ centerY ]
@@ -597,6 +658,7 @@ loginView config status model =
                         SetPassword
                     , text =
                         model.password
+                            |> Maybe.withDefault ""
                     , placeholder = Nothing
                     , label =
                         Input.labelLeft [ centerY ]
@@ -604,8 +666,12 @@ loginView config status model =
                     , show = False
                     }
                 , row [ spacing 15 ]
-                    [ Input.button (buttonStyle_ True)
-                        { onPress = Just Login
+                    [ Input.button (buttonStyle_ canLogin)
+                        { onPress =
+                            if canLogin then
+                                Just Login
+                            else
+                                Nothing
                         , label = text "Connexion"
                         }
                     , Input.button (buttonStyle_ True)
