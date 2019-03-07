@@ -4,7 +4,7 @@ defmodule GitesWeb.BookingController do
   alias Gites.BookingSystem
   alias Gites.BookingSystem.Booking
 
-  require IEx;
+  # require IEx
 
   action_fallback GitesWeb.FallbackController
 
@@ -14,7 +14,7 @@ defmodule GitesWeb.BookingController do
   end
 
   def create(conn, %{"booking" => booking_params}) do
-    IEx.pry()
+    # IEx.pry()
     with  {:ok, _response} <- Recaptcha.verify(booking_params["captcha_response"]),
           {:ok, %Booking{} = booking} <- BookingSystem.create_booking(booking_params) do
       conn

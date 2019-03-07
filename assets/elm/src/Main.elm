@@ -17,7 +17,7 @@ import Html.Attributes as HtmlAttr
 import Json.Decode as D
 import Json.Encode as E
 import MultLang.MultLang exposing (..)
-import Style.Helpers as StyleHelpers
+import Style.Helpers exposing (..)
 import Style.Icons as Icons
 import Style.Palette exposing (..)
 import Url as Url
@@ -87,28 +87,28 @@ init flags url key =
             else
                 url
     in
-        ( { bookings = newBookings
-          , lang = English
-          , displayMode =
-                urlToDisplayMode url_
-                    |> Maybe.withDefault DisplayFrontPage
-          , key = key
-          , url = url
-          , width =
-                flags.width
-          , height =
-                flags.height
-          , currentTime =
-                flags.currentTime
-          }
-        , Cmd.batch
-            [ if url /= url_ then
-                Nav.pushUrl key (Url.toString url_)
-              else
-                Cmd.none
-            , bookingsCmd
-            ]
-        )
+    ( { bookings = newBookings
+      , lang = English
+      , displayMode =
+            urlToDisplayMode url_
+                |> Maybe.withDefault DisplayFrontPage
+      , key = key
+      , url = url
+      , width =
+            flags.width
+      , height =
+            flags.height
+      , currentTime =
+            flags.currentTime
+      }
+    , Cmd.batch
+        [ if url /= url_ then
+            Nav.pushUrl key (Url.toString url_)
+          else
+            Cmd.none
+        , bookingsCmd
+        ]
+    )
 
 
 subscriptions model =
@@ -161,9 +161,9 @@ update msg model =
                 ( newBookings, bookingsCmd ) =
                     Bookings.update bookingsMsg model.bookings
             in
-                ( { model | bookings = newBookings }
-                , bookingsCmd
-                )
+            ( { model | bookings = newBookings }
+            , bookingsCmd
+            )
 
         ChangeLang l ->
             ( { model | lang = l }, Cmd.none )
@@ -213,13 +213,15 @@ view model =
             (el
                 [ width fill
                 , height fill
-                  --(px model.height)
-                  --, clip
+
+                --(px model.height)
+                --, clip
                 , Background.tiled "/images/vintage-concreteS.png"
                 ]
                 (column
                     [ width fill
-                      --, scrollbarY
+
+                    --, scrollbarY
                     , htmlAttribute <| HtmlAttr.style "id" "mainContainer"
                     ]
                     [ header model
@@ -263,13 +265,59 @@ view model =
 
 header : Model -> Element Msg
 header model =
+    let
+        isDesktop =
+            model.width > 1000
+
+        alphaLayerHeight =
+            if isDesktop then
+                325
+            else
+                170
+
+        titleFontsize =
+            if isDesktop then
+                65
+            else
+                32
+
+        titleOffset =
+            if isDesktop then
+                60
+            else
+                30
+
+        titleContainerWidth =
+            if isDesktop then
+                400
+            else
+                200
+
+        backgroundSize =
+            if isDesktop then
+                300
+            else
+                150
+    in
     column
         [ width fill
-        , Background.color white
+        , Background.tiled "/images/canvas.png"
+        , behindContent
+            (el
+                [ Background.color white
+                , alpha 0.5
+                , width fill
+                , height (px alphaLayerHeight)
+                , paddingEach { sides | top = 15 }
+                ]
+                Element.none
+            )
         ]
         [ column
             [ alignRight
             , alignTop
+            , moveLeft 15
+            , moveDown 15
             ]
             [ image
                 [ width (px 30)
@@ -291,16 +339,10 @@ header model =
                 , description = ""
                 }
             ]
-          --, image
-          --    [ centerX
-          --    , width (px 300)
-          --    ]
-          --    { src = "/images/lilas.png"
-          --    , description = "Le vieux lilas"
-          --    }
         , row
-            [ width (px 350)
-              --, Background.color red
+            [ width (px titleContainerWidth)
+
+            --, Background.color red
             , centerX
             , inFront
                 (el
@@ -308,7 +350,7 @@ header model =
                         [ Font.typeface "Great Vibes"
                         , Font.serif
                         ]
-                    , Font.size 55
+                    , Font.size titleFontsize
                     , Font.color darkCharcoal
                     , Font.shadow
                         { offset = ( 1, 1 )
@@ -319,7 +361,7 @@ header model =
                         [ Font.typeface "Great Vibes"
                         , Font.serif
                         ]
-                    , moveLeft 50
+                    , moveLeft titleOffset
                     ]
                     (text "Le Vieux Lilas")
                 )
@@ -327,38 +369,13 @@ header model =
             [ el
                 [ Background.uncropped "/images/lilacW.png"
                 , Background.color lightGrey
-                , width (px 300)
-                , height (px 300)
+                , width (px backgroundSize)
+                , height (px backgroundSize)
                 , centerX
-                  --, Font.color darkCharcoal
-                  --, Font.shadow
-                  --    { offset = ( 1, 1 )
-                  --    , blur = 0
-                  --    , color = white
-                  --    }
-                  --, Font.family
-                  --    [ Font.typeface "Great Vibes"
-                  --    , Font.serif
-                  --    ]
-                , paddingEach { top = 15, right = 0, bottom = 0, left = 0 }
-                  --, Font.size 50
-                  --, Border.width 1
-                  --, Border.color black
+                , paddingEach { sides | top = 15 }
                 , alignRight
                 ]
-                (text "")
-              --"Le Vieux Lilas                                 d")
-              --, el
-              --    [ centerX
-              --    , Font.center
-              --    , Font.family
-              --        [ Font.typeface "Great Vibes"
-              --        , Font.serif
-              --        ]
-              --    , paddingXY 0 0
-              --    , Font.size 60
-              --    ]
-              --    (text "Le Vieux Lilas")
+                Element.none
             ]
         ]
 
@@ -366,6 +383,9 @@ header model =
 mainMenu : Model -> Element Msg
 mainMenu model =
     let
+        isMobile =
+            model.width < 1000
+
         menuItem mls url =
             link
                 [ padding 15
@@ -377,53 +397,57 @@ mainMenu model =
                     [ Font.typeface "Great Vibes"
                     , Font.serif
                     ]
-                , Font.size 25
+                , Font.size 30
                 , Font.color lightGray
+                , if isMobile then
+                    width fill
+                  else
+                    noAttr
                 ]
                 { url = url
                 , label =
                     el [] (textM model.lang mls)
                 }
     in
-        (if model.width < 1000 then
-            column
-         else
-            row
-        )
-            [ width fill
-            , Background.color darkGreen
-            ]
-            [ menuItem
-                { fr = "Accueil"
-                , en = "Home"
-                }
-                "/home"
-            , menuItem
-                { fr = "Notre gîte"
-                , en = "Our gîte"
-                }
-                "/details"
-            , menuItem
-                { fr = "Les tarifs"
-                , en = "Rates"
-                }
-                "/rates"
-            , menuItem
-                { fr = "Réservations"
-                , en = "Booking"
-                }
-                "/bookings"
-            , menuItem
-                { fr = "Accès"
-                , en = "Access"
-                }
-                "/access"
-            , menuItem
-                { fr = "Dans les environs"
-                , en = "Nearby interests"
-                }
-                "/nearby"
-            ]
+    (if isMobile then
+        column
+     else
+        row
+    )
+        [ width fill
+        , Background.color darkGreen
+        ]
+        [ menuItem
+            { fr = "Accueil"
+            , en = "Home"
+            }
+            "/home"
+        , menuItem
+            { fr = "Notre gîte"
+            , en = "Our gîte"
+            }
+            "/details"
+        , menuItem
+            { fr = "Les tarifs"
+            , en = "Rates"
+            }
+            "/rates"
+        , menuItem
+            { fr = "Réservations"
+            , en = "Booking"
+            }
+            "/bookings"
+        , menuItem
+            { fr = "Accès"
+            , en = "Access"
+            }
+            "/access"
+        , menuItem
+            { fr = "Dans les environs"
+            , en = "Nearby interests"
+            }
+            "/nearby"
+        ]
 
 
 footer : Model -> Element msg
