@@ -10,7 +10,7 @@ defmodule GitesWeb.BookingView do
     %{data: render_one(booking, BookingView, "booking.json")}
   end
 
-  def render("booking_sucess.json", %{booking: _booking}) do 
+  def render("booking_success.json", %{booking: _booking}) do 
     %{message: "booking_successfull"}
   end
 

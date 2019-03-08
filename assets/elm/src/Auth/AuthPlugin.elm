@@ -1,4 +1,4 @@
-port module Auth.AuthPlugin exposing (LogInfo(..), Model, Msg, cmdIfLogged, getLogInfo, init, secureGet, securePost, subscriptions, update, view)
+port module Auth.AuthPlugin exposing (LogInfo(..), Model, Msg, cmdIfLogged, getLogInfo, init, secureGet, securePost, secureRequest, subscriptions, update, view)
 
 import Element exposing (..)
 import Element.Background as Background
@@ -26,12 +26,68 @@ port toAuthLocalStorage : Encode.Value -> Cmd msg
 port fromAuthLocalStorage : (Decode.Value -> msg) -> Sub msg
 
 
-secureGet =
-    Jwt.Http.get
+secureGet :
+    LogInfo
+    ->
+        { url : String
+        , expect : Expect msg
+        }
+    -> Cmd msg
+secureGet logInfo =
+    case logInfo of
+        LoggedIn { jwt } ->
+            Jwt.Http.get jwt
+
+        _ ->
+            \_ -> Cmd.none
 
 
-securePost =
-    Jwt.Http.post
+securePost :
+    LogInfo
+    ->
+        { url : String
+        , body : Body
+        , expect : Expect msg
+        }
+    -> Cmd msg
+securePost logInfo =
+    case logInfo of
+        LoggedIn { jwt } ->
+            Jwt.Http.post jwt
+
+        _ ->
+            \_ -> Cmd.none
+
+
+secureRequest :
+    LogInfo
+    ->
+        { method : String
+        , headers : List Header
+        , url : String
+        , body : Body
+        , expect : Expect msg
+        , timeout : Maybe Float
+        , tracker : Maybe String
+        }
+    -> Cmd msg
+secureRequest logInfo options =
+    case logInfo of
+        LoggedIn { jwt } ->
+            Http.request
+                { method = options.method
+                , headers =
+                    [ Http.header "Authorization" ("Bearer " ++ jwt) ]
+                        ++ options.headers
+                , url = options.url
+                , body = options.body
+                , expect = options.expect
+                , timeout = options.timeout
+                , tracker = options.tracker
+                }
+
+        _ ->
+            Cmd.none
 
 
 cmdIfLogged : LogInfo -> (String -> Cmd msg) -> Cmd msg

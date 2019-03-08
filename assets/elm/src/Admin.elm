@@ -122,7 +122,7 @@ update msg model =
                 | authPlugin = newAuthPlugin
                 , displayMode =
                     if mbPluginResult == Just PluginQuit then
-                        DisplayFrontPageAdmin
+                        DisplayBookingsAdmin
                     else
                         model.displayMode
               }
@@ -142,7 +142,11 @@ update msg model =
         UploaderMsg uploaderMsg ->
             let
                 ( uploader, cmds ) =
-                    Uploader.update uploaderMsg model.uploader
+                    Uploader.update
+                        { logInfo = model.authPlugin.logInfo
+                        }
+                        uploaderMsg
+                        model.uploader
             in
             ( { model
                 | uploader = uploader
@@ -171,7 +175,7 @@ update msg model =
         FileSelected f ->
             let
                 ( uploader, cmds ) =
-                    Uploader.load model.uploader (Uploader.FileHandler f)
+                    Uploader.load model.uploader model.authPlugin.logInfo (Uploader.FileHandler f)
             in
             ( { model
                 | uploader = uploader
@@ -182,7 +186,7 @@ update msg model =
         LoadUploader ->
             let
                 ( uploader, cmds ) =
-                    Uploader.load model.uploader sampleImg
+                    Uploader.load model.uploader model.authPlugin.logInfo sampleImg
             in
             ( { model
                 | uploader = uploader

@@ -26,7 +26,8 @@ defmodule GitesWeb.Router do
     
     post "/signup", UserController, :create
     post "/login", UserSessionController, :create
-    get "/presigned_url/:id", AwsUploadController, :get_url
+    get "/list_bucket", AwsUploadController, :index
+    get "/deleteObj/:id", AwsUploadController, :delete
     resources "/bookings", BookingController, only: [:create, :show, :index, :delete]
     resources "/availabilities", AvailabilityController, only: [:index]
 
@@ -36,6 +37,7 @@ defmodule GitesWeb.Router do
     pipe_through [ :api, :api_auth ]
     get "/users", UserController, :index 
     get "/refreshJwt", UserSessionController, :refresh
+    get "/presigned_url/:id", AwsUploadController, :get_url
   end 
 
   scope "/", GitesWeb do

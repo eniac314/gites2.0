@@ -34,12 +34,13 @@ buttonStyle isActive =
     , Border.rounded 2
     , mouseOver
         [ Background.color grey
-          --, Border.shadow
-          --    { offset = ( 0, 0 )
-          --    , size = 1
-          --    , blur = 0
-          --    , color = rgb255 47 79 79
-          --    }
+
+        --, Border.shadow
+        --    { offset = ( 0, 0 )
+        --    , size = 1
+        --    , blur = 0
+        --    , color = rgb255 47 79 79
+        --    }
         ]
     ]
 
@@ -152,7 +153,8 @@ toogleButtonStyle_ isPressed isActive =
 textInputStyle_ =
     [ width (px 200)
     , paddingXY 5 5
-      --, spacing 15
+
+    --, spacing 15
     , focused [ Border.glow (rgb 1 1 1) 0 ]
     ]
 
@@ -205,22 +207,86 @@ sameHeightImgRow containderWidth images =
                             / toFloat meta.size.height
                     }
             in
-                List.map scale images_
+            List.map scale images_
 
         totalImgWidth =
             List.foldr (\i n -> i.newWidth + n) 0 imgsScaledToMinHeight
     in
-        row
-            [ width fill ]
-            (List.map
-                (\im ->
-                    image
-                        [ width <| fillPortion (floor <| 10000 * im.newWidth / totalImgWidth) ]
-                        { src = im.meta.url
-                        , description =
-                            im.meta.caption
-                                |> Maybe.withDefault ""
-                        }
-                )
-                imgsScaledToMinHeight
+    row
+        [ width fill ]
+        (List.map
+            (\im ->
+                image
+                    [ width <| fillPortion (floor <| 10000 * im.newWidth / totalImgWidth) ]
+                    { src = im.meta.url
+                    , description =
+                        im.meta.caption
+                            |> Maybe.withDefault ""
+                    }
             )
+            imgsScaledToMinHeight
+        )
+
+
+
+-------------------------------------------------------------------------------
+
+
+progressBar : Int -> Element msg
+progressBar n =
+    row
+        [ width (px 200)
+        , height (px 25)
+        , Border.innerShadow
+            { offset = ( 0, 1 )
+            , size = 1
+            , blur = 1
+            , color = rgb255 127 127 127
+            }
+        , Background.color (rgb255 245 245 245)
+        , Border.rounded 5
+        , clip
+        , inFront <|
+            el
+                [ width (px 200)
+                , height (px 25)
+                , Font.center
+                ]
+                (el
+                    [ centerX
+                    , centerY
+                    ]
+                    (String.fromInt n
+                        |> String.padLeft 2 '0'
+                        |> strCons "%"
+                        |> text
+                    )
+                )
+        ]
+        [ el
+            [ width (fillPortion n)
+            , height fill
+            , Background.color
+                (if n < 25 then
+                    rgb255 217 83 79
+                 else if n < 50 then
+                    rgb255 240 173 78
+                 else if n < 75 then
+                    rgb255 91 192 222
+                 else
+                    rgb255 92 184 92
+                )
+            , Font.center
+            ]
+            Element.none
+        , el
+            [ width (fillPortion (100 - n))
+            , height fill
+            ]
+            Element.none
+        ]
+
+
+strCons : String -> String -> String
+strCons tail head =
+    head ++ tail
