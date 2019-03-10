@@ -16,9 +16,10 @@ import Http exposing (..)
 import Internals.Helpers exposing (Status(..), httpErrorToString)
 import Json.Decode as D
 import Json.Encode as E
+import MultLang.MultLang exposing (..)
 import Murmur3 exposing (hashString)
 import String.Extra exposing (leftOf, rightOf)
-import Style.Helpers exposing (progressBar)
+import Style.Helpers exposing (buttonStyle_, okMark, progressBar)
 
 
 type alias Model msg =
@@ -27,18 +28,20 @@ type alias Model msg =
     , progress : Maybe { sent : Int, size : Int }
     , uploadStatus : Status
     , error : Maybe String
+    , uploadAuto : Bool
     , outMsg : Msg -> msg
     }
 
 
-init : (Msg -> msg) -> Model msg
-init outMsg =
+init : (Msg -> msg) -> Bool -> Model msg
+init outMsg uploadAuto =
     { toUpload = Nothing
     , presignedUrl = Nothing
     , progress = Nothing
     , uploadStatus = Initial
     , error = Nothing
     , outMsg = outMsg
+    , uploadAuto = uploadAuto
     }
 
 
@@ -61,12 +64,7 @@ load : Model msg -> Auth.LogInfo -> ToUpload -> ( Model msg, Cmd msg )
 load model logInfo toUpload =
     let
         fn =
-            case toUpload of
-                Base64Img { name } ->
-                    name
-
-                FileHandler f ->
-                    File.name f
+            filename toUpload
     in
     ( { model
         | toUpload = Just toUpload
@@ -77,9 +75,23 @@ load model logInfo toUpload =
     )
 
 
+uploadDone model =
+    model.uploadStatus == Success || model.uploadStatus == Failure
+
+
 type ToUpload
     = Base64Img { name : String, data : String }
     | FileHandler File
+
+
+filename : ToUpload -> String
+filename toUpload =
+    case toUpload of
+        Base64Img { name } ->
+            name
+
+        FileHandler f ->
+            File.name f
 
 
 type Msg
@@ -96,29 +108,18 @@ update config msg model =
         PresignedUrl res ->
             case res of
                 Ok url ->
-                    ( { model | presignedUrl = Just url }
-                    , Cmd.none
-                    )
+                    if model.uploadAuto then
+                        upload { model | presignedUrl = Just url }
+                    else
+                        ( { model | presignedUrl = Just url }
+                        , Cmd.none
+                        )
 
                 _ ->
                     ( model, Cmd.none )
 
         Upload ->
-            case ( model.toUpload, model.presignedUrl ) of
-                ( Just (Base64Img { name, data }), Just url ) ->
-                    ( { model | uploadStatus = Waiting }
-                    , Cmd.map model.outMsg <|
-                        uploadBase64Pic data url
-                    )
-
-                ( Just (FileHandler f), Just url ) ->
-                    ( { model | uploadStatus = Waiting }
-                    , Cmd.map model.outMsg <|
-                        uploadFile f url
-                    )
-
-                _ ->
-                    ( model, Cmd.none )
+            upload model
 
         GotProgress progress ->
             case progress of
@@ -149,9 +150,27 @@ update config msg model =
             ( model, Cmd.none )
 
 
-getPresignedUrl logInfo filename =
+upload model =
+    case ( model.toUpload, model.presignedUrl ) of
+        ( Just (Base64Img { name, data }), Just url ) ->
+            ( { model | uploadStatus = Waiting }
+            , Cmd.map model.outMsg <|
+                uploadBase64Pic data url
+            )
+
+        ( Just (FileHandler f), Just url ) ->
+            ( { model | uploadStatus = Waiting }
+            , Cmd.map model.outMsg <|
+                uploadFile f url
+            )
+
+        _ ->
+            ( model, Cmd.none )
+
+
+getPresignedUrl logInfo fn =
     Auth.secureGet logInfo
-        { url = "api/restricted/presigned_url/" ++ filename
+        { url = "api/restricted/presigned_url/" ++ fn
         , expect =
             Http.expectJson PresignedUrl (D.field "presigned_s3_url" D.string)
         }
@@ -203,28 +222,76 @@ uploadFile file presignedUrl =
         }
 
 
-view : Model msg -> Element msg
-view model =
+view : { a | lang : Lang } -> Model msg -> Element msg
+view config model =
     Element.map model.outMsg <|
         column
-            [ spacing 15
-            ]
-            [ paragraph
+            [ spacing 15 ]
+            [ row
                 []
-                [ text (Maybe.withDefault "" model.presignedUrl) ]
-            , case model.toUpload of
-                Just (Base64Img { data }) ->
-                    image
-                        []
-                        { src = data
-                        , description = ""
-                        }
-
-                _ ->
+                [ textM config.lang
+                    (MultLangStr "Uploading: "
+                        "Mise en ligne: "
+                    )
+                , el []
+                    (Maybe.map filename model.toUpload
+                        |> Maybe.withDefault ""
+                        |> text
+                    )
+                ]
+            , case model.uploadStatus of
+                Initial ->
                     Element.none
-            , Input.button
-                []
-                { onPress = Just Upload
-                , label = text "Upload"
-                }
+
+                Waiting ->
+                    model.progress
+                        |> Maybe.map
+                            (\{ sent, size } ->
+                                (sent // size) * 100
+                            )
+                        |> Maybe.withDefault 0
+                        |> progressBar
+
+                Success ->
+                    row
+                        [ spacing 5 ]
+                        [ el
+                            []
+                            (textM config.lang
+                                (MultLangStr
+                                    "Success"
+                                    "Succes"
+                                )
+                            )
+                        , okMark
+                        ]
+
+                Failure ->
+                    column
+                        [ spacing 15 ]
+                        [ row
+                            [ spacing 5 ]
+                            [ el
+                                []
+                                (textM config.lang
+                                    (MultLangStr
+                                        "Failure: "
+                                        "Echec: "
+                                    )
+                                )
+                            , model.error
+                                |> Maybe.withDefault ""
+                                |> text
+                            ]
+                        , Input.button
+                            (buttonStyle_ True)
+                            { onPress =
+                                Just Upload
+                            , label =
+                                textM config.lang
+                                    (MultLangStr "Try again"
+                                        "Réessayer"
+                                    )
+                            }
+                        ]
             ]

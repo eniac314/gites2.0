@@ -11,10 +11,10 @@ import Element.Input as Input
 import Element.Keyed as Keyed
 import Element.Lazy exposing (lazy)
 import Element.Region as Region
-import FrontPage.MarkdownEditor as MarkdownEditor exposing (..)
 import Html as Html
 import Html.Attributes as HtmlAttr
 import Internals.Helpers exposing (..)
+import Internals.MarkdownEditor as MarkdownEditor exposing (..)
 import Internals.MarkdownParser as MarkdownParser exposing (..)
 import List.Extra exposing (swapAt)
 import MultLang.MultLang exposing (..)
@@ -122,7 +122,7 @@ update msg model =
                         |> List.indexedMap Tuple.pair
                         |> Dict.fromList
             in
-                { model | content = newContent }
+            { model | content = newContent }
 
         SwapDown id ->
             let
@@ -132,7 +132,7 @@ update msg model =
                         |> List.indexedMap Tuple.pair
                         |> Dict.fromList
             in
-                { model | content = newContent }
+            { model | content = newContent }
 
         NewMarkdown ->
             { model
@@ -162,34 +162,34 @@ update msg model =
                 ( newEditor, mbPluginRes ) =
                     MarkdownEditor.update markdownEditorMsg model.markdownEditor
             in
-                case mbPluginRes of
-                    Nothing ->
-                        { model | markdownEditor = newEditor }
+            case mbPluginRes of
+                Nothing ->
+                    { model | markdownEditor = newEditor }
 
-                    Just PluginQuit ->
-                        { model
-                            | markdownEditor = newEditor
-                            , displayMode = Preview
-                        }
+                Just PluginQuit ->
+                    { model
+                        | markdownEditor = newEditor
+                        , displayMode = Preview
+                    }
 
-                    Just (PluginData data) ->
-                        case model.selectedItem of
-                            Nothing ->
-                                { model
-                                    | markdownEditor = newEditor
-                                    , displayMode = Preview
-                                }
+                Just (PluginData data) ->
+                    case model.selectedItem of
+                        Nothing ->
+                            { model
+                                | markdownEditor = newEditor
+                                , displayMode = Preview
+                            }
 
-                            Just id ->
-                                { model
-                                    | markdownEditor = newEditor
-                                    , content =
-                                        Dict.insert
-                                            id
-                                            (MarkdownContent data)
-                                            model.content
-                                    , displayMode = Preview
-                                }
+                        Just id ->
+                            { model
+                                | markdownEditor = newEditor
+                                , content =
+                                    Dict.insert
+                                        id
+                                        (MarkdownContent data)
+                                        model.content
+                                , displayMode = Preview
+                            }
 
         NoOp ->
             model
@@ -279,17 +279,15 @@ previewView config model =
           else
             Dict.map (editableItem config) model.content
                 --Dict Int (Element Msg)
-                |>
-                    Dict.values
+                |> Dict.values
                 --List (Element Msg)
-                |>
-                    column
-                        [ Background.color grey
-                        , width fill
-                        , centerX
-                        , padding 10
-                        , spacing 20
-                        ]
+                |> column
+                    [ Background.color grey
+                    , width fill
+                    , centerX
+                    , padding 10
+                    , spacing 20
+                    ]
         ]
 
 
