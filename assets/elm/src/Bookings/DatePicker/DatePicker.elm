@@ -87,21 +87,21 @@ init mbStartDate outMsg =
         startDate =
             Maybe.withDefault initDate mbStartDate
     in
-    ( prepareDates startDate
-        { open = False
-        , mouseInside = False
-        , today = startDate
-        , currentDate = startDate
-        , currentDates = []
-        , firstDayOfWeek = Mon
-        , canPickDateInPast = False
-        , outMsg = outMsg
-        }
-    , [ Task.perform CurrentDate today
-      ]
-        |> Cmd.batch
-        |> Cmd.map outMsg
-    )
+        ( prepareDates startDate
+            { open = False
+            , mouseInside = False
+            , today = startDate
+            , currentDate = startDate
+            , currentDates = []
+            , firstDayOfWeek = Mon
+            , canPickDateInPast = False
+            , outMsg = outMsg
+            }
+        , [ Task.perform CurrentDate today
+          ]
+            |> Cmd.batch
+            |> Cmd.map outMsg
+        )
 
 
 setCurrentDate : Date -> Model msg -> Model msg
@@ -120,10 +120,10 @@ prepareDates date model =
         end =
             nextMonth date |> addDays 6
     in
-    { model
-        | currentDate = date
-        , currentDates = datesInRange model.firstDayOfWeek start end
-    }
+        { model
+            | currentDate = date
+            , currentDates = datesInRange model.firstDayOfWeek start end
+        }
 
 
 update : Msg -> Model msg -> ( Model msg, Cmd msg, Maybe Date )
@@ -215,30 +215,31 @@ view config model =
                         }
                     )
     in
-    Element.map model.outMsg <|
-        column
-            [ width fill
-            , if model.open then
-                below <|
-                    column
-                        [ Border.color grey
-                        , Border.rounded 3
-                        , Border.width 1
-                        , Background.color white
-                        , moveUp 1
-                        , Events.onMouseEnter MouseEnter
-                        , Events.onMouseLeave MouseLeave
-                        , onPicker "mousedown" NoOp
-                        ]
-                        [ monthSelectorView config model
-                        , weekdaysView config model
-                        , dayGrid config model
-                        ]
-              else
-                noAttr
-            ]
-            [ pickedDateView config model
-            ]
+        Element.map model.outMsg <|
+            column
+                [ width fill
+                , if model.open then
+                    below <|
+                        column
+                            [ Border.color grey
+                            , Border.rounded 3
+                            , Border.width 1
+                            , Background.color white
+                            , moveUp 1
+                            , Events.onMouseEnter MouseEnter
+                            , Events.onMouseLeave MouseLeave
+                            , onPicker "mousedown" NoOp
+                            , paddingXY 10 10
+                            ]
+                            [ monthSelectorView config model
+                            , weekdaysView config model
+                            , dayGrid config model
+                            ]
+                  else
+                    noAttr
+                ]
+                [ pickedDateView config model
+                ]
 
 
 pickedDateView : Config -> Model msg -> Element Msg
@@ -249,7 +250,8 @@ pickedDateView config model =
         , Border.rounded 3
         , Border.color grey
         , Border.width 1
-        , width (px 250)
+        , Font.center
+        , width (px 205)
         , if model.open && not model.mouseInside then
             Events.onLoseFocus Close
           else
@@ -260,7 +262,8 @@ pickedDateView config model =
             Events.onClick Open
         , pointer
         , Font.size 16
-        , htmlAttribute <| HtmlAttr.readonly True -- "readonly" "true"
+        , htmlAttribute <| HtmlAttr.readonly True
+          -- "readonly" "true"
         ]
         { onChange = always NoOp
         , text =
@@ -286,12 +289,14 @@ monthSelectorView config model =
             , pointer
             , alignLeft
             , mouseOver
-                [ alpha 0.8 ]
+                [ alpha 0.8
+                , Background.color grey
+                ]
             , centerY
             ]
             (Icons.chevronLeft
                 (Icons.defOptions
-                    |> Icons.color grey
+                    |> Icons.color darkGrey
                 )
             )
         , column
@@ -323,12 +328,14 @@ monthSelectorView config model =
             , pointer
             , alignRight
             , mouseOver
-                [ alpha 0.8 ]
+                [ alpha 0.8
+                , Background.color grey
+                ]
             , centerY
             ]
             (Icons.chevronRight
                 (Icons.defOptions
-                    |> Icons.color grey
+                    |> Icons.color darkGrey
                 )
             )
         ]
@@ -448,10 +455,11 @@ dayGrid config model =
                  , handler d
                  , padding 3
                  , Font.size 16
+                 , Border.rounded 1
                  , mouseOver
                     [ Background.color lightGrey ]
                  , if Date.compare d model.today == EQ then
-                    Font.bold
+                    Background.color grey
                    else
                     noAttr
                  , if availability d == Available then
@@ -472,25 +480,25 @@ dayGrid config model =
                 )
                 (text <| String.fromInt (day d))
     in
-    column
-        [ width fill ]
-        (List.map
-            (\daysRow ->
-                row
-                    [ width fill ]
-                    (List.map dayView daysRow)
-            )
-            days
-            |> List.intersperse
-                (el
-                    [ width fill
-                    , Border.widthEach
-                        { sides | top = 1 }
-                    , Border.color lightGrey
-                    ]
-                    Element.none
+        column
+            [ width fill ]
+            (List.map
+                (\daysRow ->
+                    row
+                        [ width fill ]
+                        (List.map dayView daysRow)
                 )
-        )
+                days
+                |> List.intersperse
+                    (el
+                        [ width fill
+                        , Border.widthEach
+                            { sides | top = 1 }
+                        , Border.color lightGrey
+                        ]
+                        Element.none
+                    )
+            )
 
 
 groupDates : List Date -> List (List Date)
@@ -507,4 +515,4 @@ groupDates dates =
                     else
                         go (i + 1) xs_ (x :: racc) acc
     in
-    go 0 dates [] []
+        go 0 dates [] []

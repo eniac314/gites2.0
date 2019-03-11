@@ -56,7 +56,7 @@ blockToElement offset block =
 
         Paragraph raw inlines ->
             paragraph
-                []
+                [ paddingEach { top = 0, right = 0, bottom = 0, left = 10 } ]
                 (List.concatMap inlinesToElements inlines)
 
         BlockQuote blocks ->
@@ -68,11 +68,11 @@ blockToElement offset block =
             let
                 bullet off =
                     if off == 0 then
-                        "●"
+                        "•"
                     else if off == 1 then
-                        "-"
+                        "◦"
                     else
-                        "->"
+                        "‣"
 
                 liView bs =
                     case bs of
@@ -85,7 +85,8 @@ blockToElement offset block =
                         _ ->
                             [ row
                                 [ width fill
-                                , spacing 10
+                                , spacing 5
+                                , Font.center
                                 ]
                                 [ el [ alignTop ] (text <| bullet offset)
                                 , paragraph [] (List.map (blockToElement (offset + 1)) bs)
@@ -111,22 +112,22 @@ headings raw level inlines =
         headingStyles =
             Dict.fromList
                 [ ( 1
-                  , [ Font.size 45 ]
+                  , [ Font.size 45, Font.bold ]
                   )
                 , ( 2
-                  , [ Font.size 25 ]
+                  , [ Font.size 35, Font.bold ]
                   )
                 , ( 3
-                  , []
+                  , [ Font.size 30, Font.bold ]
                   )
                 , ( 4
-                  , []
+                  , [ Font.size 25, Font.bold ]
                   )
                 , ( 5
-                  , []
+                  , [ Font.size 15, Font.bold ]
                   )
                 , ( 6
-                  , []
+                  , [ Font.size 10, Font.bold ]
                   )
                 ]
     in
@@ -156,7 +157,7 @@ inlinesToElements inline =
         Link url mbTitle inlines ->
             [ link
                 [ Font.underline
-                , Font.color (rgb255 0 0 255)
+                , Font.color lightBlue
                 ]
                 { url = url
                 , label = text <| Inline.extractText inlines

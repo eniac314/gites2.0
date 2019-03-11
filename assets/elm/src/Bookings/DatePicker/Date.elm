@@ -66,48 +66,48 @@ formatDay l wd =
         English ->
             case wd of
                 Mon ->
-                    "Mo"
+                    "M"
 
                 Tue ->
-                    "Tu"
+                    "T"
 
                 Wed ->
-                    "We"
+                    "W"
 
                 Thu ->
-                    "Th"
+                    "T"
 
                 Fri ->
-                    "Fr"
+                    "F"
 
                 Sat ->
-                    "Sa"
+                    "S"
 
                 Sun ->
-                    "Su"
+                    "S"
 
         French ->
             case wd of
                 Mon ->
-                    "Lun"
+                    "L"
 
                 Tue ->
-                    "Mar"
+                    "M"
 
                 Wed ->
-                    "Mer"
+                    "M"
 
                 Thu ->
-                    "Jeu"
+                    "J"
 
                 Fri ->
-                    "Ven"
+                    "V"
 
                 Sat ->
-                    "Sam"
+                    "S"
 
                 Sun ->
-                    "Dim"
+                    "D"
 
 
 formatMonth : Lang -> Time.Month -> String
@@ -219,10 +219,10 @@ trimDates firstDay dates =
                     else
                         dr xs
     in
-    dl dates
-        |> List.reverse
-        |> dr
-        |> List.reverse
+        dl dates
+            |> List.reverse
+            |> dr
+            |> List.reverse
 
 
 datesInRange : Time.Weekday -> Date -> Date -> List Date
@@ -233,13 +233,13 @@ datesInRange firstDay min max =
                 y =
                     subDay x
             in
-            if isSameDate y min then
-                y :: acc
-            else
-                go y (y :: acc)
+                if isSameDate y min then
+                    y :: acc
+                else
+                    go y (y :: acc)
     in
-    go max []
-        |> trimDates firstDay
+        go max []
+            |> trimDates firstDay
 
 
 predDow : Time.Weekday -> Time.Weekday
@@ -249,10 +249,10 @@ predDow d =
             (weekdayToNumber d - 1)
                 |> modBy 7
     in
-    if prev == 0 then
-        Sun
-    else
-        numberToWeekday prev
+        if prev == 0 then
+            Sun
+        else
+            numberToWeekday prev
 
 
 subDows : Int -> Time.Weekday -> Time.Weekday
@@ -323,7 +323,7 @@ repeat f =
             else
                 go (n - 1) (f x)
     in
-    go
+        go
 
 
 dayToString : Int -> String
