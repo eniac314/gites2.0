@@ -24,6 +24,7 @@ defmodule GitesWeb.Router do
   scope "/api", GitesWeb do
     pipe_through :api
     
+    get "/users", UserController, :index 
     post "/signup", UserController, :create
     post "/login", UserSessionController, :create
     get "/list_bucket", AwsUploadController, :index
@@ -36,7 +37,7 @@ defmodule GitesWeb.Router do
 
   scope "/api/restricted", GitesWeb do 
     pipe_through [ :api, :api_auth ]
-    get "/users", UserController, :index 
+    # get "/users", UserController, :index 
     get "/refreshJwt", UserSessionController, :refresh
     post "/presigned_url", AwsUploadController, :get_url
     get "/list_bucket/:folder", AwsUploadController, :show

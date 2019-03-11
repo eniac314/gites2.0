@@ -51,10 +51,14 @@ https://www.mairie-lainsecq.fr/mairie-commune-eglise-fontaine-clocher-yonne-puis
             "Effect": "Allow",
             "Principal": "*",
             "Action": "s3:GetObject",
-            "Resource": "arn:aws:s3:::gite-vieux-lilas/*"
-            "Condition":{
-                "StringLike":{"aws:Referer":["http://www.example.com/*","http://example.com/*"]}
-            } 
+            "Resource": "arn:aws:s3:::gite-vieux-lilas/*",
+            "Condition": {
+                "StringLike": {
+                    "aws:Referer": [
+                        "http://localhost:4000/*"
+                    ]
+                }
+            }
         }
     ]
 }

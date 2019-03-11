@@ -249,10 +249,10 @@ update config msg model =
                     )
 
                 Err e ->
-                    let
-                        err =
-                            Debug.log "" e
-                    in
+                    --let
+                    --    err =
+                    --        Debug.log "" e
+                    --in
                     ( model, Cmd.none, Nothing )
 
         GoBack ->
@@ -321,7 +321,54 @@ view config model =
                   else
                     Element.none
                 ]
+            , imageSelectorView config model
             ]
+
+
+imageSelectorView : { a | lang : Lang } -> Model msg -> Element Msg
+imageSelectorView config model =
+    let
+        imgBlockView { url } =
+            column
+                [ spacing 10
+                , padding 10
+                , width (px 150)
+                , alignTop
+                , Background.color grey
+                , mouseOver
+                    [ Background.color lightGrey ]
+                , Border.rounded 5
+                , pointer
+
+                --, Events.onClick
+                --    (PickGallery hq name pics)
+                ]
+                [ --el
+                  --   [ Font.bold
+                  --   , width fill
+                  --   , Font.center
+                  --   , clip
+                  --   ]
+                  --   (text <| toSentenceCase name)
+                  el
+                    [ width (px 140)
+                    , height (px 105)
+                    , centerX
+                    , Background.image <|
+                        awsUrl
+                            ++ url
+                    ]
+                    Element.none
+                ]
+    in
+    column
+        [ spacing 15 ]
+        [ wrappedRow
+            [ spacing 15 ]
+            (Dict.values model.contents
+                |> List.map imgBlockView
+            )
+        ]
 
 
 
@@ -378,10 +425,15 @@ getContents logInfo model =
 decodeContents : Decode.Decoder (Dict String ImageMeta)
 decodeContents =
     let
+        decodeUnit =
+            Decode.string
+                |> Decode.map String.toInt
+                |> Decode.map (Maybe.withDefault 0)
+
         decodeSize =
             Decode.map2 (\w h -> { width = w, height = h })
-                (Decode.field "width" Decode.int)
-                (Decode.field "height" Decode.int)
+                (Decode.field "width" decodeUnit)
+                (Decode.field "height" decodeUnit)
     in
     Decode.field "content" (Decode.dict decodeSize)
         |> Decode.map
