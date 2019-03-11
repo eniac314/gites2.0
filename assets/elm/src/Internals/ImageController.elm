@@ -21,6 +21,7 @@ import Internals.Uploader as Uploader
 import Json.Decode as Decode
 import Json.Encode as Encode
 import MultLang.MultLang exposing (..)
+import String.Extra exposing (rightOfBack)
 import Style.Helpers exposing (..)
 import Style.Palette exposing (..)
 import Task exposing (perform)
@@ -356,7 +357,9 @@ imageSelectorView config model =
                     , centerX
                     , Background.image <|
                         awsUrl
-                            ++ url
+                            ++ model.workingDirectory
+                            ++ "/thumbs/"
+                            ++ rightOfBack "/" url
                     ]
                     Element.none
                 ]

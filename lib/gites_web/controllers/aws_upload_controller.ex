@@ -20,7 +20,7 @@ defmodule GitesWeb.AwsUploadController do
   def show( conn, %{"folder" => folder}) do
     bucket = System.get_env("S3_BUCKET")
     objects = 
-      ExAws.S3.list_objects(bucket, prefix: folder) 
+      ExAws.S3.list_objects(bucket, delimiter: "/", prefix: folder <> "/") 
       |> ExAws.request!
 
     heads =

@@ -2,7 +2,7 @@ defmodule GitesWeb.UserController do
   use GitesWeb, :controller
 
   # Check user authenticated, otherwise halt
-  # plug Guardian.Plug.EnsureAuthenticated when action in [:index]
+  plug Guardian.Plug.EnsureAuthenticated when action in [:index]
 
   alias Gites.Auth 
 
