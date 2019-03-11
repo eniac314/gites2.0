@@ -14,8 +14,9 @@ import Element.Region as Region
 import Html as Html
 import Html.Attributes as HtmlAttr
 import Internals.Helpers exposing (..)
-import Internals.MarkdownEditor as MarkdownEditor exposing (..)
-import Internals.MarkdownParser as MarkdownParser exposing (..)
+import Internals.ImageController as ImageController
+import Internals.MarkdownEditor as MarkdownEditor
+import Internals.MarkdownParser as MarkdownParser
 import List.Extra exposing (swapAt)
 import MultLang.MultLang exposing (..)
 import Style.Helpers exposing (..)
@@ -34,9 +35,9 @@ type FrontPageItem
 
 
 type alias Model msg =
-    { picRowInput : List ImageMeta
-    , content : Dict Int FrontPageItem
+    { content : Dict Int FrontPageItem
     , markdownEditor : MarkdownEditor.Model msg
+    , imageController : ImageController.Model msg
     , displayMode : DisplayMode
     , selectedItem : Maybe Int
     , outMsg : Msg -> msg
@@ -59,60 +60,86 @@ type Msg
     | NewPicRow
     | AddNewsBlock
     | MarkdownEditorMsg MarkdownEditor.Msg
+    | ImageControllerMsg ImageController.Msg
     | NoOp
 
 
-init : FrontPageContent -> (Msg -> msg) -> Model msg
+init : FrontPageContent -> (Msg -> msg) -> ( Model msg, Cmd msg )
 init content outMsg =
-    { picRowInput = []
-    , content =
-        List.indexedMap Tuple.pair content
-            |> Dict.fromList
-    , markdownEditor =
-        MarkdownEditor.init
-            French
-            (outMsg << MarkdownEditorMsg)
-    , displayMode = Preview
-    , selectedItem = Nothing
-    , outMsg = outMsg
-    }
+    let
+        ( imageController, imgCtrlCmd ) =
+            ImageController.init
+                "frontPage"
+                (outMsg << ImageControllerMsg)
+    in
+    ( { content =
+            List.indexedMap Tuple.pair content
+                |> Dict.fromList
+      , markdownEditor =
+            MarkdownEditor.init
+                French
+                (outMsg << MarkdownEditorMsg)
+      , imageController = imageController
+      , displayMode = Preview
+      , selectedItem = Nothing
+      , outMsg = outMsg
+      }
+    , Cmd.batch
+        [ imgCtrlCmd ]
+    )
 
 
-update : Msg -> Model msg -> Model msg
-update msg model =
+subscriptions model =
+    Sub.batch
+        [ ImageController.subscriptions model.imageController ]
+
+
+update : { a | logInfo : LogInfo } -> Msg -> Model msg -> ( Model msg, Cmd msg )
+update config msg model =
     case msg of
         EditItem id ->
             case Dict.get id model.content of
                 Just item ->
                     case item of
                         MarkdownContent markDownMls ->
-                            { model
+                            ( { model
                                 | markdownEditor =
                                     MarkdownEditor.load
                                         model.markdownEditor
                                         (Just markDownMls)
                                 , displayMode = EditMarkdown
                                 , selectedItem = Just id
-                            }
+                              }
+                            , Cmd.none
+                            )
 
                         ImageRow pics ->
-                            { model
-                                | picRowInput = pics
+                            ( { model
+                                | imageController =
+                                    ImageController.load
+                                        model.imageController
+                                        pics
                                 , displayMode = EditPicRow
                                 , selectedItem = Just id
-                            }
+                              }
+                            , Cmd.none
+                            )
 
                         NewsBlock ->
-                            { model
+                            ( { model
                                 | displayMode = EditNews
                                 , selectedItem = Just id
-                            }
+                              }
+                            , Cmd.none
+                            )
 
                 Nothing ->
-                    model
+                    ( model, Cmd.none )
 
         DeleteItem id ->
-            { model | content = remove id model.content }
+            ( { model | content = remove id model.content }
+            , Cmd.none
+            )
 
         SwapUp id ->
             let
@@ -122,7 +149,9 @@ update msg model =
                         |> List.indexedMap Tuple.pair
                         |> Dict.fromList
             in
-            { model | content = newContent }
+            ( { model | content = newContent }
+            , Cmd.none
+            )
 
         SwapDown id ->
             let
@@ -132,30 +161,41 @@ update msg model =
                         |> List.indexedMap Tuple.pair
                         |> Dict.fromList
             in
-            { model | content = newContent }
+            ( { model | content = newContent }
+            , Cmd.none
+            )
 
         NewMarkdown ->
-            { model
+            ( { model
                 | markdownEditor =
                     MarkdownEditor.load
                         model.markdownEditor
                         Nothing
                 , displayMode = EditMarkdown
                 , selectedItem = Just (nextId model.content)
-            }
+              }
+            , Cmd.none
+            )
 
         NewPicRow ->
-            { model
-                | picRowInput = []
+            ( { model
+                | imageController =
+                    ImageController.load
+                        model.imageController
+                        []
                 , displayMode = EditPicRow
                 , selectedItem = Just (nextId model.content)
-            }
+              }
+            , Cmd.none
+            )
 
         AddNewsBlock ->
-            { model
+            ( { model
                 | displayMode = EditNews
                 , selectedItem = Just (nextId model.content)
-            }
+              }
+            , Cmd.none
+            )
 
         MarkdownEditorMsg markdownEditorMsg ->
             let
@@ -164,24 +204,30 @@ update msg model =
             in
             case mbPluginRes of
                 Nothing ->
-                    { model | markdownEditor = newEditor }
+                    ( { model | markdownEditor = newEditor }
+                    , Cmd.none
+                    )
 
                 Just PluginQuit ->
-                    { model
+                    ( { model
                         | markdownEditor = newEditor
                         , displayMode = Preview
-                    }
+                      }
+                    , Cmd.none
+                    )
 
                 Just (PluginData data) ->
                     case model.selectedItem of
                         Nothing ->
-                            { model
+                            ( { model
                                 | markdownEditor = newEditor
                                 , displayMode = Preview
-                            }
+                              }
+                            , Cmd.none
+                            )
 
                         Just id ->
-                            { model
+                            ( { model
                                 | markdownEditor = newEditor
                                 , content =
                                     Dict.insert
@@ -189,10 +235,57 @@ update msg model =
                                         (MarkdownContent data)
                                         model.content
                                 , displayMode = Preview
-                            }
+                              }
+                            , Cmd.none
+                            )
+
+        ImageControllerMsg imageControllerMsg ->
+            let
+                ( newImgCtrl, cmd, mbPluginRes ) =
+                    ImageController.update
+                        config
+                        imageControllerMsg
+                        model.imageController
+            in
+            case mbPluginRes of
+                Nothing ->
+                    ( { model | imageController = newImgCtrl }
+                    , cmd
+                    )
+
+                Just PluginQuit ->
+                    ( { model
+                        | imageController = newImgCtrl
+                        , displayMode = Preview
+                      }
+                    , cmd
+                    )
+
+                Just (PluginData data) ->
+                    case model.selectedItem of
+                        Nothing ->
+                            ( { model
+                                | imageController = newImgCtrl
+                                , displayMode = Preview
+                              }
+                            , cmd
+                            )
+
+                        Just id ->
+                            ( { model
+                                | imageController = newImgCtrl
+                                , content =
+                                    Dict.insert
+                                        id
+                                        (ImageRow data)
+                                        model.content
+                                , displayMode = Preview
+                              }
+                            , cmd
+                            )
 
         NoOp ->
-            model
+            ( model, Cmd.none )
 
 
 nextId : Dict Int a -> Int
@@ -224,7 +317,7 @@ view config model =
             MarkdownEditor.view config model.markdownEditor
 
         EditPicRow ->
-            Element.none
+            ImageController.view config model.imageController
 
         EditNews ->
             Element.none

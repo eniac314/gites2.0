@@ -65,13 +65,27 @@ load model logInfo toUpload =
     let
         fn =
             filename toUpload
+
+        ( mime, meta ) =
+            case toUpload of
+                Base64Img { data, width, height } ->
+                    ( leftOf ";" data
+                        |> rightOf ":"
+                        |> String.trim
+                    , [ ( "width", String.fromInt width )
+                      , ( "height", String.fromInt height )
+                      ]
+                    )
+
+                FileHandler f ->
+                    ( File.mime f, [] )
     in
     ( { model
         | toUpload = Just toUpload
         , presignedUrl = Nothing
       }
     , Cmd.map model.outMsg <|
-        getPresignedUrl logInfo fn
+        getPresignedUrl logInfo meta mime fn
     )
 
 
@@ -80,7 +94,12 @@ uploadDone model =
 
 
 type ToUpload
-    = Base64Img { name : String, data : String }
+    = Base64Img
+        { name : String
+        , data : String
+        , width : Int
+        , height : Int
+        }
     | FileHandler File
 
 
@@ -150,12 +169,13 @@ update config msg model =
             ( model, Cmd.none )
 
 
+upload : Model msg -> ( Model msg, Cmd msg )
 upload model =
     case ( model.toUpload, model.presignedUrl ) of
-        ( Just (Base64Img { name, data }), Just url ) ->
+        ( Just (Base64Img { name, data, width, height }), Just url ) ->
             ( { model | uploadStatus = Waiting }
             , Cmd.map model.outMsg <|
-                uploadBase64Pic data url
+                uploadBase64Pic width height data url
             )
 
         ( Just (FileHandler f), Just url ) ->
@@ -168,15 +188,33 @@ upload model =
             ( model, Cmd.none )
 
 
-getPresignedUrl logInfo fn =
-    Auth.secureGet logInfo
-        { url = "api/restricted/presigned_url/" ++ fn
+getPresignedUrl : Auth.LogInfo -> List ( String, String ) -> String -> String -> Cmd Msg
+getPresignedUrl logInfo metadata mime fn =
+    let
+        body =
+            E.object
+                [ ( "mime"
+                  , E.string mime
+                  )
+                , ( "filename"
+                  , E.string (String.replace "/" "-" fn)
+                  )
+                , ( "metadata"
+                  , E.object
+                        (List.map (\( k, v ) -> ( k, E.string v )) metadata)
+                  )
+                ]
+                |> Http.jsonBody
+    in
+    Auth.securePost logInfo
+        { url = "api/restricted/presigned_url/"
+        , body = body
         , expect =
             Http.expectJson PresignedUrl (D.field "presigned_s3_url" D.string)
         }
 
 
-uploadBase64Pic dataUrl presignedUrl =
+uploadBase64Pic width height dataUrl presignedUrl =
     let
         payload =
             rightOf "," dataUrl

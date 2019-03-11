@@ -104,12 +104,20 @@ function processImage(data) {
             content: smallPic,
             thumb: thumb,
             size: fileSize(smallPic),
-            width: image.width,
-            height: image.height
+            width: canvas.width,
+            height: canvas.height
         };
 
         app.ports.processedImages.send(result);
     };
 
     image.src = data.imageData;
+}
+
+function fileSize(src){
+    var stringLength = src.length - 'data:image/jpeg;base64,'.length;
+
+    var sizeInBytes = 4 * Math.ceil((stringLength / 3))*0.5624896334383812;
+    var sizeInKb=sizeInBytes/1024;
+    return Math.round(sizeInBytes);
 }

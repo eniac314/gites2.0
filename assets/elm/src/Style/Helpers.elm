@@ -232,6 +232,76 @@ sameHeightImgRow containderWidth images =
 -------------------------------------------------------------------------------
 
 
+tabView : plugin -> plugin -> (plugin -> msg) -> String -> Element msg
+tabView currentTool tool handler tabname =
+    el
+        ([ Events.onClick (handler tool)
+         , Border.widthEach
+            { top = 2
+            , bottom = 0
+            , left = 2
+            , right = 2
+            }
+         , Border.roundEach
+            { topLeft = 8
+            , topRight = 8
+            , bottomLeft = 0
+            , bottomRight = 0
+            }
+         , if currentTool == tool then
+            Background.color (rgb 1 1 1)
+           else
+            Background.color (rgb 0.9 0.9 0.9)
+         ]
+            ++ (if currentTool == tool then
+                    [ Border.color (rgb 0.8 0.8 0.8)
+                    ]
+                else
+                    [ Border.color (rgb 0.9 0.9 0.9)
+                    , pointer
+                    , mouseOver
+                        [ Background.color (rgb 0.95 0.95 0.95)
+                        ]
+                    ]
+               )
+        )
+        (el
+            ([]
+                ++ (if currentTool == tool then
+                        [ Border.roundEach
+                            { topLeft = 8
+                            , topRight = 8
+                            , bottomLeft = 0
+                            , bottomRight = 0
+                            }
+                        , paddingEach
+                            { top = 3
+                            , bottom = 7
+                            , left = 12
+                            , right = 12
+                            }
+                        , Border.color (rgb 1 1 1)
+                        , moveDown 2
+                        , Background.color (rgb 1 1 1)
+                        ]
+                    else
+                        [ paddingEach
+                            { top = 5
+                            , bottom = 5
+                            , left = 12
+                            , right = 12
+                            }
+                        ]
+                   )
+            )
+            (text tabname)
+        )
+
+
+
+-------------------------------------------------------------------------------
+
+
 progressBar : Int -> Element msg
 progressBar n =
     row

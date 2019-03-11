@@ -2,13 +2,27 @@ port module Internals.ImageController exposing (..)
 
 import Auth.AuthPlugin as Auth
 import Dict exposing (..)
+import Element exposing (..)
+import Element.Background as Background
+import Element.Border as Border
+import Element.Events as Events
+import Element.Font as Font
+import Element.Input as Input
+import Element.Keyed as Keyed
+import Element.Lazy exposing (lazy)
+import Element.Region as Region
 import File exposing (..)
 import File.Select as Select exposing (..)
+import Html as Html
+import Html.Attributes as HtmlAttr
+import Http exposing (..)
 import Internals.Helpers exposing (..)
 import Internals.Uploader as Uploader
 import Json.Decode as Decode
 import Json.Encode as Encode
+import MultLang.MultLang exposing (..)
 import Style.Helpers exposing (..)
+import Style.Palette exposing (..)
 import Task exposing (perform)
 
 
@@ -40,6 +54,40 @@ type alias Model msg =
     }
 
 
+init : String -> (Msg -> msg) -> ( Model msg, Cmd msg )
+init wc outMsg =
+    ( { workingDirectory = wc
+      , contents = Dict.empty
+      , processingQueue = []
+      , uploaders = Dict.empty
+      , sizes = Dict.empty
+      , picked = []
+      , displayMode = DisplaySelector
+      , outMsg = outMsg
+      }
+    , Cmd.batch
+        []
+        |> Cmd.map outMsg
+    )
+
+
+load : Model msg -> List ImageMeta -> Model msg
+load model picked =
+    { model | picked = picked }
+
+
+subscriptions : Model msg -> Sub msg
+subscriptions model =
+    Sub.batch
+        ([ processedImages (model.outMsg << ImageProcessed) ]
+            ++ List.map
+                (\uploader ->
+                    Uploader.subscriptions uploader
+                )
+                (Dict.values model.uploaders)
+        )
+
+
 type DisplayMode
     = DisplaySelector
     | DisplayUploader
@@ -51,6 +99,9 @@ type Msg
     | Base64Img String String
     | ImageProcessed Decode.Value
     | UploaderMsg String Uploader.Msg
+    | GetContents
+    | GotContents (Result Http.Error (Dict String ImageMeta))
+    | GoBack
     | NoOp
 
 
@@ -117,6 +168,8 @@ update config msg model =
                                             ++ "/"
                                             ++ filename
                                     , data = content
+                                    , width = pi.width
+                                    , height = pi.height
                                     }
                                 )
 
@@ -130,6 +183,8 @@ update config msg model =
                                             ++ "/thumbs/"
                                             ++ filename
                                     , data = pi.thumb
+                                    , width = 200
+                                    , height = 200
                                     }
                                 )
                     in
@@ -179,8 +234,94 @@ update config msg model =
                 _ ->
                     ( model, Cmd.none, Nothing )
 
+        GetContents ->
+            ( model
+            , getContents config.logInfo model
+            , Nothing
+            )
+
+        GotContents res ->
+            case res of
+                Ok content ->
+                    ( { model | contents = content }
+                    , Cmd.none
+                    , Nothing
+                    )
+
+                Err e ->
+                    let
+                        err =
+                            Debug.log "" e
+                    in
+                    ( model, Cmd.none, Nothing )
+
+        GoBack ->
+            ( { model | picked = [] }
+            , Cmd.none
+            , Just PluginQuit
+            )
+
         NoOp ->
             ( model, Cmd.none, Nothing )
+
+
+
+-------------------------------------------------------------------------------
+--------------------
+-- View functions --
+--------------------
+
+
+view : { a | lang : Lang } -> Model msg -> Element msg
+view config model =
+    Element.map model.outMsg <|
+        column
+            [ width fill
+            , height fill
+            , Background.color lightGrey
+            ]
+            [ column
+                [ paddingXY 10 10
+                , spacing 15
+                , centerX
+
+                --, Background.color red
+                , width fill
+                ]
+                [ Input.button
+                    (buttonStyle True)
+                    { onPress = Just ImagesRequested
+                    , label =
+                        textM config.lang (MultLangStr "Upload images" "Mettre en ligne")
+                    }
+                , row
+                    [ centerX
+                    , spacing 10
+                    ]
+                    [ Input.button
+                        (buttonStyle True)
+                        { onPress = Just GoBack
+                        , label =
+                            textM config.lang (MultLangStr "Back" "Retour")
+                        }
+                    , Input.button
+                        (buttonStyle True)
+                        { onPress = Nothing
+                        , label =
+                            textM config.lang (MultLangStr "Save and quit" "Valider")
+                        }
+                    ]
+                , if model.contents == Dict.empty then
+                    Input.button
+                        (buttonStyle True)
+                        { onPress = Just GetContents
+                        , label =
+                            textM config.lang (MultLangStr "load pictures" "charger images")
+                        }
+                  else
+                    Element.none
+                ]
+            ]
 
 
 
@@ -221,6 +362,37 @@ decodeProcessedData =
         (Decode.field "size" Decode.int)
         (Decode.field "width" Decode.int)
         (Decode.field "height" Decode.int)
+
+
+getContents : Auth.LogInfo -> Model msg -> Cmd msg
+getContents logInfo model =
+    Auth.secureGet logInfo
+        { url = "api/restricted/list_bucket/" ++ model.workingDirectory
+        , expect =
+            Http.expectJson
+                (model.outMsg << GotContents)
+                decodeContents
+        }
+
+
+decodeContents : Decode.Decoder (Dict String ImageMeta)
+decodeContents =
+    let
+        decodeSize =
+            Decode.map2 (\w h -> { width = w, height = h })
+                (Decode.field "width" Decode.int)
+                (Decode.field "height" Decode.int)
+    in
+    Decode.field "content" (Decode.dict decodeSize)
+        |> Decode.map
+            (Dict.map
+                (\url size ->
+                    { url = url
+                    , caption = Nothing
+                    , size = size
+                    }
+                )
+            )
 
 
 

@@ -1,4 +1,4 @@
-port module Auth.AuthPlugin exposing (LogInfo(..), Model, Msg, cmdIfLogged, getLogInfo, init, secureGet, securePost, secureRequest, subscriptions, update, view)
+port module Auth.AuthPlugin exposing (LogInfo(..), Model, Msg, cmdIfLogged, getLogInfo, init, isLogged, secureGet, securePost, secureRequest, subscriptions, update, view)
 
 import Element exposing (..)
 import Element.Background as Background
@@ -98,6 +98,16 @@ cmdIfLogged logInfo cmd =
 
         _ ->
             Cmd.none
+
+
+isLogged : LogInfo -> Bool
+isLogged logInfo =
+    case logInfo of
+        LoggedIn { jwt } ->
+            True
+
+        _ ->
+            False
 
 
 type LogInfo

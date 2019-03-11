@@ -16,6 +16,7 @@ import Http exposing (expectString)
 import Internals.Helpers exposing (..)
 import Internals.Uploader as Uploader
 import MultLang.MultLang exposing (..)
+import Style.Helpers exposing (sides, tabView)
 import Task exposing (perform)
 import Time exposing (here)
 
@@ -52,6 +53,7 @@ type alias Model =
 type Msg
     = AuthMsg Auth.Msg
     | FrontPageAdminMsg FrontPageAdmin.Msg
+    | SetDisplayMode DisplayMode
     | WinResize Int Int
     | SetZone Time.Zone
     | NoOp
@@ -70,13 +72,14 @@ subscriptions model =
     Sub.batch
         [ onResize WinResize
         , Auth.subscriptions model.authPlugin
+        , FrontPageAdmin.subscriptions model.frontPageAdmin
         ]
 
 
 init : Flags -> ( Model, Cmd Msg )
 init flags =
     let
-        newFrontPageAdmin =
+        ( newFrontPageAdmin, fpaCmd ) =
             FrontPageAdmin.init [] FrontPageAdminMsg
 
         ( newAuthPlugin, authPluginCmd ) =
@@ -97,6 +100,7 @@ init flags =
     , Cmd.batch
         [ Task.perform SetZone Time.here
         , authPluginCmd
+        , fpaCmd
         ]
     )
 
@@ -126,12 +130,25 @@ update msg model =
 
         FrontPageAdminMsg fpaMsg ->
             let
-                newFrontPageAdmin =
-                    FrontPageAdmin.update fpaMsg model.frontPageAdmin
+                ( newFrontPageAdmin, cmd ) =
+                    FrontPageAdmin.update
+                        { logInfo = model.authPlugin.logInfo }
+                        fpaMsg
+                        model.frontPageAdmin
             in
             ( { model | frontPageAdmin = newFrontPageAdmin }
-            , Cmd.none
+            , cmd
             )
+
+        SetDisplayMode dm ->
+            if Auth.isLogged model.authPlugin.logInfo then
+                ( { model
+                    | displayMode = dm
+                  }
+                , Cmd.none
+                )
+            else
+                ( model, Cmd.none )
 
         WinResize width height ->
             ( { model
@@ -161,8 +178,10 @@ view model =
             (column
                 [ width fill
                 , height fill
+                , paddingEach { sides | top = 3 }
                 ]
-                [ case model.displayMode of
+                [ tabsView model
+                , case model.displayMode of
                     DisplayAuth ->
                         Auth.view { zone = model.zone } model.authPlugin
 
@@ -186,3 +205,66 @@ view model =
             )
         ]
     }
+
+
+tabsView : Model -> Element Msg
+tabsView model =
+    row
+        [ Border.widthEach
+            { top = 0
+            , bottom = 2
+            , left = 0
+            , right = 0
+            }
+        , spacing 5
+        , paddingEach
+            { top = 0
+            , bottom = 0
+            , left = 5
+            , right = 0
+            }
+        , width fill
+        , Border.color
+            (rgb 0.8 0.8 0.8)
+        ]
+        [ tabView model.displayMode
+            DisplayFrontPageAdmin
+            SetDisplayMode
+            (strM model.lang
+                (MultLangStr "Front page Admin"
+                    "Editeur page accueil"
+                )
+            )
+        , tabView model.displayMode
+            DisplayBookingsAdmin
+            SetDisplayMode
+            (strM model.lang
+                (MultLangStr "Bookings Admin"
+                    "Editeur réservations"
+                )
+            )
+        , tabView model.displayMode
+            DisplayNearbyAdmin
+            SetDisplayMode
+            (strM model.lang
+                (MultLangStr "Nearby page Admin"
+                    "Editeur environs"
+                )
+            )
+        , tabView model.displayMode
+            DisplayRatesAdmin
+            SetDisplayMode
+            (strM model.lang
+                (MultLangStr "Rates Admin"
+                    "Editeur tarifs"
+                )
+            )
+        , tabView model.displayMode
+            DisplayAuth
+            SetDisplayMode
+            (strM model.lang
+                (MultLangStr "Authentication"
+                    "Authentification"
+                )
+            )
+        ]

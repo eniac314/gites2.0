@@ -23,3 +23,42 @@ ref:
 https://www.gites-de-la-treille.com/contactus-dordogne-gite
 https://www.mairie-lainsecq.fr/mairie-commune-eglise-fontaine-clocher-yonne-puisaye_fr.html
 
+
+
+###############################################################################
+
+{
+    "Version": "2012-10-17",
+    "Id": "Policy1551978036526",
+    "Statement": [
+        {
+            "Sid": "Stmt1551978029347",
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam::703474946269:user/phoenixGiteVieuxLilas"
+            },
+            "Action": [
+                "s3:PutObject",
+                "s3:PutObjectAcl",
+                "s3:GetObject",
+                "s3:GetObjectAcl",
+                "s3:DeleteObject"
+            ],
+            "Resource": "arn:aws:s3:::gite-vieux-lilas/*"
+        },
+        {
+            "Sid": "MakeItPublic",
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::gite-vieux-lilas/*"
+            "Condition":{
+                "StringLike":{"aws:Referer":["http://www.example.com/*","http://example.com/*"]}
+            } 
+        }
+    ]
+}
+
+https://docs.aws.amazon.com/AmazonS3/latest/dev/example-bucket-policies.html#example-bucket-policies-use-case-4
+
+https://security.stackexchange.com/questions/135677/security-of-setting-access-to-s3-bucket-only-from-a-particular-website

@@ -1,7 +1,5 @@
 module Internals.Helpers exposing (..)
 
-import Style.Helpers exposing (..)
-import Time exposing (Posix)
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -10,8 +8,10 @@ import Element.Font as Font
 import Element.Input as Input
 import Element.Keyed as Keyed
 import Element.Lazy exposing (lazy)
-import Task exposing (perform)
 import Http exposing (Error(..))
+import Style.Helpers exposing (..)
+import Task exposing (perform)
+import Time exposing (Posix)
 
 
 type PluginResult a
@@ -100,8 +100,8 @@ logsView logs zone =
                             [ text details ]
                 ]
     in
-        column [ spacing 15 ]
-            (List.map logView logs)
+    column [ spacing 15 ]
+        (List.map logView logs)
 
 
 httpErrorToString : Http.Error -> String
@@ -122,3 +122,7 @@ httpErrorToString e =
 
         BadBody details ->
             "Erreur décodage: " ++ details
+
+
+awsUrl =
+    "https://s3.eu-west-3.amazonaws.com/gite-vieux-lilas/"
