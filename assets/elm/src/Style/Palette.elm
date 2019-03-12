@@ -138,3 +138,19 @@ gray =
 
 darkGray =
     colorConv Color.darkGray
+
+
+
+---------calendar color------
+
+
+calRed =
+    Element.rgb255 207 124 123
+
+
+calGreen =
+    Element.rgb255 163 192 74
+
+
+calOrange =
+    Element.rgb255 226 184 106

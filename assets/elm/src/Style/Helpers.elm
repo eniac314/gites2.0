@@ -34,13 +34,33 @@ buttonStyle isActive =
     , Border.rounded 2
     , mouseOver
         [ Background.color grey
+          --, Border.shadow
+          --    { offset = ( 0, 0 )
+          --    , size = 1
+          --    , blur = 0
+          --    , color = rgb255 47 79 79
+          --    }
+        ]
+    ]
 
-        --, Border.shadow
-        --    { offset = ( 0, 0 )
-        --    , size = 1
-        --    , blur = 0
-        --    , color = rgb255 47 79 79
-        --    }
+
+buttonStyle2 isActive =
+    [ centerX
+    , padding 10
+    , Background.color white
+    , Font.family
+        [ Font.typeface "Montserrat"
+        , Font.sansSerif
+        ]
+    , Border.rounded 2
+    , mouseOver
+        [ Background.color darkYellow
+          --, Border.shadow
+          --    { offset = ( 0, 0 )
+          --    , size = 1
+          --    , blur = 0
+          --    , color = rgb255 47 79 79
+          --    }
         ]
     ]
 
@@ -153,8 +173,7 @@ toogleButtonStyle_ isPressed isActive =
 textInputStyle_ =
     [ width (px 200)
     , paddingXY 5 5
-
-    --, spacing 15
+      --, spacing 15
     , focused [ Border.glow (rgb 1 1 1) 0 ]
     ]
 
@@ -207,7 +226,7 @@ sameHeightImgRow baseUrl mbattrs images =
                             / toFloat meta.size.height
                     }
             in
-            List.map scale images_
+                List.map scale images_
 
         totalImgWidth =
             List.foldr (\i n -> i.newWidth + n) 0 imgsScaledToMinHeight
@@ -220,32 +239,32 @@ sameHeightImgRow baseUrl mbattrs images =
                 _ ->
                     []
     in
-    Keyed.row
-        [ spacing 15 ]
-        (List.indexedMap
-            (\i im ->
-                ( String.fromInt (i * List.length imgsScaledToMinHeight)
-                , el
-                    ([ width <| fillPortion (Debug.log "portion" (floor <| 10000 * im.newWidth / totalImgWidth)) ]
-                        ++ extraAttrs i
+        Keyed.row
+            [ spacing 15 ]
+            (List.indexedMap
+                (\i im ->
+                    ( String.fromInt (i * List.length imgsScaledToMinHeight)
+                    , el
+                        ([ width <| fillPortion (Debug.log "portion" (floor <| 10000 * im.newWidth / totalImgWidth)) ]
+                            ++ extraAttrs i
+                        )
+                        (html <|
+                            Html.img
+                                [ HtmlAttr.style "width" "100%"
+                                , HtmlAttr.style "height" "auto"
+                                , HtmlAttr.src (baseUrl ++ im.meta.url)
+                                ]
+                                []
+                        )
+                      --{ src = im.meta.url
+                      --, description =
+                      --    im.meta.caption
+                      --        |> Maybe.withDefault ""
+                      --}
                     )
-                    (html <|
-                        Html.img
-                            [ HtmlAttr.style "width" "100%"
-                            , HtmlAttr.style "height" "auto"
-                            , HtmlAttr.src (baseUrl ++ im.meta.url)
-                            ]
-                            []
-                    )
-                  --{ src = im.meta.url
-                  --, description =
-                  --    im.meta.caption
-                  --        |> Maybe.withDefault ""
-                  --}
                 )
+                imgsScaledToMinHeight
             )
-            imgsScaledToMinHeight
-        )
 
 
 

@@ -225,11 +225,11 @@ view config model =
                             , Border.rounded 3
                             , Border.width 1
                             , Background.color white
+                            , Font.family [ Font.monospace ]
                             , moveUp 1
                             , Events.onMouseEnter MouseEnter
                             , Events.onMouseLeave MouseLeave
                             , onPicker "mousedown" NoOp
-                            , paddingXY 10 10
                             ]
                             [ monthSelectorView config model
                             , weekdaysView config model
@@ -245,13 +245,14 @@ view config model =
 pickedDateView : Config -> Model msg -> Element Msg
 pickedDateView config model =
     Input.text
-        [ Background.color white
-        , paddingXY 7 5
+        [ Background.color (rgba 1 1 1 0)
+        , paddingXY 10 10
         , Border.rounded 3
         , Border.color grey
         , Border.width 1
+        , Font.color charcoal
         , Font.center
-        , width (px 205)
+        , width (px 282)
         , if model.open && not model.mouseInside then
             Events.onLoseFocus Close
           else
@@ -263,6 +264,27 @@ pickedDateView config model =
         , pointer
         , Font.size 16
         , htmlAttribute <| HtmlAttr.readonly True
+        , clip
+        , behindContent
+            (el
+                [ Background.color white
+                , width (px 282)
+                , height (px 37)
+                , Border.rounded 3
+                ]
+                (el
+                    [ alignRight
+                    , centerY
+                    , paddingXY 10 0
+                    ]
+                    (Icons.calendar
+                        (Icons.defOptions
+                            |> Icons.color charcoal
+                            |> Icons.size 20
+                        )
+                    )
+                )
+            )
           -- "readonly" "true"
         ]
         { onChange = always NoOp
@@ -294,9 +316,9 @@ monthSelectorView config model =
                 ]
             , centerY
             ]
-            (Icons.chevronLeft
+            (Icons.triangleLeft
                 (Icons.defOptions
-                    |> Icons.color darkGrey
+                    |> Icons.color charcoal
                 )
             )
         , column
@@ -333,9 +355,9 @@ monthSelectorView config model =
                 ]
             , centerY
             ]
-            (Icons.chevronRight
+            (Icons.triangleRight
                 (Icons.defOptions
-                    |> Icons.color darkGrey
+                    |> Icons.color charcoal
                 )
             )
         ]
@@ -345,7 +367,6 @@ weekdaysView : Config -> Model msg -> Element Msg
 weekdaysView config model =
     row
         [ width fill
-        , padding 5
         , Background.color lightGrey
         ]
         (List.map
@@ -353,8 +374,9 @@ weekdaysView config model =
                 el
                     ([ centerY
                      , width fill
-                     , padding 5
                      , Font.size 16
+                     , Font.center
+                     , padding 10
                      ]
                         ++ unselectable
                     )
@@ -403,16 +425,16 @@ dayGrid config model =
         dayColor d =
             case availability d of
                 Available ->
-                    lightGreen
+                    calGreen
 
                 NotAvailable ->
-                    lightRed
+                    calRed
 
                 NoCheckIn ->
-                    orange
+                    calOrange
 
                 NoCheckOut ->
-                    orange
+                    calOrange
 
                 NotAvailableAdmin ->
                     red
@@ -453,7 +475,7 @@ dayGrid config model =
                  , Font.center
                  , Font.color (dayColor d)
                  , handler d
-                 , padding 3
+                 , padding 10
                  , Font.size 16
                  , Border.rounded 1
                  , mouseOver
@@ -468,8 +490,8 @@ dayGrid config model =
                     noAttr
                  ]
                     ++ (if isPickedDate d then
-                            [ Font.color black
-                            , Background.color lightGrey
+                            [ Font.color white
+                            , Background.color blue
                             ]
                         else if month d /= month model.currentDate then
                             [ alpha 0.4 ]
@@ -481,7 +503,8 @@ dayGrid config model =
                 (text <| String.fromInt (day d))
     in
         column
-            [ width fill ]
+            [ width fill
+            ]
             (List.map
                 (\daysRow ->
                     row
