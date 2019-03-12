@@ -437,7 +437,7 @@ frontPageItemView config item =
                         images
                     )
             else
-                sameHeightImgRow Nothing images
+                sameHeightImgRow awsUrl Nothing images
 
         NewsBlock ->
             Element.none

@@ -170,8 +170,8 @@ type alias ImageMeta =
     }
 
 
-sameHeightImgRow : Maybe (Int -> List (Attribute msg)) -> List ImageMeta -> Element msg
-sameHeightImgRow mbattrs images =
+sameHeightImgRow : String -> Maybe (Int -> List (Attribute msg)) -> List ImageMeta -> Element msg
+sameHeightImgRow baseUrl mbattrs images =
     let
         images_ =
             List.map
@@ -233,7 +233,7 @@ sameHeightImgRow mbattrs images =
                         Html.img
                             [ HtmlAttr.style "width" "100%"
                             , HtmlAttr.style "height" "auto"
-                            , HtmlAttr.src im.meta.url
+                            , HtmlAttr.src (baseUrl ++ im.meta.url)
                             ]
                             []
                     )

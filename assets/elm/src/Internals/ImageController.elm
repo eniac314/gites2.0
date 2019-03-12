@@ -122,6 +122,7 @@ type Msg
     | GotContents (Result Http.Error (Dict String ImageMeta))
     | PickImage ImageMeta
     | GoBack
+    | SaveAndQuit
     | NoOp
 
 
@@ -317,6 +318,15 @@ update config msg model =
             , Just PluginQuit
             )
 
+        SaveAndQuit ->
+            ( { model | picked = [] }
+            , Cmd.none
+            , Just
+                (PluginData
+                    model.picked
+                )
+            )
+
         NoOp ->
             ( model, Cmd.none, Nothing )
 
@@ -347,8 +357,6 @@ view config model =
                 [ paddingXY 10 10
                 , spacing 15
                 , centerX
-
-                --, Background.color red
                 , width fill
                 ]
                 [ Input.button
@@ -380,7 +388,7 @@ view config model =
                         }
                     , Input.button
                         (buttonStyle True)
-                        { onPress = Nothing
+                        { onPress = Just SaveAndQuit
                         , label =
                             textM config.lang (MultLangStr "Save and quit" "Valider")
                         }
@@ -513,11 +521,9 @@ pickedImageView config model =
                     )
                 )
             , sameHeightImgRow
+                awsUrl
                 Nothing
-                (List.map
-                    (\meta -> { meta | url = awsUrl ++ meta.url })
-                    model.picked
-                )
+                model.picked
             ]
 
 
