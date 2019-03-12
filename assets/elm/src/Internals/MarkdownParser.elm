@@ -1,6 +1,7 @@
 module Internals.MarkdownParser exposing (renderMarkdown)
 
 import Browser exposing (element)
+import Dict exposing (..)
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -17,7 +18,6 @@ import Markdown.Block as Block exposing (..)
 import Markdown.Inline as Inline exposing (..)
 import Style.Helpers exposing (..)
 import Style.Palette exposing (..)
-import Dict exposing (..)
 
 
 renderMarkdown : String -> Element msg
@@ -42,7 +42,12 @@ blockToElement offset block =
             Element.none
 
         ThematicBreak ->
-            Element.none
+            el
+                [ width fill
+                , Border.color grey
+                , Border.width 1
+                ]
+                Element.none
 
         Heading raw level inlines ->
             headings raw level inlines
@@ -56,8 +61,9 @@ blockToElement offset block =
 
         Paragraph raw inlines ->
             paragraph
-                [ paddingEach { top = 0, right = 0, bottom = 0, left = 10 } ]
-                (List.concatMap inlinesToElements inlines)
+                []
+                --paddingEach { sides | left = 15 } ]
+                (List.concatMap (inlinesToElements []) inlines)
 
         BlockQuote blocks ->
             column
@@ -86,22 +92,22 @@ blockToElement offset block =
                             [ row
                                 [ width fill
                                 , spacing 5
-                                , Font.center
                                 ]
                                 [ el [ alignTop ] (text <| bullet offset)
                                 , paragraph [] (List.map (blockToElement (offset + 1)) bs)
                                 ]
                             ]
             in
-                column
-                    [ paddingXY 5 0
-                    ]
-                    (List.concatMap liView llistBlocks)
+            column
+                [ spacing 10
+                , paddingXY 0 10
+                ]
+                (List.concatMap liView llistBlocks)
 
         PlainInlines inlines ->
             paragraph
                 []
-                (List.concatMap inlinesToElements inlines)
+                (List.concatMap (inlinesToElements []) inlines)
 
         Block.Custom b llistBlocks ->
             Element.none
@@ -131,34 +137,36 @@ headings raw level inlines =
                   )
                 ]
     in
-        paragraph
-            ([ Region.heading level
-             , Font.color black
-             ]
-                ++ (Dict.get level headingStyles
-                        |> Maybe.withDefault []
-                   )
-            )
-            (List.concatMap inlinesToElements inlines)
+    paragraph
+        ([ Region.heading level
+         , Font.color black
+         ]
+            ++ (Dict.get level headingStyles
+                    |> Maybe.withDefault []
+               )
+        )
+        (List.concatMap (inlinesToElements []) inlines)
 
 
-inlinesToElements : Inline i -> List (Element msg)
-inlinesToElements inline =
+inlinesToElements : List (Attribute msg) -> Inline i -> List (Element msg)
+inlinesToElements attrs inline =
     case inline of
         Text s ->
-            [ text s ]
+            [ el attrs (text s) ]
 
         HardLineBreak ->
-            [ el [] (html <| Html.br [] []) ]
+            [ el attrs (html <| Html.br [] []) ]
 
         CodeInline s ->
-            [ text s ]
+            [ el attrs (text s) ]
 
         Link url mbTitle inlines ->
             [ link
-                [ Font.underline
-                , Font.color lightBlue
-                ]
+                (attrs
+                    ++ [ Font.underline
+                       , Font.color lightBlue
+                       ]
+                )
                 { url = url
                 , label = text <| Inline.extractText inlines
                 }
@@ -166,30 +174,32 @@ inlinesToElements inline =
 
         Image url mbTitle inlines ->
             [ image
-                [ width fill ]
+                (attrs ++ [ width fill ])
                 { src = url
                 , description = Inline.extractText inlines
                 }
             ]
 
         HtmlInline s _ _ ->
-            [ text s ]
+            [ el attrs (text s) ]
 
         Emphasis n inlines ->
-            [ paragraph
-                (if n == 1 then
-                    [ Font.italic ]
-                 else if n == 2 then
-                    [ Font.bold ]
-                 else if n == 3 then
-                    [ Font.italic
-                    , Font.bold
-                    ]
-                 else
-                    []
-                )
-                (List.concatMap inlinesToElements inlines)
-            ]
+            let
+                attrs_ =
+                    attrs
+                        ++ (if n == 1 then
+                                [ Font.italic ]
+                            else if n == 2 then
+                                [ Font.bold ]
+                            else if n == 3 then
+                                [ Font.italic
+                                , Font.bold
+                                ]
+                            else
+                                []
+                           )
+            in
+            List.concatMap (inlinesToElements attrs_) inlines
 
         Inline.Custom i inlines ->
             []

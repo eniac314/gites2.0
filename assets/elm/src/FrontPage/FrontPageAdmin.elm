@@ -114,15 +114,19 @@ update config msg model =
                             )
 
                         ImageRow pics ->
-                            ( { model
-                                | imageController =
+                            let
+                                ( imgCtrl, imgCtrlCmd ) =
                                     ImageController.load
+                                        config.logInfo
                                         model.imageController
                                         pics
+                            in
+                            ( { model
+                                | imageController = imgCtrl
                                 , displayMode = EditPicRow
                                 , selectedItem = Just id
                               }
-                            , Cmd.none
+                            , imgCtrlCmd
                             )
 
                         NewsBlock ->
@@ -178,15 +182,19 @@ update config msg model =
             )
 
         NewPicRow ->
-            ( { model
-                | imageController =
+            let
+                ( imgCtrl, imgCtrlCmd ) =
                     ImageController.load
+                        config.logInfo
                         model.imageController
                         []
+            in
+            ( { model
+                | imageController = imgCtrl
                 , displayMode = EditPicRow
                 , selectedItem = Just (nextId model.content)
               }
-            , Cmd.none
+            , imgCtrlCmd
             )
 
         AddNewsBlock ->
@@ -429,7 +437,7 @@ frontPageItemView config item =
                         images
                     )
             else
-                sameHeightImgRow config.width images
+                sameHeightImgRow Nothing images
 
         NewsBlock ->
             Element.none

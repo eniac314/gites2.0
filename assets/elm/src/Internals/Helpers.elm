@@ -104,6 +104,60 @@ logsView logs zone =
         (List.map logView logs)
 
 
+
+-------------------------------------------------------------------------------
+----------
+-- Misc --
+----------
+
+
+chunkedRows : Int -> (Int -> Int) -> List (Element msg) -> List (Element msg)
+chunkedRows width chunkBy elems =
+    let
+        nbrChunks =
+            chunkBy width
+
+        chunks =
+            chunk nbrChunks elems
+    in
+    List.map
+        (row
+            [ centerX
+            , spacing 10
+            ]
+        )
+        chunks
+
+
+chunk : Int -> List a -> List (List a)
+chunk n xs =
+    let
+        helper acc ys =
+            case ys of
+                [] ->
+                    List.reverse acc
+
+                _ ->
+                    helper (List.take n ys :: acc) (List.drop n ys)
+    in
+    helper [] xs
+
+
+bestFit : Int -> Int -> Int
+bestFit elemWidth width =
+    let
+        nbrChunks_ =
+            width // elemWidth
+
+        spacing =
+            (nbrChunks_ - 1) * 15
+    in
+    if (nbrChunks_ * elemWidth + spacing) < width then
+        nbrChunks_
+    else
+        nbrChunks_ - 1
+
+
 httpErrorToString : Http.Error -> String
 httpErrorToString e =
     case e of

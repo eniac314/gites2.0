@@ -59,7 +59,7 @@ defmodule GitesWeb.AwsUploadController do
   end 
 
   def get_url(conn, %{"mime" => mime, "filename" => safe_id, "metadata" => meta}) do
-    id = String.replace(safe_id, "-", "/")
+    id = String.replace(safe_id, "¤", "/")
     render conn, "presigned_url.json", presigned_s3_url: presigned_s3_url(id, mime, meta)
   end  
 

@@ -20,8 +20,9 @@ import Internals.Helpers exposing (..)
 import Internals.Uploader as Uploader
 import Json.Decode as Decode
 import Json.Encode as Encode
+import List.Extra exposing (remove)
 import MultLang.MultLang exposing (..)
-import String.Extra exposing (rightOfBack)
+import String.Extra exposing (leftOf, rightOfBack)
 import Style.Helpers exposing (..)
 import Style.Palette exposing (..)
 import Task exposing (perform)
@@ -46,8 +47,9 @@ processCmd model filename data =
 type alias Model msg =
     { workingDirectory : String
     , contents : Dict String ImageMeta
+    , contentsLoadStatus : Status
     , processingQueue : List ( String, File )
-    , uploaders : Dict String (Uploader.Model msg)
+    , uploaders : Dict String (Uploader.Model Msg)
     , sizes : Dict String { width : Int, height : Int }
     , picked : List ImageMeta
     , displayMode : DisplayMode
@@ -59,6 +61,7 @@ init : String -> (Msg -> msg) -> ( Model msg, Cmd msg )
 init wc outMsg =
     ( { workingDirectory = wc
       , contents = Dict.empty
+      , contentsLoadStatus = Initial
       , processingQueue = []
       , uploaders = Dict.empty
       , sizes = Dict.empty
@@ -72,9 +75,23 @@ init wc outMsg =
     )
 
 
-load : Model msg -> List ImageMeta -> Model msg
-load model picked =
-    { model | picked = picked }
+load : Auth.LogInfo -> Model msg -> List ImageMeta -> ( Model msg, Cmd msg )
+load logInfo model picked =
+    ( { model
+        | picked = picked
+        , contentsLoadStatus =
+            case model.contentsLoadStatus of
+                Initial ->
+                    Waiting
+
+                _ ->
+                    model.contentsLoadStatus
+      }
+    , if model.contentsLoadStatus == Initial then
+        getContents logInfo model
+      else
+        Cmd.none
+    )
 
 
 subscriptions : Model msg -> Sub msg
@@ -84,6 +101,7 @@ subscriptions model =
             ++ List.map
                 (\uploader ->
                     Uploader.subscriptions uploader
+                        |> Sub.map model.outMsg
                 )
                 (Dict.values model.uploaders)
         )
@@ -102,6 +120,7 @@ type Msg
     | UploaderMsg String Uploader.Msg
     | GetContents
     | GotContents (Result Http.Error (Dict String ImageMeta))
+    | PickImage ImageMeta
     | GoBack
     | NoOp
 
@@ -117,17 +136,20 @@ update config msg model =
 
         ImagesSelected first remaining ->
             let
+                jpgName f =
+                    leftOf "." (File.name f) ++ ".jpg"
+
                 files =
                     first :: remaining
             in
             ( { model
                 | processingQueue =
-                    List.indexedMap
-                        (\n f -> ( indexName (n + 1), f ))
+                    List.map
+                        (\f -> ( jpgName f, f ))
                         remaining
               }
             , Task.perform
-                (Base64Img (indexName 0))
+                (Base64Img (jpgName first))
                 (File.toUrl first)
                 |> Cmd.map model.outMsg
             , Nothing
@@ -157,7 +179,7 @@ update config msg model =
                                     )
 
                         outMsg_ s =
-                            model.outMsg << UploaderMsg s
+                            UploaderMsg s
 
                         ( uploader, upCmd ) =
                             Uploader.load
@@ -205,8 +227,8 @@ update config msg model =
                       }
                     , Cmd.batch
                         [ cmd
-                        , upCmd
-                        , thUpCmd
+                        , Cmd.map model.outMsg upCmd
+                        , Cmd.map model.outMsg thUpCmd
                         ]
                     , Nothing
                     )
@@ -223,12 +245,27 @@ update config msg model =
                     let
                         ( newUploader, cmd ) =
                             Uploader.update config uploaderMsg uploader
+
+                        uploaders =
+                            Dict.insert filename newUploader model.uploaders
+
+                        ( refreshContentsCmd, contentsLoadStatus, uploaders_ ) =
+                            if Dict.foldr (\_ u b -> Uploader.uploadDone u && b) True uploaders then
+                                ( getContents config.logInfo model
+                                , Waiting
+                                , Dict.empty
+                                )
+                            else
+                                ( Cmd.none, model.contentsLoadStatus, uploaders )
                     in
                     ( { model
-                        | uploaders =
-                            Dict.insert filename newUploader model.uploaders
+                        | uploaders = uploaders_
+                        , contentsLoadStatus = contentsLoadStatus
                       }
-                    , cmd
+                    , Cmd.batch
+                        [ Cmd.map model.outMsg cmd
+                        , refreshContentsCmd
+                        ]
                     , Nothing
                     )
 
@@ -244,7 +281,10 @@ update config msg model =
         GotContents res ->
             case res of
                 Ok content ->
-                    ( { model | contents = content }
+                    ( { model
+                        | contents = content
+                        , contentsLoadStatus = Success
+                      }
                     , Cmd.none
                     , Nothing
                     )
@@ -254,7 +294,22 @@ update config msg model =
                     --    err =
                     --        Debug.log "" e
                     --in
-                    ( model, Cmd.none, Nothing )
+                    ( { model | contentsLoadStatus = Failure }
+                    , Cmd.none
+                    , Nothing
+                    )
+
+        PickImage imgMeta ->
+            ( { model
+                | picked =
+                    if List.member imgMeta model.picked then
+                        List.Extra.remove imgMeta model.picked
+                    else
+                        model.picked ++ [ imgMeta ]
+              }
+            , Cmd.none
+            , Nothing
+            )
 
         GoBack ->
             ( { model | picked = [] }
@@ -273,7 +328,14 @@ update config msg model =
 --------------------
 
 
-view : { a | lang : Lang } -> Model msg -> Element msg
+type alias ViewConfig a =
+    { a
+        | lang : Lang
+        , width : Int
+    }
+
+
+view : ViewConfig a -> Model msg -> Element msg
 view config model =
     Element.map model.outMsg <|
         column
@@ -295,6 +357,17 @@ view config model =
                     , label =
                         textM config.lang (MultLangStr "Upload images" "Mettre en ligne")
                     }
+                , if model.contentsLoadStatus == Failure then
+                    Input.button
+                        (buttonStyle True)
+                        { onPress = Just GetContents
+                        , label =
+                            textM config.lang (MultLangStr "reload pictures" "recharger images")
+                        }
+                  else
+                    Element.none
+                , mainPanelView config model
+                , pickedImageView config model
                 , row
                     [ centerX
                     , spacing 10
@@ -312,46 +385,92 @@ view config model =
                             textM config.lang (MultLangStr "Save and quit" "Valider")
                         }
                     ]
-                , if model.contents == Dict.empty then
-                    Input.button
-                        (buttonStyle True)
-                        { onPress = Just GetContents
-                        , label =
-                            textM config.lang (MultLangStr "load pictures" "charger images")
-                        }
-                  else
-                    Element.none
                 ]
-            , imageSelectorView config model
             ]
 
 
-imageSelectorView : { a | lang : Lang } -> Model msg -> Element Msg
+mainPanelView : ViewConfig a -> Model msg -> Element Msg
+mainPanelView config model =
+    column
+        [ spacing 10
+        , paddingXY 0 15
+        , width (px <| min (config.width - 30) 1000)
+        , Background.color (rgba 1 1 1 0.7)
+        , Border.rounded 5
+        , Border.width 1
+        , Border.color black
+        , height (px 500)
+        , scrollbarY
+        , centerX
+        ]
+        (if model.uploaders == Dict.empty then
+            if model.contentsLoadStatus == Waiting then
+                [ el
+                    [ centerX
+                    , centerY
+                    ]
+                    (textM config.lang
+                        (MultLangStr "Loading pictures..."
+                            "Chargement des images en cours..."
+                        )
+                    )
+                ]
+            else
+                imageSelectorView config model
+         else
+            [ column
+                [ width fill
+                , spacing 15
+                , padding 15
+                ]
+                ([ el
+                    [ centerX
+                    ]
+                    (textM config.lang
+                        (MultLangStr "Resizing and uploading pictures..."
+                            "Compression et mise en ligne des images en cours..."
+                        )
+                    )
+                 ]
+                    ++ (Dict.map
+                            (\k u -> Uploader.view config u)
+                            model.uploaders
+                            |> Dict.values
+                            |> List.intersperse
+                                (el
+                                    [ width fill
+                                    , Border.color lightGrey
+                                    , Border.width 1
+                                    ]
+                                    Element.none
+                                )
+                       )
+                )
+            ]
+        )
+
+
+imageSelectorView : ViewConfig a -> Model msg -> List (Element Msg)
 imageSelectorView config model =
     let
-        imgBlockView { url } =
+        imgBlockView ({ url } as imgMeta) =
             column
                 [ spacing 10
                 , padding 10
                 , width (px 150)
                 , alignTop
-                , Background.color grey
+                , if List.member imgMeta model.picked then
+                    Background.color lightBlue
+                  else
+                    Background.color grey
                 , mouseOver
-                    [ Background.color lightGrey ]
+                    [ alpha 0.7 ]
                 , Border.rounded 5
                 , pointer
-
-                --, Events.onClick
-                --    (PickGallery hq name pics)
+                , Events.onClick
+                    (PickImage imgMeta)
                 ]
-                [ --el
-                  --   [ Font.bold
-                  --   , width fill
-                  --   , Font.center
-                  --   , clip
-                  --   ]
-                  --   (text <| toSentenceCase name)
-                  el
+                [ el
                     [ width (px 140)
                     , height (px 105)
                     , centerX
@@ -364,14 +483,42 @@ imageSelectorView config model =
                     Element.none
                 ]
     in
-    column
-        [ spacing 15 ]
-        [ wrappedRow
-            [ spacing 15 ]
-            (Dict.values model.contents
-                |> List.map imgBlockView
-            )
-        ]
+    chunkedRows (min config.width 1000)
+        (bestFit 150)
+        (Dict.values model.contents
+            |> List.map imgBlockView
+        )
+
+
+pickedImageView config model =
+    if model.picked == [] then
+        Element.none
+    else
+        column
+            [ width (px <| min (config.width - 30) 1000)
+            , centerX
+            , spacing 15
+            ]
+            [ el
+                [ centerX
+                , Font.size 20
+                , Font.family
+                    [ Font.typeface "Montserrat"
+                    , Font.sansSerif
+                    ]
+                ]
+                (textM config.lang
+                    (MultLangStr "Preview"
+                        "Apercu"
+                    )
+                )
+            , sameHeightImgRow
+                Nothing
+                (List.map
+                    (\meta -> { meta | url = awsUrl ++ meta.url })
+                    model.picked
+                )
+            ]
 
 
 

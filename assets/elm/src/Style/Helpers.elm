@@ -170,8 +170,8 @@ type alias ImageMeta =
     }
 
 
-sameHeightImgRow : Int -> List ImageMeta -> Element msg
-sameHeightImgRow containderWidth images =
+sameHeightImgRow : Maybe (Int -> List (Attribute msg)) -> List ImageMeta -> Element msg
+sameHeightImgRow mbattrs images =
     let
         images_ =
             List.map
@@ -211,18 +211,38 @@ sameHeightImgRow containderWidth images =
 
         totalImgWidth =
             List.foldr (\i n -> i.newWidth + n) 0 imgsScaledToMinHeight
+
+        extraAttrs index =
+            case mbattrs of
+                Just f ->
+                    f index
+
+                _ ->
+                    []
     in
-    row
-        [ width fill ]
-        (List.map
-            (\im ->
-                image
-                    [ width <| fillPortion (floor <| 10000 * im.newWidth / totalImgWidth) ]
-                    { src = im.meta.url
-                    , description =
-                        im.meta.caption
-                            |> Maybe.withDefault ""
-                    }
+    Keyed.row
+        [ spacing 15 ]
+        (List.indexedMap
+            (\i im ->
+                ( String.fromInt (i * List.length imgsScaledToMinHeight)
+                , el
+                    ([ width <| fillPortion (Debug.log "portion" (floor <| 10000 * im.newWidth / totalImgWidth)) ]
+                        ++ extraAttrs i
+                    )
+                    (html <|
+                        Html.img
+                            [ HtmlAttr.style "width" "100%"
+                            , HtmlAttr.style "height" "auto"
+                            , HtmlAttr.src im.meta.url
+                            ]
+                            []
+                    )
+                  --{ src = im.meta.url
+                  --, description =
+                  --    im.meta.caption
+                  --        |> Maybe.withDefault ""
+                  --}
+                )
             )
             imgsScaledToMinHeight
         )

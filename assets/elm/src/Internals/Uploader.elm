@@ -20,6 +20,7 @@ import MultLang.MultLang exposing (..)
 import Murmur3 exposing (hashString)
 import String.Extra exposing (leftOf, rightOf)
 import Style.Helpers exposing (buttonStyle_, okMark, progressBar)
+import Style.Palette exposing (..)
 
 
 type alias Model msg =
@@ -90,7 +91,7 @@ load model logInfo toUpload =
 
 
 uploadDone model =
-    model.uploadStatus == Success || model.uploadStatus == Failure
+    model.uploadStatus == Success
 
 
 type ToUpload
@@ -197,7 +198,7 @@ getPresignedUrl logInfo metadata mime fn =
                   , E.string mime
                   )
                 , ( "filename"
-                  , E.string (String.replace "/" "-" fn)
+                  , E.string (String.replace "/" "¤" fn)
                   )
                 , ( "metadata"
                   , E.object
@@ -264,14 +265,20 @@ view : { a | lang : Lang } -> Model msg -> Element msg
 view config model =
     Element.map model.outMsg <|
         column
-            [ spacing 15 ]
+            [ spacing 15
+            , height (px 55)
+            ]
             [ row
                 []
                 [ textM config.lang
                     (MultLangStr "Uploading: "
                         "Mise en ligne: "
                     )
-                , el []
+                , el
+                    [ Font.family
+                        [ Font.monospace ]
+                    , Font.color lightCharcoal
+                    ]
                     (Maybe.map filename model.toUpload
                         |> Maybe.withDefault ""
                         |> text
@@ -279,7 +286,7 @@ view config model =
                 ]
             , case model.uploadStatus of
                 Initial ->
-                    Element.none
+                    progressBar 0
 
                 Waiting ->
                     model.progress
