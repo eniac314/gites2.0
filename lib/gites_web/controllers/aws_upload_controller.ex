@@ -46,14 +46,21 @@ defmodule GitesWeb.AwsUploadController do
       |> Map.new
   end 
 
-  def delete(conn, %{"id" => id}) do 
+  def delete(conn, %{"filename" => safe_id}) do 
     bucket = System.get_env("S3_BUCKET")
-    path = "images/#{id}"
-    res = 
-      ExAws.S3.delete_object(bucket, path)
-        |> ExAws.request!
+    path = String.replace(safe_id, "¤", "/")
     
+    ExAws.S3.delete_object(bucket, path)
+      |> ExAws.request
 
+    case String.split(path, "/") |> Enum.reverse do 
+      [] -> nil
+      [ filename | sub_path ] -> 
+        Enum.reverse([filename | ["thumbs"| sub_path]])
+        |> Enum.join("/")
+        |> fn path -> ExAws.S3.delete_object(bucket, path) end.() 
+        |> ExAws.request
+    end 
     
     render conn, "success.json", %{}
   end 
@@ -72,8 +79,6 @@ defmodule GitesWeb.AwsUploadController do
         {"x-amz-meta-width", meta["width"]},
         {"x-amz-meta-height", meta["height"]}
       ]
-
-    Logger.debug "Content: #{inspect(meta)}"
     {:ok, url} = ExAws.S3.presigned_url(ExAws.Config.new(:s3), :put, bucket, path, query_params: query_params) 
     url
   end

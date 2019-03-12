@@ -121,6 +121,7 @@ type Msg
     | GetContents
     | GotContents (Result Http.Error (Dict String ImageMeta))
     | PickImage ImageMeta
+    | DeletePicked
     | GoBack
     | SaveAndQuit
     | NoOp
@@ -310,6 +311,12 @@ update config msg model =
               }
             , Cmd.none
             , Nothing
+            )
+
+        DeletePicked ->
+            ( { model | picked = [] }
+            , Cmd.none
+            , Just PluginQuit
             )
 
         GoBack ->
