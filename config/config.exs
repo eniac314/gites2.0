@@ -20,7 +20,7 @@ config :gites, GitesWeb.Endpoint,
 # Configures guardian 
 config :gites, Gites.Guardian,
   allowed_algos: ["HS512"],
-  secret_key: "XQVPY+a4yktES2iSpfF4PO9xvhZvryyeD10iu7IlNqdw/ks1FdslLM3ecMDQ+cuM",
+  secret_key: System.get_env("GUARDIAN_SECRET_KEY"),
 
   issuer: "Gites",
   ttl: { 10, :minutes },
