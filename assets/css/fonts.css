@@ -1,6 +1,14 @@
 /*-------------------------------------------------------------------------------
   import google fonts
 -------------------------------------------------------------------------------*/
+/*--button font--*/
 @import url(https://fonts.googleapis.com/css?family=Montserrat);
+/*--Gite's heading and meun bar--*/
 @import url(https://fonts.googleapis.com/css?family=Great+Vibes);
+/*--for article's heading--*/
+@import url(https://fonts.googleapis.com/css?family=Crimson+Text);
+
+/*--for article's body text--*/
+@import url(https://fonts.googleapis.com/css?family=Lato);
+
 /*--end of code for fonts------------------------------------------------------*/

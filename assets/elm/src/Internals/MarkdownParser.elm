@@ -27,6 +27,10 @@ renderMarkdown s =
         |> column
             [ width fill
             , spacing 15
+            , Font.family
+                [ Font.typeface "Lato"
+                , Font.sansSerif
+                ]
             ]
 
 
@@ -98,11 +102,11 @@ blockToElement offset block =
                                 ]
                             ]
             in
-            column
-                [ spacing 10
-                , paddingXY 0 10
-                ]
-                (List.concatMap liView llistBlocks)
+                column
+                    [ spacing 10
+                    , paddingXY 0 10
+                    ]
+                    (List.concatMap liView llistBlocks)
 
         PlainInlines inlines ->
             paragraph
@@ -118,34 +122,38 @@ headings raw level inlines =
         headingStyles =
             Dict.fromList
                 [ ( 1
-                  , [ Font.size 45, Font.bold ]
+                  , [ Font.size 45 ]
                   )
                 , ( 2
-                  , [ Font.size 35, Font.bold ]
+                  , [ Font.size 35 ]
                   )
                 , ( 3
-                  , [ Font.size 30, Font.bold ]
+                  , [ Font.size 30 ]
                   )
                 , ( 4
-                  , [ Font.size 25, Font.bold ]
+                  , [ Font.size 25 ]
                   )
                 , ( 5
-                  , [ Font.size 15, Font.bold ]
+                  , [ Font.size 15 ]
                   )
                 , ( 6
-                  , [ Font.size 10, Font.bold ]
+                  , [ Font.size 10 ]
                   )
                 ]
     in
-    paragraph
-        ([ Region.heading level
-         , Font.color black
-         ]
-            ++ (Dict.get level headingStyles
-                    |> Maybe.withDefault []
-               )
-        )
-        (List.concatMap (inlinesToElements []) inlines)
+        paragraph
+            ([ Region.heading level
+             , Font.color black
+             , Font.family
+                [ Font.typeface "Crimson Text"
+                , Font.serif
+                ]
+             ]
+                ++ (Dict.get level headingStyles
+                        |> Maybe.withDefault []
+                   )
+            )
+            (List.concatMap (inlinesToElements []) inlines)
 
 
 inlinesToElements : List (Attribute msg) -> Inline i -> List (Element msg)
@@ -199,7 +207,7 @@ inlinesToElements attrs inline =
                                 []
                            )
             in
-            List.concatMap (inlinesToElements attrs_) inlines
+                List.concatMap (inlinesToElements attrs_) inlines
 
         Inline.Custom i inlines ->
             []
