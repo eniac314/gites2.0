@@ -85,3 +85,6 @@ text
 text
 ###### h6
 [slack channel](https://elmlang.slack.com/ "title")
+
+###############################################################################
+mix phx.gen.json PagesData PageData pagesdata name:string:unique content:text

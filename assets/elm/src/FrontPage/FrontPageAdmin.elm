@@ -13,10 +13,13 @@ import Element.Lazy exposing (lazy)
 import Element.Region as Region
 import Html as Html
 import Html.Attributes as HtmlAttr
+import Http exposing (..)
 import Internals.Helpers exposing (..)
 import Internals.ImageController as ImageController
 import Internals.MarkdownEditor as MarkdownEditor
 import Internals.MarkdownParser as MarkdownParser
+import Json.Decode as D
+import Json.Encode as E
 import List.Extra exposing (swapAt)
 import MultLang.MultLang exposing (..)
 import Style.Helpers exposing (..)
@@ -61,6 +64,9 @@ type Msg
     | AddNewsBlock
     | MarkdownEditorMsg MarkdownEditor.Msg
     | ImageControllerMsg ImageController.Msg
+    | GotFrontPageContent (Result Http.Error FrontPageContent)
+    | SaveFrontPage
+    | FrontPageSaved (Result Http.Error ())
     | NoOp
 
 
@@ -292,6 +298,25 @@ update config msg model =
                             , cmd
                             )
 
+        GotFrontPageContent res ->
+            case res of
+                Ok content ->
+                    ( model, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        SaveFrontPage ->
+            ( model, saveFrontPage config.logInfo model )
+
+        FrontPageSaved res ->
+            case res of
+                Ok _ ->
+                    ( model, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
         NoOp ->
             ( model, Cmd.none )
 
@@ -372,6 +397,15 @@ previewView config model =
                     textM config.lang
                         { en = "Add news"
                         , fr = "Ajouter actualités"
+                        }
+                }
+            , Input.button
+                (buttonStyle True ++ [ alignRight ])
+                { onPress = Just SaveFrontPage
+                , label =
+                    textM config.lang
+                        { en = "Save"
+                        , fr = "Sauvegarder"
                         }
                 }
             ]
@@ -502,3 +536,144 @@ itemControlView config id =
 
 
 --newsBlockView config
+-------------------------------------------------------------------------------
+-----------------------------------
+-- Json handling and server coms --
+-----------------------------------
+
+
+getFrontPageContent : (Msg -> msg) -> Cmd msg
+getFrontPageContent outMsg =
+    Http.get
+        { url = "api/pagesdata/frontPage"
+        , expect =
+            Http.expectJson
+                (outMsg << GotFrontPageContent)
+                decodeFrontPage
+        }
+
+
+saveFrontPage : LogInfo -> Model msg -> Cmd msg
+saveFrontPage logInfo model =
+    let
+        body =
+            Dict.values model.content
+                |> (\c ->
+                        E.object
+                            [ ( "page_data"
+                              , E.object
+                                    [ ( "name", E.string "frontPage" )
+                                    , ( "content", encodeFrontPage c )
+                                    ]
+                              )
+                            ]
+                            |> Http.jsonBody
+                   )
+    in
+    securePost logInfo
+        { url = "api/restricted/pagesdata"
+        , body = body
+        , expect =
+            Http.expectWhatever (model.outMsg << FrontPageSaved)
+        }
+
+
+encodeFrontPage : FrontPageContent -> E.Value
+encodeFrontPage fpi =
+    E.list encodeFrontPageItem fpi
+
+
+decodeFrontPage : D.Decoder FrontPageContent
+decodeFrontPage =
+    D.field "content" (D.list decodeFrontPageItem)
+
+
+encodeFrontPageItem : FrontPageItem -> E.Value
+encodeFrontPageItem fpi =
+    case fpi of
+        MarkdownContent mls ->
+            E.object
+                [ ( "MarkdownContent", encodeMls mls ) ]
+
+        ImageRow imgs ->
+            E.object
+                [ ( "ImageRow", E.list encodeImageMeta imgs ) ]
+
+        NewsBlock ->
+            E.string "NewsBlock"
+
+
+decodeFrontPageItem : D.Decoder FrontPageItem
+decodeFrontPageItem =
+    D.oneOf
+        [ D.field "MarkdownContent" decodeMls
+            |> D.map MarkdownContent
+        , D.field "ImageRow" (D.list decodeImageMeta)
+            |> D.map ImageRow
+        , D.string
+            |> D.andThen
+                (\str ->
+                    case str of
+                        "NewsBlock" ->
+                            D.succeed NewsBlock
+
+                        somethingElse ->
+                            D.fail <|
+                                "Unknown CellContent: "
+                                    ++ somethingElse
+                )
+        ]
+
+
+encodeMls : MultLangStr -> E.Value
+encodeMls { en, fr } =
+    E.object
+        [ ( "MultLangStr"
+          , E.object
+                [ ( "en", E.string en )
+                , ( "fr", E.string fr )
+                ]
+          )
+        ]
+
+
+decodeMls : D.Decoder MultLangStr
+decodeMls =
+    D.map2 MultLangStr
+        (D.field "en" D.string)
+        (D.field "fr" D.string)
+
+
+encodeImageMeta : ImageMeta -> E.Value
+encodeImageMeta { url, caption, size } =
+    E.object
+        [ ( "url", E.string url )
+        , ( "caption"
+          , Maybe.map E.string caption
+                |> Maybe.withDefault E.null
+          )
+        , ( "size", encodeSize size )
+        ]
+
+
+decodeImageMeta : D.Decoder ImageMeta
+decodeImageMeta =
+    D.map3 ImageMeta
+        (D.field "url" D.string)
+        (D.field "caption" (D.nullable D.string))
+        (D.field "size" decodeSize)
+
+
+encodeSize : { width : Int, height : Int } -> E.Value
+encodeSize size =
+    E.object
+        [ ( "width", E.int size.width )
+        , ( "height", E.int size.height )
+        ]
+
+
+decodeSize : D.Decoder { width : Int, height : Int }
+decodeSize =
+    D.map2 (\w h -> { width = w, height = h })
+        (D.field "width" D.int)
+        (D.field "height" D.int)
