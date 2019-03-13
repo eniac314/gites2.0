@@ -52,6 +52,7 @@ type alias Model msg =
     , uploaders : Dict String (Uploader.Model Msg)
     , sizes : Dict String { width : Int, height : Int }
     , picked : List ImageMeta
+    , locked : List ImageMeta
     , displayMode : DisplayMode
     , outMsg : Msg -> msg
     }
@@ -66,6 +67,7 @@ init wc outMsg =
       , uploaders = Dict.empty
       , sizes = Dict.empty
       , picked = []
+      , locked = []
       , displayMode = DisplaySelector
       , outMsg = outMsg
       }
@@ -122,6 +124,7 @@ type Msg
     | GotContents (Result Http.Error (Dict String ImageMeta))
     | PickImage ImageMeta
     | DeletePicked
+    | Deleted ImageMeta (Result Http.Error Bool)
     | GoBack
     | SaveAndQuit
     | NoOp
@@ -314,10 +317,33 @@ update config msg model =
             )
 
         DeletePicked ->
-            ( { model | picked = [] }
-            , Cmd.none
-            , Just PluginQuit
+            ( { model
+                | locked = model.picked
+                , picked = []
+              }
+            , Cmd.batch
+                (List.map (deleteImage config.logInfo model.outMsg) model.picked)
+            , Nothing
             )
+
+        Deleted img res ->
+            case res of
+                Ok True ->
+                    ( { model
+                        | contents = Dict.remove img.url model.contents
+                        , locked = List.Extra.remove img model.picked
+                      }
+                    , Cmd.none
+                    , Nothing
+                    )
+
+                _ ->
+                    ( { model
+                        | locked = List.Extra.remove img model.picked
+                      }
+                    , Cmd.none
+                    , Nothing
+                    )
 
         GoBack ->
             ( { model | picked = [] }
@@ -366,12 +392,31 @@ view config model =
                 , centerX
                 , width fill
                 ]
-                [ Input.button
-                    (buttonStyle True)
-                    { onPress = Just ImagesRequested
-                    , label =
-                        textM config.lang (MultLangStr "Upload images" "Mettre en ligne")
-                    }
+                [ row
+                    [ spacing 15
+                    , centerX
+                    ]
+                    [ Input.button
+                        (buttonStyle <| model.contentsLoadStatus == Success)
+                        { onPress =
+                            if model.contentsLoadStatus == Success then
+                                Just ImagesRequested
+                            else
+                                Nothing
+                        , label =
+                            textM config.lang (MultLangStr "Upload images" "Mettre en ligne")
+                        }
+                    , Input.button
+                        (buttonStyle (model.picked /= []))
+                        { onPress =
+                            if model.picked /= [] then
+                                Just DeletePicked
+                            else
+                                Nothing
+                        , label =
+                            textM config.lang (MultLangStr "Delete selection" "Supprimer selection")
+                        }
+                    ]
                 , if model.contentsLoadStatus == Failure then
                     Input.button
                         (buttonStyle True)
@@ -451,6 +496,7 @@ mainPanelView config model =
                             (\k u -> Uploader.view config u)
                             model.uploaders
                             |> Dict.values
+                            |> List.reverse
                             |> List.intersperse
                                 (el
                                     [ width fill
@@ -469,22 +515,32 @@ imageSelectorView : ViewConfig a -> Model msg -> List (Element Msg)
 imageSelectorView config model =
     let
         imgBlockView ({ url } as imgMeta) =
+            let
+                isLocked =
+                    List.member imgMeta model.locked
+            in
             column
-                [ spacing 10
-                , padding 10
-                , width (px 150)
-                , alignTop
-                , if List.member imgMeta model.picked then
+                ([ spacing 10
+                 , padding 10
+                 , width (px 150)
+                 , alignTop
+                 , if List.member imgMeta model.picked then
                     Background.color lightBlue
-                  else
+                   else
                     Background.color grey
-                , mouseOver
+                 , mouseOver
                     [ alpha 0.7 ]
-                , Border.rounded 5
-                , pointer
-                , Events.onClick
-                    (PickImage imgMeta)
-                ]
+                 , Border.rounded 5
+                 ]
+                    ++ (if isLocked then
+                            [ alpha 0.5 ]
+                        else
+                            [ Events.onClick
+                                (PickImage imgMeta)
+                            , pointer
+                            ]
+                       )
+                )
                 [ el
                     [ width (px 140)
                     , height (px 105)
@@ -608,6 +664,19 @@ decodeContents =
                     }
                 )
             )
+
+
+deleteImage : Auth.LogInfo -> (Msg -> msg) -> ImageMeta -> Cmd msg
+deleteImage logInfo outMsg ({ url } as imgMeta) =
+    Auth.secureGet logInfo
+        { url = "api/restricted/delete_obj/" ++ String.replace "/" "¤" url
+        , expect =
+            Http.expectJson
+                (outMsg << Deleted imgMeta)
+                (Decode.field "message"
+                    (Decode.map (\s -> s == "success") Decode.string)
+                )
+        }
 
 
 

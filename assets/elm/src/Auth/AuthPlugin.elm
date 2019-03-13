@@ -534,7 +534,7 @@ clearJwt =
 refreshJwt jwt =
     Jwt.Http.get
         jwt
-        { url = "/api/restricted/refreshJwt"
+        { url = "/api/restricted/refresh_jwt"
         , expect = Http.expectJson ConfirmLogin decodeLoginResult
         }
 
