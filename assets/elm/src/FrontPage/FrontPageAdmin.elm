@@ -91,7 +91,9 @@ init content outMsg =
       , outMsg = outMsg
       }
     , Cmd.batch
-        [ imgCtrlCmd ]
+        [ imgCtrlCmd
+        , getFrontPageContent outMsg
+        ]
     )
 
 
@@ -301,9 +303,15 @@ update config msg model =
         GotFrontPageContent res ->
             case res of
                 Ok content ->
-                    ( model, Cmd.none )
+                    ( { model
+                        | content =
+                            List.indexedMap Tuple.pair content
+                                |> Dict.fromList
+                      }
+                    , Cmd.none
+                    )
 
-                _ ->
+                Err e ->
                     ( model, Cmd.none )
 
         SaveFrontPage ->
@@ -413,9 +421,7 @@ previewView config model =
             Element.none
           else
             Dict.map (editableItem config) model.content
-                --Dict Int (Element Msg)
                 |> Dict.values
-                --List (Element Msg)
                 |> column
                     [ Background.color grey
                     , width fill
@@ -560,12 +566,8 @@ saveFrontPage logInfo model =
             Dict.values model.content
                 |> (\c ->
                         E.object
-                            [ ( "page_data"
-                              , E.object
-                                    [ ( "name", E.string "frontPage" )
-                                    , ( "content", encodeFrontPage c )
-                                    ]
-                              )
+                            [ ( "name", E.string "frontPage" )
+                            , ( "content", encodeFrontPage c )
                             ]
                             |> Http.jsonBody
                    )
@@ -581,11 +583,18 @@ saveFrontPage logInfo model =
 encodeFrontPage : FrontPageContent -> E.Value
 encodeFrontPage fpi =
     E.list encodeFrontPageItem fpi
+        |> E.encode 0
+        |> E.string
 
 
 decodeFrontPage : D.Decoder FrontPageContent
 decodeFrontPage =
-    D.field "content" (D.list decodeFrontPageItem)
+    D.field "data" <|
+        D.field "content"
+            (D.string
+                |> D.map (D.decodeString (D.list decodeFrontPageItem))
+                |> D.map (Result.withDefault [])
+            )
 
 
 encodeFrontPageItem : FrontPageItem -> E.Value
@@ -639,9 +648,12 @@ encodeMls { en, fr } =
 
 decodeMls : D.Decoder MultLangStr
 decodeMls =
-    D.map2 MultLangStr
-        (D.field "en" D.string)
-        (D.field "fr" D.string)
+    D.field
+        "MultLangStr"
+    <|
+        D.map2 MultLangStr
+            (D.field "en" D.string)
+            (D.field "fr" D.string)
 
 
 encodeImageMeta : ImageMeta -> E.Value

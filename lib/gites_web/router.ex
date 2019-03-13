@@ -31,7 +31,7 @@ defmodule GitesWeb.Router do
     get "/delete_obj/:filename", AwsUploadController, :delete
     resources "/bookings", BookingController, only: [:create, :show, :index, :delete]
     resources "/availabilities", AvailabilityController, only: [:index]
-    resources "/pagesdata", PageDataController, only: [:show]
+    resources "/pagesdata", PageDataController, only: [:show, :index]
   end
 
   scope "/api/restricted", GitesWeb do 

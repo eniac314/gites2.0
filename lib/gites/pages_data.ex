@@ -6,7 +6,6 @@ defmodule Gites.PagesData do
   import Ecto.Query, warn: false
   alias Gites.Repo
 
-  require Logger
 
   alias Gites.PagesData.PageData
 
@@ -37,7 +36,7 @@ defmodule Gites.PagesData do
       ** (Ecto.NoResultsError)
 
   """
-  def get_page_data!(id), do: Repo.get!(PageData, id)
+  def get_page_data!(id), do: Repo.get_by!(PageData, name: id)
 
   @doc """
   Creates a page_data.
@@ -52,12 +51,9 @@ defmodule Gites.PagesData do
 
   """
   def create_page_data(attrs \\ %{}) do
-    
-    Logger.debug("content: #{attrs}")
-
     %PageData{}
     |> PageData.changeset(attrs)
-    |> Repo.insert()
+    |> Repo.insert(on_conflict: :replace_all, conflict_target: :name)
   end
 
   @doc """

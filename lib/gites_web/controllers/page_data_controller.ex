@@ -4,6 +4,8 @@ defmodule GitesWeb.PageDataController do
   alias Gites.PagesData
   alias Gites.PagesData.PageData
 
+  require Logger
+
   action_fallback GitesWeb.FallbackController
 
   def index(conn, _params) do
@@ -11,8 +13,10 @@ defmodule GitesWeb.PageDataController do
     render(conn, "index.json", pagesdata: pagesdata)
   end
 
-  def create(conn, %{"page_data" => page_data_params}) do
-    with {:ok, %PageData{} = page_data} <- PagesData.create_page_data(page_data_params) do
+  def create(conn, %{"name" => name, "content" => content}) do
+    
+    Logger.debug("content(: #{content}")
+    with {:ok, %PageData{} = page_data} <- PagesData.create_page_data(%{"name" => name, "content" => content}) do
       conn
       |> put_status(:created)
       |> put_resp_header("location", Routes.page_data_path(conn, :show, page_data))
