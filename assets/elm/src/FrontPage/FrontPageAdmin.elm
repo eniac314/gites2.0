@@ -11,13 +11,13 @@ import Element.Input as Input
 import Element.Keyed as Keyed
 import Element.Lazy exposing (lazy)
 import Element.Region as Region
+import FrontPage.FrontPageShared exposing (..)
 import Html as Html
 import Html.Attributes as HtmlAttr
 import Http exposing (..)
 import Internals.Helpers exposing (..)
 import Internals.ImageController as ImageController
 import Internals.MarkdownEditor as MarkdownEditor
-import Internals.MarkdownParser as MarkdownParser
 import Json.Decode as D
 import Json.Encode as E
 import List.Extra exposing (swapAt)
@@ -25,16 +25,6 @@ import MultLang.MultLang exposing (..)
 import Style.Helpers exposing (..)
 import Style.Icons as Icons exposing (..)
 import Style.Palette exposing (..)
-
-
-type alias FrontPageContent =
-    List FrontPageItem
-
-
-type FrontPageItem
-    = MarkdownContent MultLangStr
-    | ImageRow (List ImageMeta)
-    | NewsBlock
 
 
 type alias Model msg =
@@ -70,8 +60,8 @@ type Msg
     | NoOp
 
 
-init : FrontPageContent -> (Msg -> msg) -> ( Model msg, Cmd msg )
-init content outMsg =
+init : (Msg -> msg) -> ( Model msg, Cmd msg )
+init outMsg =
     let
         ( imageController, imgCtrlCmd ) =
             ImageController.init
@@ -79,8 +69,7 @@ init content outMsg =
                 (outMsg << ImageControllerMsg)
     in
     ( { content =
-            List.indexedMap Tuple.pair content
-                |> Dict.fromList
+            Dict.empty
       , markdownEditor =
             MarkdownEditor.init
                 French
@@ -92,7 +81,7 @@ init content outMsg =
       }
     , Cmd.batch
         [ imgCtrlCmd
-        , getFrontPageContent outMsg
+        , getFrontPageContent (outMsg << GotFrontPageContent)
         ]
     )
 
@@ -449,40 +438,6 @@ editableItem config id item =
         ]
 
 
-
---frontPageContentView : config model
-
-
-frontPageItemView : ViewConfig -> FrontPageItem -> Element msg
-frontPageItemView config item =
-    case item of
-        MarkdownContent mls ->
-            MarkdownParser.renderMarkdown
-                (strM config.lang mls)
-
-        ImageRow images ->
-            if config.width < 1000 then
-                column
-                    [ spacing 15 ]
-                    (List.map
-                        (\{ url, caption } ->
-                            image
-                                []
-                                { src = url
-                                , description =
-                                    caption
-                                        |> Maybe.withDefault ""
-                                }
-                        )
-                        images
-                    )
-            else
-                sameHeightImgRow awsUrl Nothing images
-
-        NewsBlock ->
-            Element.none
-
-
 itemControlView : ViewConfig -> Int -> Element Msg
 itemControlView config id =
     row
@@ -548,17 +503,6 @@ itemControlView config id =
 -----------------------------------
 
 
-getFrontPageContent : (Msg -> msg) -> Cmd msg
-getFrontPageContent outMsg =
-    Http.get
-        { url = "api/pagesdata/frontPage"
-        , expect =
-            Http.expectJson
-                (outMsg << GotFrontPageContent)
-                decodeFrontPage
-        }
-
-
 saveFrontPage : LogInfo -> Model msg -> Cmd msg
 saveFrontPage logInfo model =
     let
@@ -587,16 +531,6 @@ encodeFrontPage fpi =
         |> E.string
 
 
-decodeFrontPage : D.Decoder FrontPageContent
-decodeFrontPage =
-    D.field "data" <|
-        D.field "content"
-            (D.string
-                |> D.map (D.decodeString (D.list decodeFrontPageItem))
-                |> D.map (Result.withDefault [])
-            )
-
-
 encodeFrontPageItem : FrontPageItem -> E.Value
 encodeFrontPageItem fpi =
     case fpi of
@@ -612,28 +546,6 @@ encodeFrontPageItem fpi =
             E.string "NewsBlock"
 
 
-decodeFrontPageItem : D.Decoder FrontPageItem
-decodeFrontPageItem =
-    D.oneOf
-        [ D.field "MarkdownContent" decodeMls
-            |> D.map MarkdownContent
-        , D.field "ImageRow" (D.list decodeImageMeta)
-            |> D.map ImageRow
-        , D.string
-            |> D.andThen
-                (\str ->
-                    case str of
-                        "NewsBlock" ->
-                            D.succeed NewsBlock
-
-                        somethingElse ->
-                            D.fail <|
-                                "Unknown CellContent: "
-                                    ++ somethingElse
-                )
-        ]
-
-
 encodeMls : MultLangStr -> E.Value
 encodeMls { en, fr } =
     E.object
@@ -644,16 +556,6 @@ encodeMls { en, fr } =
                 ]
           )
         ]
-
-
-decodeMls : D.Decoder MultLangStr
-decodeMls =
-    D.field
-        "MultLangStr"
-    <|
-        D.map2 MultLangStr
-            (D.field "en" D.string)
-            (D.field "fr" D.string)
 
 
 encodeImageMeta : ImageMeta -> E.Value
@@ -668,24 +570,9 @@ encodeImageMeta { url, caption, size } =
         ]
 
 
-decodeImageMeta : D.Decoder ImageMeta
-decodeImageMeta =
-    D.map3 ImageMeta
-        (D.field "url" D.string)
-        (D.field "caption" (D.nullable D.string))
-        (D.field "size" decodeSize)
-
-
 encodeSize : { width : Int, height : Int } -> E.Value
 encodeSize size =
     E.object
         [ ( "width", E.int size.width )
         , ( "height", E.int size.height )
         ]
-
-
-decodeSize : D.Decoder { width : Int, height : Int }
-decodeSize =
-    D.map2 (\w h -> { width = w, height = h })
-        (D.field "width" D.int)
-        (D.field "height" D.int)

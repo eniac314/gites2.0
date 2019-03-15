@@ -13,6 +13,7 @@ import Element.Font as Font
 import Element.Input as Input
 import Element.Keyed as Keyed
 import Element.Region as Region
+import FrontPage.FrontPage as FrontPage
 import Html.Attributes as HtmlAttr
 import Json.Decode as D
 import Json.Encode as E
@@ -45,7 +46,8 @@ type DisplayMode
 
 
 type alias Model =
-    { bookings : Bookings.Model Msg
+    { frontPage : FrontPage.Model Msg
+    , bookings : Bookings.Model Msg
     , lang : Lang
     , displayMode : DisplayMode
     , key : Nav.Key
@@ -60,6 +62,7 @@ type Msg
     = ChangeUrl Url.Url
     | ClickedLink UrlRequest
     | WinResize Int Int
+    | FrontPageMsg FrontPage.Msg
     | BookingsMsg Bookings.Msg
     | ChangeLang Lang
     | NoOp
@@ -78,6 +81,9 @@ init flags url key =
         ( newBookings, bookingsCmd ) =
             Bookings.init BookingsMsg
 
+        ( newFrontPage, frontPageCmd ) =
+            FrontPage.init FrontPageMsg
+
         url_ =
             if
                 (url.path == "/")
@@ -87,7 +93,8 @@ init flags url key =
             else
                 url
     in
-    ( { bookings = newBookings
+    ( { frontPage = newFrontPage
+      , bookings = newBookings
       , lang = English
       , displayMode =
             urlToDisplayMode url_
@@ -106,6 +113,7 @@ init flags url key =
             Nav.pushUrl key (Url.toString url_)
           else
             Cmd.none
+        , frontPageCmd
         , bookingsCmd
         ]
     )
@@ -153,6 +161,15 @@ update msg model =
                 | width = width
                 , height = height
               }
+            , Cmd.none
+            )
+
+        FrontPageMsg frontPageMsg ->
+            let
+                newFrontPage =
+                    FrontPage.update frontPageMsg model.frontPage
+            in
+            ( { model | frontPage = newFrontPage }
             , Cmd.none
             )
 
@@ -233,7 +250,11 @@ view model =
                         ]
                         [ case model.displayMode of
                             DisplayFrontPage ->
-                                Element.none
+                                FrontPage.view
+                                    { lang = model.lang
+                                    , width = model.width
+                                    }
+                                    model.frontPage
 
                             DisplayDetails ->
                                 Element.none

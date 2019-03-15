@@ -80,7 +80,7 @@ init : Flags -> ( Model, Cmd Msg )
 init flags =
     let
         ( newFrontPageAdmin, fpaCmd ) =
-            FrontPageAdmin.init [] FrontPageAdminMsg
+            FrontPageAdmin.init FrontPageAdminMsg
 
         ( newAuthPlugin, authPluginCmd ) =
             Auth.init AuthMsg

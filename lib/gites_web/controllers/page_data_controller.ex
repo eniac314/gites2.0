@@ -1,5 +1,8 @@
 defmodule GitesWeb.PageDataController do
   use GitesWeb, :controller
+  
+    plug Guardian.Plug.EnsureAuthenticated when action in [:create]
+
 
   alias Gites.PagesData
   alias Gites.PagesData.PageData
@@ -15,7 +18,6 @@ defmodule GitesWeb.PageDataController do
 
   def create(conn, %{"name" => name, "content" => content}) do
     
-    Logger.debug("content(: #{content}")
     with {:ok, %PageData{} = page_data} <- PagesData.create_page_data(%{"name" => name, "content" => content}) do
       conn
       |> put_status(:created)

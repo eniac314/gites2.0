@@ -249,7 +249,8 @@ sameHeightImgRow baseUrl mbattrs images =
             (\i im ->
                 ( String.fromInt (i * List.length imgsScaledToMinHeight)
                 , el
-                    ([ width <| fillPortion (floor <| 10000 * im.newWidth / totalImgWidth) ]
+                    ([ width <| fillPortion (floor <| 10000 * im.newWidth / totalImgWidth)
+                     ]
                         ++ extraAttrs i
                     )
                     (html <|
