@@ -73,10 +73,7 @@ decodeFrontPage : D.Decoder FrontPageContent
 decodeFrontPage =
     D.field "data" <|
         D.field "content"
-            (D.string
-                |> D.map (D.decodeString (D.list decodeFrontPageItem))
-                |> D.map (Result.withDefault [])
-            )
+            (D.list decodeFrontPageItem)
 
 
 decodeFrontPageItem : D.Decoder FrontPageItem

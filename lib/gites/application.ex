@@ -11,9 +11,10 @@ defmodule Gites.Application do
       # Start the Ecto repository
       Gites.Repo,
       # Start the endpoint when the application starts
-      GitesWeb.Endpoint
+      GitesWeb.Endpoint,
       # Starts a worker by calling: Gites.Worker.start_link(arg)
       # {Gites.Worker, arg},
+      {Gites.AuthLock, :false}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

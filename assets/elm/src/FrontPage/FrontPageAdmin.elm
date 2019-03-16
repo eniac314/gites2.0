@@ -527,8 +527,11 @@ saveFrontPage logInfo model =
 encodeFrontPage : FrontPageContent -> E.Value
 encodeFrontPage fpi =
     E.list encodeFrontPageItem fpi
-        |> E.encode 0
-        |> E.string
+
+
+
+--|> E.encode 0
+--|> E.string
 
 
 encodeFrontPageItem : FrontPageItem -> E.Value

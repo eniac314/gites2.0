@@ -18,7 +18,9 @@ defmodule GitesWeb.PageDataController do
 
   def create(conn, %{"name" => name, "content" => content}) do
     
-    with {:ok, %PageData{} = page_data} <- PagesData.create_page_data(%{"name" => name, "content" => content}) do
+    serialized_content = Poison.encode!(content)
+
+    with {:ok, %PageData{} = page_data} <- PagesData.create_page_data(%{"name" => name, "content" => serialized_content}) do
       conn
       |> put_status(:created)
       |> put_resp_header("location", Routes.page_data_path(conn, :show, page_data))
@@ -28,7 +30,8 @@ defmodule GitesWeb.PageDataController do
 
   def show(conn, %{"id" => id}) do
     page_data = PagesData.get_page_data!(id)
-    render(conn, "show.json", page_data: page_data)
+    unserialized_data = %{ page_data | content: Poison.decode!(page_data.content)}
+    render(conn, "show.json", page_data: unserialized_data)
   end
 
   def update(conn, %{"id" => id, "page_data" => page_data_params}) do
