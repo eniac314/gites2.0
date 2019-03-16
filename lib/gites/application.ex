@@ -14,7 +14,7 @@ defmodule Gites.Application do
       GitesWeb.Endpoint,
       # Starts a worker by calling: Gites.Worker.start_link(arg)
       # {Gites.Worker, arg},
-      {Gites.AuthLock, :false}
+      Gites.AuthLock
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

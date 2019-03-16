@@ -7,8 +7,6 @@ defmodule GitesWeb.PageDataController do
   alias Gites.PagesData
   alias Gites.PagesData.PageData
 
-  require Logger
-
   action_fallback GitesWeb.FallbackController
 
   def index(conn, _params) do
