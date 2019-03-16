@@ -93,30 +93,30 @@ init flags url key =
             else
                 url
     in
-    ( { frontPage = newFrontPage
-      , bookings = newBookings
-      , lang = English
-      , displayMode =
-            urlToDisplayMode url_
-                |> Maybe.withDefault DisplayFrontPage
-      , key = key
-      , url = url
-      , width =
-            flags.width
-      , height =
-            flags.height
-      , currentTime =
-            flags.currentTime
-      }
-    , Cmd.batch
-        [ if url /= url_ then
-            Nav.pushUrl key (Url.toString url_)
-          else
-            Cmd.none
-        , frontPageCmd
-        , bookingsCmd
-        ]
-    )
+        ( { frontPage = newFrontPage
+          , bookings = newBookings
+          , lang = English
+          , displayMode =
+                urlToDisplayMode url_
+                    |> Maybe.withDefault DisplayFrontPage
+          , key = key
+          , url = url
+          , width =
+                flags.width
+          , height =
+                flags.height
+          , currentTime =
+                flags.currentTime
+          }
+        , Cmd.batch
+            [ if url /= url_ then
+                Nav.pushUrl key (Url.toString url_)
+              else
+                Cmd.none
+            , frontPageCmd
+            , bookingsCmd
+            ]
+        )
 
 
 subscriptions model =
@@ -169,18 +169,18 @@ update msg model =
                 newFrontPage =
                     FrontPage.update frontPageMsg model.frontPage
             in
-            ( { model | frontPage = newFrontPage }
-            , Cmd.none
-            )
+                ( { model | frontPage = newFrontPage }
+                , Cmd.none
+                )
 
         BookingsMsg bookingsMsg ->
             let
                 ( newBookings, bookingsCmd ) =
                     Bookings.update bookingsMsg model.bookings
             in
-            ( { model | bookings = newBookings }
-            , bookingsCmd
-            )
+                ( { model | bookings = newBookings }
+                , bookingsCmd
+                )
 
         ChangeLang l ->
             ( { model | lang = l }, Cmd.none )
@@ -230,15 +230,13 @@ view model =
             (el
                 [ width fill
                 , height fill
-
-                --(px model.height)
-                --, clip
+                  --(px model.height)
+                  --, clip
                 , Background.tiled "/images/vintage-concreteS.png"
                 ]
                 (column
                     [ width fill
-
-                    --, scrollbarY
+                      --, scrollbarY
                     , htmlAttribute <| HtmlAttr.style "id" "mainContainer"
                     ]
                     [ header model
@@ -320,85 +318,84 @@ header model =
             else
                 150
     in
-    column
-        [ width fill
-        , Background.tiled "/images/canvas.png"
-        , behindContent
-            (el
-                [ Background.color white
-                , alpha 0.5
-                , width fill
-                , height (px alphaLayerHeight)
-                , paddingEach { sides | top = 15 }
-                ]
-                Element.none
-            )
-        ]
-        [ column
-            [ alignRight
-            , alignTop
-            , moveLeft 15
-            , moveDown 15
-            ]
-            [ image
-                [ width (px 30)
-                , Events.onClick
-                    (if model.lang == French then
-                        ChangeLang English
-                     else
-                        ChangeLang French
-                    )
-                , pointer
-                ]
-                { src =
-                    case model.lang of
-                        English ->
-                            "/images/english.png"
-
-                        French ->
-                            "/images/french.png"
-                , description = ""
-                }
-            ]
-        , row
-            [ width (px titleContainerWidth)
-
-            --, Background.color red
-            , centerX
-            , inFront
+        column
+            [ width fill
+            , Background.tiled "/images/canvas.png"
+            , behindContent
                 (el
-                    [ Font.family
-                        [ Font.typeface "Great Vibes"
-                        , Font.serif
-                        ]
-                    , Font.size titleFontsize
-                    , Font.color darkCharcoal
-                    , Font.shadow
-                        { offset = ( 1, 1 )
-                        , blur = 0
-                        , color = white
-                        }
-                    , Font.family
-                        [ Font.typeface "Great Vibes"
-                        , Font.serif
-                        ]
-                    , moveLeft titleOffset
+                    [ Background.color white
+                    , alpha 0.5
+                    , width fill
+                    , height (px alphaLayerHeight)
+                    , paddingEach { sides | top = 15 }
                     ]
-                    (text "Le Vieux Lilas")
+                    Element.none
                 )
             ]
-            [ el
-                [ Background.uncropped "/images/lilacW.png"
-                , Background.color lightGrey
-                , width (px backgroundSize)
-                , height (px backgroundSize)
-                , centerX
-                , paddingEach { sides | top = 15 }
-                , alignRight
+            [ column
+                [ alignRight
+                , alignTop
+                , moveLeft 15
+                , moveDown 15
                 ]
-                Element.none
+                [ image
+                    [ width (px 30)
+                    , Events.onClick
+                        (if model.lang == French then
+                            ChangeLang English
+                         else
+                            ChangeLang French
+                        )
+                    , pointer
+                    ]
+                    { src =
+                        case model.lang of
+                            English ->
+                                "/images/english.png"
+
+                            French ->
+                                "/images/french.png"
+                    , description = ""
+                    }
+                ]
+            , row
+                [ width (px titleContainerWidth)
+                  --, Background.color red
+                , centerX
+                , inFront
+                    (el
+                        [ Font.family
+                            [ Font.typeface "Great Vibes"
+                            , Font.serif
+                            ]
+                        , Font.size titleFontsize
+                        , Font.color darkCharcoal
+                        , Font.shadow
+                            { offset = ( 1, 1 )
+                            , blur = 0
+                            , color = white
+                            }
+                        , Font.family
+                            [ Font.typeface "Great Vibes"
+                            , Font.serif
+                            ]
+                        , moveLeft titleOffset
+                        ]
+                        (text "Le Vieux Lilas")
+                    )
+                ]
+                [ el
+                    [ Background.uncropped "/images/lilacW.png"
+                    , Background.color lightGrey
+                    , width (px backgroundSize)
+                    , height (px backgroundSize)
+                    , centerX
+                    , paddingEach { sides | top = 15 }
+                    , alignRight
+                    ]
+                    Element.none
+                ]
             ]
-        ]
 
 
 mainMenu : Model -> Element Msg
@@ -430,49 +427,183 @@ mainMenu model =
                     el [] (textM model.lang mls)
                 }
     in
-    (if isMobile then
-        column
-     else
-        row
-    )
-        [ width fill
-        , Background.color darkGreen
-        ]
-        [ menuItem
-            { fr = "Accueil"
-            , en = "Home"
-            }
-            "/home"
-        , menuItem
-            { fr = "Notre gîte"
-            , en = "Our gîte"
-            }
-            "/details"
-        , menuItem
-            { fr = "Les tarifs"
-            , en = "Rates"
-            }
-            "/rates"
-        , menuItem
-            { fr = "Réservations"
-            , en = "Booking"
-            }
-            "/bookings"
-        , menuItem
-            { fr = "Accès"
-            , en = "Access"
-            }
-            "/access"
-        , menuItem
-            { fr = "Dans les environs"
-            , en = "Nearby interests"
-            }
-            "/nearby"
-        ]
+        (if isMobile then
+            column
+         else
+            row
+        )
+            [ width fill
+            , Background.color darkGreen
+            ]
+            [ menuItem
+                { fr = "Accueil"
+                , en = "Home"
+                }
+                "/home"
+            , menuItem
+                { fr = "Notre gîte"
+                , en = "Our gîte"
+                }
+                "/details"
+            , menuItem
+                { fr = "Les tarifs"
+                , en = "Rates"
+                }
+                "/rates"
+            , menuItem
+                { fr = "Réservations"
+                , en = "Booking"
+                }
+                "/bookings"
+            , menuItem
+                { fr = "Accès"
+                , en = "Access"
+                }
+                "/access"
+            , menuItem
+                { fr = "Dans les environs"
+                , en = "Nearby interests"
+                }
+                "/nearby"
+            ]
 
 
 footer : Model -> Element msg
 footer model =
-    row
-        []
-        []
+    let
+        isMobile =
+            model.width < 1000
+
+        footerHeader mls =
+            el
+                [ paddingEach { sides | bottom = 20 }
+                , Font.size 15
+                , Font.bold
+                , Font.color white
+                ]
+                (textM model.lang mls)
+
+        footerItem mls url =
+            link
+                [ mouseOver
+                    [ Font.color white
+                    ]
+                , Font.family
+                    [ Font.typeface "Lota"
+                    , Font.sansSerif
+                    ]
+                , Font.size 14
+                , Font.color grey
+                , if isMobile then
+                    width fill
+                  else
+                    noAttr
+                ]
+                { url = url
+                , label =
+                    el [] (textM model.lang mls)
+                }
+    in
+        (if isMobile then
+            column
+         else
+            row
+        )
+            [ width fill
+            , Background.color charcoal
+            , padding 45
+            , spacing 150
+            ]
+            [ column
+                [ alignTop
+                , spacing 5
+                ]
+                [ footerHeader
+                    { fr = "Plan de site"
+                    , en = "Site map"
+                    }
+                , footerItem
+                    { fr = "Accueil"
+                    , en = "Home"
+                    }
+                    "/home"
+                , footerItem
+                    { fr = "Notre gîte"
+                    , en = "Our gîte"
+                    }
+                    "/details"
+                , footerItem
+                    { fr = "Les tarifs"
+                    , en = "Rates"
+                    }
+                    "/rates"
+                , footerItem
+                    { fr = "Réservations"
+                    , en = "Booking"
+                    }
+                    "/bookings"
+                , footerItem
+                    { fr = "Accès"
+                    , en = "Access"
+                    }
+                    "/access"
+                , footerItem
+                    { fr = "Dans les environs"
+                    , en = "Nearby interests"
+                    }
+                    "/nearby"
+                ]
+            , column
+                [ alignTop
+                , spacing 5
+                ]
+                [ footerHeader
+                    { fr = "Réalisation"
+                    , en = "Conception"
+                    }
+                , footerItem
+                    { fr = "Gillard Informatique"
+                    , en = "Gillard Informatique"
+                    }
+                    "http://www.gillardinformatique.net"
+                  --, link
+                  --    [ padding 5
+                  --    , mouseOver
+                  --        [ Font.color white
+                  --        ]
+                  --    , Font.family
+                  --        [ Font.typeface "Lota"
+                  --        , Font.sansSerif
+                  --        ]
+                  --    , Font.size 14
+                  --    , Font.color grey
+                  --    , if isMobile then
+                  --        width fill
+                  --      else
+                  --        noAttr
+                  --    ]
+                  --    { url = "http://www.gillardinformatique.net"
+                  --    , label =
+                  --        el [] (text "Gillard Informatique")
+                  --    }
+                , image
+                    []
+                    { src = "/images/logo.png"
+                    , description = "Gillard Informatique"
+                    }
+                ]
+            , column
+                [ alignTop
+                , spacing 5
+                ]
+                [ footerHeader
+                    { fr = "Hébergement"
+                    , en = "Hosting"
+                    }
+                , footerItem
+                    { fr = "1&1 Internet"
+                    , en = "1&1 Internet"
+                    }
+                    "https://www.1and1.fr/"
+                ]
+            ]
