@@ -4,7 +4,7 @@ defmodule GitesWeb.UserSessionController do
   alias Gites.Auth.User
   alias Gites.AuthLock
 
-  plug Guardian.Plug.EnsureAuthenticated when action in [:refresh]
+  plug Guardian.Plug.EnsureAuthenticated when action in [:refresh, :delete]
   # require IEx
 
   def create(conn, %{"login" => userinfo}) do 
@@ -22,7 +22,6 @@ defmodule GitesWeb.UserSessionController do
    
       {:error, reason, conn} ->
         conn
-          |> put_status(500)
           |> render("login_error.json", reason: reason)
     end
   end
@@ -33,25 +32,29 @@ defmodule GitesWeb.UserSessionController do
     
     case Gites.Guardian.refresh(jwt) do
       {:ok, _old_stuff, {new_token, %{"exp" => _exp} = _new_claims}} -> 
-        # IEx.pry
+        AuthLock.refresh_expiration
         render(conn, "login_success.json", username: user.username, jwt: new_token)
       {:error, reason} -> 
         conn
-          |> put_status(500)
           |> render("login_error.json", reason: reason)
     end 
   end
+
+  def delete(conn, _params) do 
+    AuthLock.unlock
+    render(conn, "logout_success.json", %{})
+  end 
 
   defp sign_in(conn, username, password) do 
   	if AuthLock.is_locked do 
       {:error, :already_logged, conn}
     else 
-      # AuthLock.toogle_lock
       user = Repo.get_by(User, username: username)
 
     	cond do
     		user && Pbkdf2.verify_pass(password, user.password_hash) ->
-    			{:ok, assign(conn, :current_user, user)}
+    			AuthLock.lock
+          {:ok, assign(conn, :current_user, user)}
     		user -> 
     			{:error, :unauthorized, conn}
     		true -> 

@@ -337,7 +337,10 @@ internalUpdate msg model =
                 | pluginMode = LogoutMode Success
                 , logInfo = LoggedOut
               }
-            , toAuthLocalStorage clearJwt
+            , Cmd.batch
+                [ toAuthLocalStorage clearJwt
+                , logout model.logInfo
+                ]
             , Nothing
             )
 
@@ -536,6 +539,13 @@ refreshJwt jwt =
         jwt
         { url = "/api/restricted/refresh_jwt"
         , expect = Http.expectJson ConfirmLogin decodeLoginResult
+        }
+
+
+logout logInfo =
+    secureGet logInfo
+        { url = "/api/restricted/logout"
+        , expect = Http.expectWhatever (\_ -> NoOp)
         }
 
 
