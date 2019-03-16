@@ -23,7 +23,7 @@ config :gites, Gites.Guardian,
   secret_key: System.get_env("GUARDIAN_SECRET_KEY"),
 
   issuer: "Gites",
-  ttl: { 10, :minutes },
+  ttl: { 5, :minutes },
   serializer: Gites.Guardian
 
 

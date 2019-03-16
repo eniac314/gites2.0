@@ -5,6 +5,10 @@ defmodule GitesWeb.UserSessionView do
   	%{username: username, jwt: jwt}
   end 
 
+  def render("logout_success.json", _params) do 
+  	%{message: "logged out"}
+  end 
+
   def render("login_error.json", %{reason: reason}) do 
   	%{server_error: reason}
   end 
