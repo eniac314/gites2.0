@@ -7,6 +7,8 @@
     "dependencies": {
         "direct": {
             "AdrianRibao/elm-derberos-date": "1.2.1",
+            "NoRedInk/elm-random-pcg-extended": "1.0.0",
+            "NoRedInk/elm-uuid": "2.0.0",
             "Skinney/murmur3": "2.0.8",
             "andrewMacmurray/elm-delay": "3.0.0",
             "avh4/elm-color": "1.0.0",
@@ -31,6 +33,7 @@
             "turboMaCk/any-dict": "1.0.1"
         },
         "indirect": {
+            "NoRedInk/elm-random-general": "1.0.0",
             "elm/parser": "1.1.0",
             "elm/regex": "1.0.0",
             "elm/svg": "1.0.1",

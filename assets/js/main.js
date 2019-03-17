@@ -1,9 +1,49 @@
+import "phoenix_html"
+
+import socket from "./socket"
+
 import { Elm } from "../elm/src/Main.elm"
+
+
+
+// Strong seed for random generator //////////////// 
+
+const crypto = window.crypto || window.msCrypto;
+const getRandomInts = (n) => {
+    const randInts = new Uint32Array(n);
+    crypto.getRandomValues(randInts);
+    return Array.from(randInts);
+};
+
+const randInts = getRandomInts(5);
+const seedInfo = [randInts[0], randInts.slice(1)]
+
+
+
 
 var currentTime = new Date().getTime();
 var width = window.innerWidth;
 var height = window.innerHeight;
-var app = Elm.Main.init({flags: {currentTime: currentTime, width: width, height: height}});
+var app = Elm.Main.init({flags: {currentTime: currentTime, width: width, height: height, seedInfo: seedInfo}});
+
+// Channel code //////////////////
+
+socket.connect()
+
+app.ports.joinChannel.subscribe(function(uuid){
+  const channel = socket.channel("bookings:locked_days", {uuid: uuid})
+  
+  channel.join()
+  .receive("ok", resp => { console.log("Joined successfully", resp) })
+  .receive("error", resp => { console.log("Unable to join", resp) })
+});
+
+app.ports.broadcastLockedDays.subscribe(function(lDays){
+  channel.push("days_locked", {lDays: lDays});
+});
+
+
+// Captcha code ///////////////////
 
 app.ports.loadCaptcha.subscribe(function(sitekey) {
   grecaptcha.render(

@@ -2,7 +2,7 @@ defmodule GitesWeb.UserSocket do
   use Phoenix.Socket
 
   ## Channels
-  # channel "room:*", GitesWeb.RoomChannel
+  channel "bookings:*", GitesWeb.BookingsChannel
 
   # Socket params are passed from the client and can
   # be used to verify and authenticate a user. After

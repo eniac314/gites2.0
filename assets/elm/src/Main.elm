@@ -72,6 +72,7 @@ type alias Flags =
     { currentTime : Int
     , width : Int
     , height : Int
+    , seedInfo : ( Int, List Int )
     }
 
 
@@ -79,7 +80,7 @@ init : Flags -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
     let
         ( newBookings, bookingsCmd ) =
-            Bookings.init BookingsMsg
+            Bookings.init BookingsMsg flags.seedInfo
 
         ( newFrontPage, frontPageCmd ) =
             FrontPage.init FrontPageMsg

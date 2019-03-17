@@ -22,6 +22,8 @@ import Internals.Helpers exposing (Status(..))
 import Json.Decode as Decode
 import Json.Encode as Encode
 import MultLang.MultLang exposing (..)
+import Prng.Uuid as Uuid
+import Random.Pcg.Extended exposing (Seed, initialSeed, step)
 import Style.Helpers exposing (..)
 import Style.Palette exposing (..)
 import Time exposing (..)
@@ -32,6 +34,12 @@ port loadCaptcha : String -> Cmd msg
 
 
 port captcha_port : (String -> msg) -> Sub msg
+
+
+port joinChannel : Encode.Value -> Cmd msg
+
+
+port broadcastLockedDays : Encode.Value -> Cmd msg
 
 
 subscriptions : Model msg -> Sub msg
@@ -48,7 +56,8 @@ type alias Model msg =
     , checkOutAvailability : Date -> DP.Availability
     , slots :
         Slots
-        --
+
+    --
     , selectedTitle : Maybe Title
     , titleSelector : Select.Model
     , firstName : Maybe String
@@ -69,7 +78,10 @@ type alias Model msg =
     , nbrChildrenSelector : Select.Model
     , comments :
         Maybe String
-        --
+
+    --
+    , currentSeed : Seed
+    , currentUuid : Uuid.Uuid
     , captchaResp : String
     , bookingProcessed : Status
     , outMsg : Msg -> msg
@@ -137,77 +149,87 @@ type Msg
     | NoOp
 
 
-init outMsg =
+init outMsg ( seed, seedExtension ) =
     let
         ( checkInPicker, checkInPickerCmd ) =
             DP.init Nothing CheckInPickerMsg
 
         ( checkOutPicker, checkOutPickerCmd ) =
             DP.init Nothing CheckOutPickerMsg
+
+        ( newUuid, newSeed ) =
+            step Uuid.generator (initialSeed seed seedExtension)
     in
-        ( { checkInPicker = checkInPicker
-          , checkInDate =
-                Just <| Date.fromCalendarDate 2020 Time.Jan 2
-                --Nothing
-          , checkInAvailability = always DP.Available
-          , checkOutPicker = checkOutPicker
-          , checkOutDate =
-                Just <| Date.fromCalendarDate 2020 Time.Jan 12
-                --Nothing
-          , checkOutAvailability = always DP.Available
-          , slots =
-                Slots [] [] [] []
-                --
-                --, selectedTitle = Nothing
-                --, titleSelector = Select.init
-                --, firstName = Nothing
-                --, lastName = Nothing
-                --, address = Nothing
-                --, addAddress = Nothing
-                --, postcode = Nothing
-                --, city = Nothing
-                --, country = Nothing
-                --, phone1 = Nothing
-                --, phone2 = Nothing
-                --, email = Nothing
-                --, confEmail = Nothing
-                --, confEmailFocused = False
-                --, nbrAdults = Nothing
-                --, nbrAdultSelector = Select.init
-                --, nbrChildren = Nothing
-                --, nbrChildrenSelector = Select.init
-                --, comments = Nothing
-          , selectedTitle = Just Mr
-          , titleSelector = Select.init
-          , firstName = Just "Florian"
-          , lastName = Just "Gillard"
-          , address = Just "5 place de l'église"
-          , addAddress = Nothing
-          , postcode = Just 89520
-          , city = Just "Lainsecq"
-          , country = Just "France"
-          , phone1 = Just "0652110572"
-          , phone2 = Nothing
-          , email = Just "florian.gillard@tutanota.com"
-          , confEmail = Just "florian.gillard@tutanota.com"
-          , confEmailFocused = False
-          , nbrAdults = Just 1
-          , nbrAdultSelector = Select.init
-          , nbrChildren = Nothing
-          , nbrChildrenSelector = Select.init
-          , comments =
-                Nothing
-                --
-          , captchaResp = ""
-          , bookingProcessed = Initial
-          , outMsg = outMsg
-          }
-        , Cmd.map outMsg <|
-            Cmd.batch
-                [ checkInPickerCmd
-                , checkOutPickerCmd
-                ]
-        )
+    ( { checkInPicker = checkInPicker
+      , checkInDate =
+            Just <| Date.fromCalendarDate 2020 Time.Jan 2
+
+      --Nothing
+      , checkInAvailability = always DP.Available
+      , checkOutPicker = checkOutPicker
+      , checkOutDate =
+            Just <| Date.fromCalendarDate 2020 Time.Jan 12
+
+      --Nothing
+      , checkOutAvailability = always DP.Available
+      , slots =
+            Slots [] [] [] []
+
+      --
+      --, selectedTitle = Nothing
+      --, titleSelector = Select.init
+      --, firstName = Nothing
+      --, lastName = Nothing
+      --, address = Nothing
+      --, addAddress = Nothing
+      --, postcode = Nothing
+      --, city = Nothing
+      --, country = Nothing
+      --, phone1 = Nothing
+      --, phone2 = Nothing
+      --, email = Nothing
+      --, confEmail = Nothing
+      --, confEmailFocused = False
+      --, nbrAdults = Nothing
+      --, nbrAdultSelector = Select.init
+      --, nbrChildren = Nothing
+      --, nbrChildrenSelector = Select.init
+      --, comments = Nothing
+      , selectedTitle = Just Mr
+      , titleSelector = Select.init
+      , firstName = Just "Florian"
+      , lastName = Just "Gillard"
+      , address = Just "5 place de l'église"
+      , addAddress = Nothing
+      , postcode = Just 89520
+      , city = Just "Lainsecq"
+      , country = Just "France"
+      , phone1 = Just "0652110572"
+      , phone2 = Nothing
+      , email = Just "florian.gillard@tutanota.com"
+      , confEmail = Just "florian.gillard@tutanota.com"
+      , confEmailFocused = False
+      , nbrAdults = Just 1
+      , nbrAdultSelector = Select.init
+      , nbrChildren = Nothing
+      , nbrChildrenSelector = Select.init
+      , comments =
+            Nothing
+
+      --
+      , currentSeed = newSeed
+      , currentUuid = newUuid
+      , captchaResp = ""
+      , bookingProcessed = Initial
+      , outMsg = outMsg
+      }
+    , Cmd.map outMsg <|
+        Cmd.batch
+            [ checkInPickerCmd
+            , checkOutPickerCmd
+            , joinChannel (Uuid.encode newUuid)
+            ]
+    )
 
 
 update : Msg -> Model msg -> ( Model msg, Cmd msg )
@@ -218,50 +240,51 @@ update msg model =
                 ( newCheckInPicker, cmd, mbDate ) =
                     DP.update pickerMsg model.checkInPicker
             in
-                case mbDate of
-                    Nothing ->
-                        ( { model
-                            | checkInPicker = newCheckInPicker
-                          }
-                        , Cmd.map model.outMsg cmd
-                        )
+            case mbDate of
+                Nothing ->
+                    ( { model
+                        | checkInPicker = newCheckInPicker
+                      }
+                    , Cmd.map model.outMsg cmd
+                    )
 
-                    Just checkIn ->
-                        ( { model
-                            | checkInPicker = newCheckInPicker
-                            , checkInDate = mbDate
-                            , checkOutPicker =
-                                DP.setCurrentDate checkIn model.checkOutPicker
-                            , checkOutAvailability =
-                                newCheckOutAvailability model.slots checkIn
-                          }
-                        , Cmd.map model.outMsg cmd
-                        )
+                Just checkIn ->
+                    ( { model
+                        | checkInPicker = newCheckInPicker
+                        , checkInDate = mbDate
+                        , checkOutPicker =
+                            DP.setCurrentDate checkIn model.checkOutPicker
+                        , checkOutAvailability =
+                            newCheckOutAvailability model.slots checkIn
+                      }
+                    , Cmd.batch
+                        [ Cmd.map model.outMsg cmd ]
+                    )
 
         CheckOutPickerMsg pickerMsg ->
             let
                 ( newCheckOutPicker, cmd, mbDate ) =
                     DP.update pickerMsg model.checkOutPicker
             in
-                case mbDate of
-                    Nothing ->
-                        ( { model
-                            | checkOutPicker = newCheckOutPicker
-                          }
-                        , Cmd.map model.outMsg cmd
-                        )
+            case mbDate of
+                Nothing ->
+                    ( { model
+                        | checkOutPicker = newCheckOutPicker
+                      }
+                    , Cmd.map model.outMsg cmd
+                    )
 
-                    Just checkOut ->
-                        ( { model
-                            | checkOutPicker = newCheckOutPicker
-                            , checkOutDate = mbDate
-                            , checkInPicker =
-                                DP.setCurrentDate checkOut model.checkInPicker
-                            , checkInAvailability =
-                                newCheckInAvailability model.slots checkOut
-                          }
-                        , Cmd.map model.outMsg cmd
-                        )
+                Just checkOut ->
+                    ( { model
+                        | checkOutPicker = newCheckOutPicker
+                        , checkOutDate = mbDate
+                        , checkInPicker =
+                            DP.setCurrentDate checkOut model.checkInPicker
+                        , checkInAvailability =
+                            newCheckInAvailability model.slots checkOut
+                      }
+                    , Cmd.map model.outMsg cmd
+                    )
 
         TitleSelectorMsg selMsg ->
             ( { model
@@ -1081,242 +1104,243 @@ confirmView config model =
                 nc =
                     nightsCount cInDate cOutDate
             in
-                column
-                    [ spacing 20
-                      --, if not model.captchaLoaded then
-                      --    Events.onMouseEnter LoadCaptcha
-                      --  else
-                      --    noAttr
+            column
+                [ spacing 20
+
+                --, if not model.captchaLoaded then
+                --    Events.onMouseEnter LoadCaptcha
+                --  else
+                --    noAttr
+                ]
+                [ el
+                    [ Font.bold
+                    , Font.size 22
                     ]
+                    (textM config.lang
+                        (MultLangStr "Confirmation"
+                            "Confirmation"
+                        )
+                    )
+                , column
+                    [ spacing 15 ]
                     [ el
-                        [ Font.bold
-                        , Font.size 22
+                        [ Font.size 20
                         ]
                         (textM config.lang
-                            (MultLangStr "Confirmation"
-                                "Confirmation"
+                            (MultLangStr "Customer details"
+                                "Informations client"
                             )
                         )
-                    , column
-                        [ spacing 15 ]
-                        [ el
-                            [ Font.size 20
-                            ]
-                            (textM config.lang
-                                (MultLangStr "Customer details"
-                                    "Informations client"
-                                )
-                            )
-                        , row
-                            [ spacing 5 ]
-                            [ textM config.lang <|
-                                case Maybe.withDefault Mr model.selectedTitle of
-                                    Mr ->
-                                        MultLangStr "Mr"
-                                            "M."
+                    , row
+                        [ spacing 5 ]
+                        [ textM config.lang <|
+                            case Maybe.withDefault Mr model.selectedTitle of
+                                Mr ->
+                                    MultLangStr "Mr"
+                                        "M."
 
-                                    Ms ->
-                                        MultLangStr "Ms"
-                                            "Mme"
+                                Ms ->
+                                    MultLangStr "Ms"
+                                        "Mme"
 
-                                    Other ->
-                                        MultLangStr "Other"
-                                            "Autre"
-                            , el [] (textS model.firstName)
-                            , el [] (textS model.lastName)
-                            ]
-                        , paragraph [] [ textS model.address ]
-                        , case model.addAddress of
-                            Just addAddress ->
-                                paragraph [] [ text addAddress ]
-
-                            _ ->
-                                Element.none
-                        , el [] (textS (Maybe.map String.fromInt model.postcode))
-                        , el [] (textS model.city)
-                        , el [] (textS model.country)
+                                Other ->
+                                    MultLangStr "Other"
+                                        "Autre"
+                        , el [] (textS model.firstName)
+                        , el [] (textS model.lastName)
                         ]
-                    , column
-                        [ spacing 15 ]
-                        [ el
-                            [ Font.size 20
-                            ]
-                            (text "Contact")
-                        , el [] (textS model.phone1)
-                        , case model.phone2 of
-                            Just phone2 ->
-                                el [] (text phone2)
+                    , paragraph [] [ textS model.address ]
+                    , case model.addAddress of
+                        Just addAddress ->
+                            paragraph [] [ text addAddress ]
 
-                            _ ->
-                                Element.none
-                        , el [] (textS model.email)
+                        _ ->
+                            Element.none
+                    , el [] (textS (Maybe.map String.fromInt model.postcode))
+                    , el [] (textS model.city)
+                    , el [] (textS model.country)
+                    ]
+                , column
+                    [ spacing 15 ]
+                    [ el
+                        [ Font.size 20
                         ]
-                    , column
-                        [ spacing 15 ]
-                        [ el
-                            [ Font.size 20
-                            ]
-                            (textM config.lang
-                                (MultLangStr "Your booking"
-                                    "Votre réservation"
-                                )
+                        (text "Contact")
+                    , el [] (textS model.phone1)
+                    , case model.phone2 of
+                        Just phone2 ->
+                            el [] (text phone2)
+
+                        _ ->
+                            Element.none
+                    , el [] (textS model.email)
+                    ]
+                , column
+                    [ spacing 15 ]
+                    [ el
+                        [ Font.size 20
+                        ]
+                        (textM config.lang
+                            (MultLangStr "Your booking"
+                                "Votre réservation"
                             )
-                        , row
-                            [ spacing 20 ]
-                            [ el
-                                []
-                                (text <|
-                                    strM config.lang
-                                        (MultLangStr
-                                            "Check-In"
-                                            "Date d'arrivée"
-                                        )
-                                        ++ " : "
-                                        ++ formatDate config.lang cInDate
-                                )
-                            , el
-                                []
-                                (text <|
-                                    strM config.lang
-                                        (MultLangStr
-                                            "Check-out"
-                                            "Date de départ"
-                                        )
-                                        ++ " : "
-                                        ++ formatDate config.lang cOutDate
-                                )
-                            ]
-                        , case model.nbrAdults of
-                            Just n ->
-                                el
-                                    []
-                                    (text <|
-                                        strM config.lang
-                                            (MultLangStr
-                                                "Number of adults"
-                                                "Nombre d'adultes"
-                                            )
-                                            ++ " : "
-                                            ++ String.fromInt n
+                        )
+                    , row
+                        [ spacing 20 ]
+                        [ el
+                            []
+                            (text <|
+                                strM config.lang
+                                    (MultLangStr
+                                        "Check-In"
+                                        "Date d'arrivée"
                                     )
-
-                            Nothing ->
-                                Element.none
-                        , case model.nbrChildren of
-                            Just n ->
-                                el
-                                    []
-                                    (text <|
-                                        strM config.lang
-                                            (MultLangStr
-                                                "Number of children"
-                                                "Nombre d'enfants"
-                                            )
-                                            ++ " : "
-                                            ++ String.fromInt n
-                                    )
-
-                            Nothing ->
-                                Element.none
+                                    ++ " : "
+                                    ++ formatDate config.lang cInDate
+                            )
                         , el
                             []
                             (text <|
                                 strM config.lang
-                                    (MultLangStr "Your stay: "
-                                        "Réservation pour "
+                                    (MultLangStr
+                                        "Check-out"
+                                        "Date de départ"
                                     )
-                                    ++ String.fromInt nc
-                                    ++ (if nc > 1 then
-                                            strM config.lang
-                                                (MultLangStr " nights"
-                                                    " nuits"
-                                                )
-                                        else
-                                            strM config.lang
-                                                (MultLangStr " night"
-                                                    " nuit"
-                                                )
-                                       )
-                            )
-                        , el
-                            []
-                            (text <|
-                                "Total: "
-                                    ++ String.fromInt (nc * 50)
-                                    ++ " €"
+                                    ++ " : "
+                                    ++ formatDate config.lang cOutDate
                             )
                         ]
-                    , case model.comments of
-                        Just _ ->
-                            column
-                                [ spacing 15 ]
-                                [ el
-                                    [ Font.size 20
-                                    ]
-                                    (textM config.lang
-                                        (MultLangStr "Remarks / Requests"
-                                            "Remarques / Demandes particulières"
+                    , case model.nbrAdults of
+                        Just n ->
+                            el
+                                []
+                                (text <|
+                                    strM config.lang
+                                        (MultLangStr
+                                            "Number of adults"
+                                            "Nombre d'adultes"
                                         )
-                                    )
-                                , paragraph [] [ textS model.comments ]
-                                ]
+                                        ++ " : "
+                                        ++ String.fromInt n
+                                )
 
-                        _ ->
+                        Nothing ->
                             Element.none
-                    , html <|
-                        Html.img
-                            [ HtmlAttr.hidden True
-                            , HtmlEvents.on "load"
-                                (Decode.succeed (Delay 200 LoadCaptcha))
-                            , HtmlAttr.src "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
-                            ]
-                            []
-                    , el
-                        [ htmlAttribute <|
-                            HtmlAttr.class "g-recaptcha"
-                        , paddingEach
-                            { sides | top = 10 }
-                        ]
-                        Element.none
-                    , case model.bookingProcessed of
-                        Initial ->
-                            Input.button
-                                (buttonStyle_ (model.captchaResp /= ""))
-                                { onPress =
-                                    if model.captchaResp /= "" then
-                                        Just SendBookingData
-                                    else
-                                        Nothing
-                                , label =
-                                    textM config.lang
-                                        (MultLangStr "Send"
-                                            "Envoyer"
+                    , case model.nbrChildren of
+                        Just n ->
+                            el
+                                []
+                                (text <|
+                                    strM config.lang
+                                        (MultLangStr
+                                            "Number of children"
+                                            "Nombre d'enfants"
                                         )
-                                }
-
-                        Waiting ->
-                            el
-                                []
-                                (textM config.lang
-                                    (MultLangStr "Your request is being processed, please wait... "
-                                        "Votre demande est en cours de traitement, veuillez patienter... "
-                                    )
+                                        ++ " : "
+                                        ++ String.fromInt n
                                 )
 
-                        Success ->
-                            el
-                                []
-                                (textM config.lang
-                                    (MultLangStr "Your request has been processed, you will receive a confirmation email in the next 24H."
-                                        "Votre demande à été prise en compte, vous allez recevoir un email de confirmation dans les prochaines 24H."
-                                    )
+                        Nothing ->
+                            Element.none
+                    , el
+                        []
+                        (text <|
+                            strM config.lang
+                                (MultLangStr "Your stay: "
+                                    "Réservation pour "
                                 )
-
-                        Failure ->
-                            el
-                                []
-                                (text <| "Failure")
+                                ++ String.fromInt nc
+                                ++ (if nc > 1 then
+                                        strM config.lang
+                                            (MultLangStr " nights"
+                                                " nuits"
+                                            )
+                                    else
+                                        strM config.lang
+                                            (MultLangStr " night"
+                                                " nuit"
+                                            )
+                                   )
+                        )
+                    , el
+                        []
+                        (text <|
+                            "Total: "
+                                ++ String.fromInt (nc * 50)
+                                ++ " €"
+                        )
                     ]
+                , case model.comments of
+                    Just _ ->
+                        column
+                            [ spacing 15 ]
+                            [ el
+                                [ Font.size 20
+                                ]
+                                (textM config.lang
+                                    (MultLangStr "Remarks / Requests"
+                                        "Remarques / Demandes particulières"
+                                    )
+                                )
+                            , paragraph [] [ textS model.comments ]
+                            ]
+
+                    _ ->
+                        Element.none
+                , html <|
+                    Html.img
+                        [ HtmlAttr.hidden True
+                        , HtmlEvents.on "load"
+                            (Decode.succeed (Delay 200 LoadCaptcha))
+                        , HtmlAttr.src "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                        ]
+                        []
+                , el
+                    [ htmlAttribute <|
+                        HtmlAttr.class "g-recaptcha"
+                    , paddingEach
+                        { sides | top = 10 }
+                    ]
+                    Element.none
+                , case model.bookingProcessed of
+                    Initial ->
+                        Input.button
+                            (buttonStyle_ (model.captchaResp /= ""))
+                            { onPress =
+                                if model.captchaResp /= "" then
+                                    Just SendBookingData
+                                else
+                                    Nothing
+                            , label =
+                                textM config.lang
+                                    (MultLangStr "Send"
+                                        "Envoyer"
+                                    )
+                            }
+
+                    Waiting ->
+                        el
+                            []
+                            (textM config.lang
+                                (MultLangStr "Your request is being processed, please wait... "
+                                    "Votre demande est en cours de traitement, veuillez patienter... "
+                                )
+                            )
+
+                    Success ->
+                        el
+                            []
+                            (textM config.lang
+                                (MultLangStr "Your request has been processed, you will receive a confirmation email in the next 24H."
+                                    "Votre demande à été prise en compte, vous allez recevoir un email de confirmation dans les prochaines 24H."
+                                )
+                            )
+
+                    Failure ->
+                        el
+                            []
+                            (text <| "Failure")
+                ]
 
         _ ->
             Element.none
@@ -1340,11 +1364,11 @@ sendBookingData model =
                 ]
                 |> Http.jsonBody
     in
-        Http.post
-            { url = "/api/bookings"
-            , body = body
-            , expect = Http.expectJson BookingProcessed decodeBookingResult
-            }
+    Http.post
+        { url = "/api/bookings"
+        , body = body
+        , expect = Http.expectJson BookingProcessed decodeBookingResult
+        }
 
 
 decodeBookingResult =
@@ -1372,79 +1396,79 @@ encodeBookingData model =
             Maybe.map Encode.string s
                 |> Maybe.withDefault Encode.null
     in
-        Encode.object
-            [ ( "check_in"
-              , model.checkInDate
-                    |> Maybe.map Date.toRataDie
-                    |> Maybe.map Encode.int
-                    |> Maybe.withDefault Encode.null
-              )
-            , ( "check_out"
-              , model.checkOutDate
-                    |> Maybe.map Date.toRataDie
-                    |> Maybe.map Encode.int
-                    |> Maybe.withDefault Encode.null
-              )
-            , ( "title"
-              , model.selectedTitle
-                    |> Maybe.map encodeTitle
-                    |> Maybe.withDefault Encode.null
-              )
-            , ( "first_name"
-              , strEncode model.firstName
-              )
-            , ( "last_name"
-              , strEncode model.lastName
-              )
-            , ( "address"
-              , strEncode model.address
-              )
-            , ( "add_address"
-              , strEncode model.addAddress
-              )
-            , ( "postcode"
-              , model.postcode
-                    |> Maybe.map Encode.int
-                    |> Maybe.withDefault Encode.null
-              )
-            , ( "city"
-              , strEncode model.city
-              )
-            , ( "country"
-              , strEncode model.country
-              )
-            , ( "phone1"
-              , strEncode model.phone1
-              )
-            , ( "phone2"
-              , strEncode model.phone2
-              )
-            , ( "email"
-              , strEncode model.email
-              )
-            , ( "nbr_adults"
-              , model.nbrAdults
-                    |> Maybe.map Encode.int
-                    |> Maybe.withDefault Encode.null
-              )
-            , ( "nbr_children"
-              , model.nbrChildren
-                    |> Maybe.map Encode.int
-                    |> Maybe.withDefault Encode.null
-              )
-            , ( "comments"
-              , strEncode model.comments
-              )
-            , ( "days_booked"
-              , Maybe.map2 daysBooked
-                    (.checkInDate model)
-                    (.checkOutDate model)
-                    |> Maybe.withDefault []
-                    |> List.map Date.toRataDie
-                    |> Encode.list Encode.int
-              )
-            , ( "captcha_response", Encode.string model.captchaResp )
-            ]
+    Encode.object
+        [ ( "check_in"
+          , model.checkInDate
+                |> Maybe.map Date.toRataDie
+                |> Maybe.map Encode.int
+                |> Maybe.withDefault Encode.null
+          )
+        , ( "check_out"
+          , model.checkOutDate
+                |> Maybe.map Date.toRataDie
+                |> Maybe.map Encode.int
+                |> Maybe.withDefault Encode.null
+          )
+        , ( "title"
+          , model.selectedTitle
+                |> Maybe.map encodeTitle
+                |> Maybe.withDefault Encode.null
+          )
+        , ( "first_name"
+          , strEncode model.firstName
+          )
+        , ( "last_name"
+          , strEncode model.lastName
+          )
+        , ( "address"
+          , strEncode model.address
+          )
+        , ( "add_address"
+          , strEncode model.addAddress
+          )
+        , ( "postcode"
+          , model.postcode
+                |> Maybe.map Encode.int
+                |> Maybe.withDefault Encode.null
+          )
+        , ( "city"
+          , strEncode model.city
+          )
+        , ( "country"
+          , strEncode model.country
+          )
+        , ( "phone1"
+          , strEncode model.phone1
+          )
+        , ( "phone2"
+          , strEncode model.phone2
+          )
+        , ( "email"
+          , strEncode model.email
+          )
+        , ( "nbr_adults"
+          , model.nbrAdults
+                |> Maybe.map Encode.int
+                |> Maybe.withDefault Encode.null
+          )
+        , ( "nbr_children"
+          , model.nbrChildren
+                |> Maybe.map Encode.int
+                |> Maybe.withDefault Encode.null
+          )
+        , ( "comments"
+          , strEncode model.comments
+          )
+        , ( "days_booked"
+          , Maybe.map2 daysBooked
+                (.checkInDate model)
+                (.checkOutDate model)
+                |> Maybe.withDefault []
+                |> List.map Date.toRataDie
+                |> Encode.list Encode.int
+          )
+        , ( "captcha_response", Encode.string model.captchaResp )
+        ]
 
 
 
@@ -1495,16 +1519,16 @@ validateForm { selectedTitle, firstName, lastName, address, postcode, city, coun
                 Just _ ->
                     True
     in
-        validTitle
-            && validFstName
-            && validLstName
-            && validAddr
-            && validPostcode
-            && validCity
-            && validCountry
-            && validPhone1
-            && validEmail
-            && validNbrAdults
+    validTitle
+        && validFstName
+        && validLstName
+        && validAddr
+        && validPostcode
+        && validCity
+        && validCountry
+        && validPhone1
+        && validEmail
+        && validNbrAdults
 
 
 nightsCount : Date -> Date -> Int

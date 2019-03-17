@@ -18,10 +18,6 @@ noAttr =
     htmlAttribute <| HtmlAttr.class ""
 
 
-longText =
-    "Il était une fois, au milieu d'une forêt épaisse, une petite maison où habitait une jolie petite fille nommée Petit Chaperon Rouge. Un jour ensoleillé, sa maman l'appela dans la cuisine de leur petite maison."
-
-
 buttonStyle isActive =
     [ centerX
     , padding 10
