@@ -3,8 +3,6 @@ defmodule GitesWeb.BookingsChannel do
   alias GitesWeb.Presence
   alias Gites.LockedAvailabilitiesServer
 
-  require Logger 
-
   def join("bookings:locked_days", %{"uuid" => uuid}, socket) do 
   	send(self(), {:after_join, "days_locked"})
   	{:ok, assign(socket, :uuid, uuid)}
