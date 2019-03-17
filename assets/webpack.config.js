@@ -13,7 +13,7 @@ module.exports = (env, options) => ({
     ]
   },
   entry: {
-      app: ['./js/app.js'].concat(glob.sync('./vendor/**/*.js')),  
+      // app: ['./js/app.js'].concat(glob.sync('./vendor/**/*.js')),  
       main: ['./js/main.js'],
       admin: ['./js/admin.js']
   },
@@ -41,8 +41,8 @@ module.exports = (env, options) => ({
           loader: 'elm-webpack-loader',
           options: {
             cwd: path.resolve(__dirname, 'elm'),
-            optimize: true
-            // debug: true
+            // optimize: true
+            debug: true
           }
         }
       }

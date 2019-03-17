@@ -31,15 +31,34 @@ var app = Elm.Main.init({flags: {currentTime: currentTime, width: width, height:
 socket.connect()
 
 app.ports.joinChannel.subscribe(function(uuid){
-  const channel = socket.channel("bookings:locked_days", {uuid: uuid})
+  window.channel = socket.channel("bookings:locked_days", {uuid: uuid})
   
   channel.join()
   .receive("ok", resp => { console.log("Joined successfully", resp) })
   .receive("error", resp => { console.log("Unable to join", resp) })
+  
+  channel.on("broadcast_initial_locked_days",payload => {
+    app.ports.receiveInitialLockedDays.send(payload)
+  });
+  
+  channel.on("broadcast_locked_days",payload => {
+    app.ports.receiveLockedDays.send(payload)
+  });
+
+  channel.on("presence_state", payload => {
+    app.ports.presenceState.send(payload)
+  });
+
+  channel.on("presence_diff",payload => {
+    app.ports.presenceDiff.send(payload)
+  });
+
 });
 
+
+
 app.ports.broadcastLockedDays.subscribe(function(lDays){
-  channel.push("days_locked", {lDays: lDays});
+  channel.push("days_locked", {cIn: lDays.cIn, cOut: lDays.cOut});
 });
 
 

@@ -4,6 +4,7 @@ import Bookings.DatePicker.Date exposing (formatDate)
 import Bookings.DatePicker.DatePicker as DP
 import Date exposing (..)
 import Delay
+import Dict exposing (..)
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -19,8 +20,10 @@ import Html.Events as HtmlEvents
 import Http exposing (..)
 import Internals.DropdownSelect as Select exposing (..)
 import Internals.Helpers exposing (Status(..))
+import Internals.PhoenixPresence as Presence exposing (..)
 import Json.Decode as Decode
 import Json.Encode as Encode
+import List.Extra exposing (uniqueBy)
 import MultLang.MultLang exposing (..)
 import Prng.Uuid as Uuid
 import Random.Pcg.Extended exposing (Seed, initialSeed, step)
@@ -42,18 +45,35 @@ port joinChannel : Encode.Value -> Cmd msg
 port broadcastLockedDays : Encode.Value -> Cmd msg
 
 
+port receiveInitialLockedDays : (Encode.Value -> msg) -> Sub msg
+
+
+port receiveLockedDays : (Encode.Value -> msg) -> Sub msg
+
+
+port presenceState : (Encode.Value -> msg) -> Sub msg
+
+
+port presenceDiff : (Encode.Value -> msg) -> Sub msg
+
+
 subscriptions : Model msg -> Sub msg
 subscriptions model =
-    Sub.map model.outMsg <| captcha_port CaptchaResponse
+    Sub.map model.outMsg <|
+        Sub.batch
+            [ captcha_port CaptchaResponse
+            , receiveInitialLockedDays ReceiveInitialLockedDays
+            , receiveLockedDays ReceiveLockedDays
+            , presenceState ReceivePresenceState
+            , presenceDiff ReceivePresenceDiff
+            ]
 
 
 type alias Model msg =
     { checkInPicker : DP.Model Msg
     , checkInDate : Maybe Date
-    , checkInAvailability : Date -> DP.Availability
     , checkOutPicker : DP.Model Msg
     , checkOutDate : Maybe Date
-    , checkOutAvailability : Date -> DP.Availability
     , slots :
         Slots
 
@@ -82,6 +102,7 @@ type alias Model msg =
     --
     , currentSeed : Seed
     , currentUuid : Uuid.Uuid
+    , presences : Presence.PresenceState String
     , captchaResp : String
     , bookingProcessed : Status
     , outMsg : Msg -> msg
@@ -117,6 +138,7 @@ type alias Slots =
     , notAvailable : List Date
     , noCheckIn : List Date
     , noCheckOut : List Date
+    , lockedDays : Dict String (List Date)
     }
 
 
@@ -145,6 +167,10 @@ type Msg
     | CaptchaResponse String
     | SendBookingData
     | BookingProcessed (Result Http.Error Bool)
+    | ReceiveInitialLockedDays Encode.Value
+    | ReceiveLockedDays Encode.Value
+    | ReceivePresenceState Decode.Value
+    | ReceivePresenceDiff Decode.Value
     | Delay Float Msg
     | NoOp
 
@@ -162,18 +188,16 @@ init outMsg ( seed, seedExtension ) =
     in
     ( { checkInPicker = checkInPicker
       , checkInDate =
-            Just <| Date.fromCalendarDate 2020 Time.Jan 2
+            Nothing
 
-      --Nothing
-      , checkInAvailability = always DP.Available
+      --Just <| Date.fromCalendarDate 2020 Time.Jan 2
       , checkOutPicker = checkOutPicker
       , checkOutDate =
-            Just <| Date.fromCalendarDate 2020 Time.Jan 12
+            Nothing
 
-      --Nothing
-      , checkOutAvailability = always DP.Available
+      --Just <| Date.fromCalendarDate 2020 Time.Jan 12
       , slots =
-            Slots [] [] [] []
+            Slots [] [] [] [] Dict.empty
 
       --
       --, selectedTitle = Nothing
@@ -219,6 +243,7 @@ init outMsg ( seed, seedExtension ) =
       --
       , currentSeed = newSeed
       , currentUuid = newUuid
+      , presences = Dict.empty
       , captchaResp = ""
       , bookingProcessed = Initial
       , outMsg = outMsg
@@ -254,11 +279,11 @@ update msg model =
                         , checkInDate = mbDate
                         , checkOutPicker =
                             DP.setCurrentDate checkIn model.checkOutPicker
-                        , checkOutAvailability =
-                            newCheckOutAvailability model.slots checkIn
                       }
                     , Cmd.batch
-                        [ Cmd.map model.outMsg cmd ]
+                        [ Cmd.map model.outMsg cmd
+                        , broadcastLockedDaysCmd (Just checkIn) model.checkOutDate
+                        ]
                     )
 
         CheckOutPickerMsg pickerMsg ->
@@ -280,10 +305,11 @@ update msg model =
                         , checkOutDate = mbDate
                         , checkInPicker =
                             DP.setCurrentDate checkOut model.checkInPicker
-                        , checkInAvailability =
-                            newCheckInAvailability model.slots checkOut
                       }
-                    , Cmd.map model.outMsg cmd
+                    , Cmd.batch
+                        [ Cmd.map model.outMsg cmd
+                        , broadcastLockedDaysCmd model.checkInDate (Just checkOut)
+                        ]
                     )
 
         TitleSelectorMsg selMsg ->
@@ -483,6 +509,87 @@ update msg model =
                     , Cmd.none
                     )
 
+        ReceiveInitialLockedDays json ->
+            case Decode.decodeValue (Decode.field "payload" <| Decode.list lockedDaysDecoder) json of
+                Ok lDays ->
+                    let
+                        slots =
+                            model.slots
+
+                        newSlots =
+                            { slots
+                                | lockedDays =
+                                    List.foldr
+                                        (\{ cIn, cOut, uuid } acc ->
+                                            Dict.insert uuid
+                                                (daysBooked cIn cOut)
+                                                acc
+                                        )
+                                        slots.lockedDays
+                                        lDays
+                            }
+                    in
+                    ( { model | slots = newSlots }, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        ReceiveLockedDays json ->
+            case Decode.decodeValue lockedDaysDecoder json of
+                Ok { cIn, cOut, uuid } ->
+                    let
+                        slots =
+                            model.slots
+
+                        newSlots =
+                            { slots
+                                | lockedDays =
+                                    Dict.insert uuid
+                                        (daysBooked cIn cOut)
+                                        slots.lockedDays
+                            }
+                    in
+                    ( { model | slots = newSlots }, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        ReceivePresenceState jsonVal ->
+            let
+                presences =
+                    decodePresenceState jsonVal
+                        |> Result.map (\state -> Presence.syncState state model.presences)
+            in
+            case presences of
+                Ok ps ->
+                    ( { model
+                        | presences = ps
+                        , slots = filterSlots ps model.slots
+                      }
+                    , Cmd.none
+                    )
+
+                Err e ->
+                    ( model, Cmd.none )
+
+        ReceivePresenceDiff jsonVal ->
+            let
+                presences =
+                    decodePresenceDiff jsonVal
+                        |> Result.map (\diff -> Presence.syncDiff diff model.presences)
+            in
+            case presences of
+                Ok ps ->
+                    ( { model
+                        | presences = ps
+                        , slots = filterSlots ps model.slots
+                      }
+                    , Cmd.none
+                    )
+
+                Err e ->
+                    ( model, Cmd.none )
+
         Delay n msg_ ->
             ( model
             , Delay.after n Delay.Millisecond msg_
@@ -493,30 +600,65 @@ update msg model =
             ( model, Cmd.none )
 
 
-newCheckInAvailability : Slots -> Date -> (Date -> DP.Availability)
-newCheckInAvailability { booked, notAvailable, noCheckIn, noCheckOut } checkOutDate =
+filterSlots ps slots =
+    { slots
+        | lockedDays =
+            Dict.filter
+                (\uuid _ -> List.member uuid (Dict.keys ps))
+                slots.lockedDays
+    }
+
+
+checkInAvailability : Slots -> Maybe Date -> (Date -> DP.Availability)
+checkInAvailability { booked, notAvailable, noCheckIn, noCheckOut, lockedDays } mbCheckOutDate =
+    let
+        locked =
+            Dict.values lockedDays
+                |> List.concat
+                |> List.Extra.uniqueBy Date.toRataDie
+    in
     \d ->
         if
-            (Date.compare d checkOutDate == GT)
-                || (Date.compare d checkOutDate == EQ)
+            (Maybe.map
+                (\cOut ->
+                    (Date.compare d cOut == GT)
+                        || (Date.compare d cOut == EQ)
+                )
+                mbCheckOutDate
+                |> Maybe.withDefault False
+            )
                 || List.member d booked
                 || List.member d notAvailable
+                || List.member d locked
         then
             DP.NotAvailable
-        else if List.member d noCheckOut then
-            DP.NoCheckOut
+        else if List.member d noCheckIn then
+            DP.NoCheckIn
         else
             DP.Available
 
 
-newCheckOutAvailability : Slots -> Date -> (Date -> DP.Availability)
-newCheckOutAvailability { booked, notAvailable, noCheckIn, noCheckOut } checkInDate =
+checkOutAvailability : Slots -> Maybe Date -> (Date -> DP.Availability)
+checkOutAvailability { booked, notAvailable, noCheckIn, noCheckOut, lockedDays } mbCheckInDate =
+    let
+        locked =
+            Dict.values lockedDays
+                |> List.concat
+                |> List.Extra.uniqueBy Date.toRataDie
+    in
     \d ->
         if
-            (Date.compare d checkInDate == LT)
-                || (Date.compare d checkInDate == EQ)
+            (Maybe.map
+                (\cIn ->
+                    (Date.compare d cIn == LT)
+                        || (Date.compare d cIn == EQ)
+                )
+                mbCheckInDate
+                |> Maybe.withDefault False
+            )
                 || List.member d booked
                 || List.member d notAvailable
+                || List.member d locked
         then
             DP.NotAvailable
         else if List.member d noCheckOut then
@@ -663,7 +805,7 @@ checkInView config model =
             ]
         , DP.view
             { lang = config.lang
-            , availability = model.checkInAvailability
+            , availability = checkInAvailability model.slots model.checkOutDate
             , pickedDate = model.checkInDate
             }
             model.checkInPicker
@@ -742,7 +884,7 @@ checkOutView config model =
             ]
         , DP.view
             { lang = config.lang
-            , availability = model.checkOutAvailability
+            , availability = checkOutAvailability model.slots model.checkInDate
             , pickedDate = model.checkOutDate
             }
             model.checkOutPicker
@@ -1471,6 +1613,49 @@ encodeBookingData model =
         ]
 
 
+broadcastLockedDaysCmd : Maybe Date -> Maybe Date -> Cmd msg
+broadcastLockedDaysCmd mbCIn mbCOut =
+    case ( mbCIn, mbCOut ) of
+        ( Just cIn, Just cOut ) ->
+            broadcastLockedDays <|
+                Encode.object
+                    [ ( "cIn", Encode.int <| Date.toRataDie cIn )
+                    , ( "cOut", Encode.int <| Date.toRataDie cOut )
+                    ]
+
+        _ ->
+            Cmd.none
+
+
+dateDecoder : Decode.Decoder Date
+dateDecoder =
+    Decode.int
+        |> Decode.map Date.fromRataDie
+
+
+lockedDaysDecoder =
+    Decode.map3 (\cIn cOut uuid -> { cIn = cIn, cOut = cOut, uuid = uuid })
+        (Decode.field "cIn" dateDecoder)
+        (Decode.field "cOut" dateDecoder)
+        (Decode.field "uuid" (Decode.map Uuid.toString Uuid.decoder))
+
+
+userDecoder =
+    Decode.field "uuid" (Decode.map Uuid.toString Uuid.decoder)
+
+
+decodePresenceState jsonVal =
+    Decode.decodeValue
+        (Presence.presenceStateDecoder userDecoder)
+        jsonVal
+
+
+decodePresenceDiff jsonVal =
+    Decode.decodeValue
+        (Presence.presenceDiffDecoder userDecoder)
+        jsonVal
+
+
 
 -------------------------------------------------------------------------------
 
@@ -1538,4 +1723,4 @@ nightsCount d1 d2 =
 
 daysBooked : Date -> Date -> List Date
 daysBooked d1 d2 =
-    Date.range Date.Day 1 d1 (Date.add Date.Days -1 d2)
+    Date.range Date.Day 1 d1 d2
