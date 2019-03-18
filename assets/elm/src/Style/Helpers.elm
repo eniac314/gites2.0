@@ -244,27 +244,19 @@ sameHeightImgRow baseUrl mbattrs images =
         (List.indexedMap
             (\i im ->
                 ( String.fromInt (i * List.length imgsScaledToMinHeight)
-                , column
+                , el
                     ([ width <| fillPortion (floor <| 10000 * im.newWidth / totalImgWidth)
                      ]
                         ++ extraAttrs i
                     )
-                    [ html <|
+                    (html <|
                         Html.img
                             [ HtmlAttr.style "width" "100%"
                             , HtmlAttr.style "height" "auto"
                             , HtmlAttr.src (baseUrl ++ im.meta.url)
                             ]
                             []
-                    , paragraph []
-                        [ text (baseUrl ++ im.meta.url) ]
-
-                    --{ src = im.meta.url
-                    --, description =
-                    --    im.meta.caption
-                    --        |> Maybe.withDefault ""
-                    --}
-                    ]
+                    )
                 )
             )
             imgsScaledToMinHeight
