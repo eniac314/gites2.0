@@ -42,8 +42,8 @@ frontPageItemView config item =
                     (List.map
                         (\{ url, caption } ->
                             image
-                                []
-                                { src = url
+                                [ width (maximum config.width fill) ]
+                                { src = awsUrl ++ url
                                 , description =
                                     caption
                                         |> Maybe.withDefault ""
