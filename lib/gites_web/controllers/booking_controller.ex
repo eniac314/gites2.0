@@ -16,7 +16,8 @@ defmodule GitesWeb.BookingController do
   def create(conn, %{"booking" => booking_params}) do
     # IEx.pry()
     with  {:ok, _response} <- Recaptcha.verify(booking_params["captcha_response"]),
-          {:ok, %Booking{} = booking} <- BookingSystem.create_booking(booking_params) do
+          {:ok, %Booking{} = booking} <- BookingSystem.create_booking(booking_params),
+          {:ok, _res } <- BookingSystem.bulk_create_availabilities(booking_params["days_booked"]) do          
       conn
       |> put_status(:created)
       |> put_resp_header("location", Routes.booking_path(conn, :show, booking))

@@ -279,6 +279,7 @@ update msg model =
                         , checkInDate = mbDate
                         , checkOutPicker =
                             DP.setCurrentDate checkIn model.checkOutPicker
+                        , slots = computeBooked model.slots (Just checkIn) model.checkOutDate
                       }
                     , Cmd.batch
                         [ Cmd.map model.outMsg cmd
@@ -305,6 +306,7 @@ update msg model =
                         , checkOutDate = mbDate
                         , checkInPicker =
                             DP.setCurrentDate checkOut model.checkInPicker
+                        , slots = computeBooked model.slots model.checkInDate (Just checkOut)
                       }
                     , Cmd.batch
                         [ Cmd.map model.outMsg cmd
@@ -527,6 +529,7 @@ update msg model =
                                         )
                                         slots.lockedDays
                                         lDays
+                                        |> Dict.remove (Uuid.toString model.currentUuid)
                             }
                     in
                     ( { model | slots = newSlots }, Cmd.none )
@@ -537,19 +540,50 @@ update msg model =
         ReceiveLockedDays json ->
             case Decode.decodeValue lockedDaysDecoder json of
                 Ok { cIn, cOut, uuid } ->
-                    let
-                        slots =
-                            model.slots
+                    if uuid == Uuid.toString model.currentUuid then
+                        ( model, Cmd.none )
+                    else
+                        let
+                            slots =
+                                model.slots
 
-                        newSlots =
-                            { slots
-                                | lockedDays =
-                                    Dict.insert uuid
-                                        (daysBooked cIn cOut)
-                                        slots.lockedDays
-                            }
-                    in
-                    ( { model | slots = newSlots }, Cmd.none )
+                            newSlots =
+                                { slots
+                                    | lockedDays =
+                                        Dict.insert uuid
+                                            (daysBooked cIn cOut)
+                                            slots.lockedDays
+                                }
+
+                            checkIn =
+                                if
+                                    Maybe.map
+                                        (checkInAvailability newSlots model.checkOutDate)
+                                        model.checkInDate
+                                        == Just DP.NotAvailable
+                                then
+                                    Nothing
+                                else
+                                    model.checkInDate
+
+                            checkOut =
+                                if
+                                    Maybe.map
+                                        (checkOutAvailability newSlots model.checkInDate)
+                                        model.checkOutDate
+                                        == Just DP.NotAvailable
+                                then
+                                    Nothing
+                                else
+                                    model.checkOutDate
+                        in
+                        ( { model
+                            | slots = newSlots
+                            , checkInDate = checkIn
+                            , checkOutDate = checkOut
+                          }
+                        , Cmd.none
+                        )
 
                 _ ->
                     ( model, Cmd.none )
@@ -609,6 +643,16 @@ filterSlots ps slots =
     }
 
 
+computeBooked slots cIn cOut =
+    { slots
+        | booked =
+            Maybe.map2 daysBooked
+                cIn
+                cOut
+                |> Maybe.withDefault []
+    }
+
+
 checkInAvailability : Slots -> Maybe Date -> (Date -> DP.Availability)
 checkInAvailability { booked, notAvailable, noCheckIn, noCheckOut, lockedDays } mbCheckOutDate =
     let
@@ -618,7 +662,9 @@ checkInAvailability { booked, notAvailable, noCheckIn, noCheckOut, lockedDays } 
                 |> List.Extra.uniqueBy Date.toRataDie
     in
     \d ->
-        if
+        if List.member d booked then
+            DP.Booked
+        else if
             (Maybe.map
                 (\cOut ->
                     (Date.compare d cOut == GT)
@@ -647,7 +693,9 @@ checkOutAvailability { booked, notAvailable, noCheckIn, noCheckOut, lockedDays }
                 |> List.Extra.uniqueBy Date.toRataDie
     in
     \d ->
-        if
+        if List.member d booked then
+            DP.Booked
+        else if
             (Maybe.map
                 (\cIn ->
                     (Date.compare d cIn == LT)
@@ -1602,12 +1650,15 @@ encodeBookingData model =
           , strEncode model.comments
           )
         , ( "days_booked"
-          , Maybe.map2 daysBooked
-                (.checkInDate model)
-                (.checkOutDate model)
-                |> Maybe.withDefault []
+          , model.slots.booked
                 |> List.map Date.toRataDie
-                |> Encode.list Encode.int
+                |> Encode.list
+                    (\d ->
+                        Encode.object
+                            [ ( "date", Encode.int d )
+                            , ( "availability", Encode.string "Booked" )
+                            ]
+                    )
           )
         , ( "captcha_response", Encode.string model.captchaResp )
         ]

@@ -23,11 +23,13 @@ defmodule Gites.LockedAvailabilitiesServer do
   	GenServer.cast @name, {:refresh, current_users}
   end 
 
+  
+  
+
   def init(init_arg) do
     GitesWeb.Endpoint.subscribe("bookings:locked_days")
     {:ok, init_arg}
   end
-
 
   def handle_call(:list_locked, _from, state) do 
   	res = 

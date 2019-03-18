@@ -52,6 +52,7 @@ type Availability
     | NotAvailableAdmin
     | NoCheckInAdmin
     | NoCheckOutAdmin
+    | Booked
     | BookedAdmin String
 
 
@@ -87,21 +88,21 @@ init mbStartDate outMsg =
         startDate =
             Maybe.withDefault initDate mbStartDate
     in
-        ( prepareDates startDate
-            { open = False
-            , mouseInside = False
-            , today = startDate
-            , currentDate = startDate
-            , currentDates = []
-            , firstDayOfWeek = Mon
-            , canPickDateInPast = False
-            , outMsg = outMsg
-            }
-        , [ Task.perform CurrentDate today
-          ]
-            |> Cmd.batch
-            |> Cmd.map outMsg
-        )
+    ( prepareDates startDate
+        { open = False
+        , mouseInside = False
+        , today = startDate
+        , currentDate = startDate
+        , currentDates = []
+        , firstDayOfWeek = Mon
+        , canPickDateInPast = False
+        , outMsg = outMsg
+        }
+    , [ Task.perform CurrentDate today
+      ]
+        |> Cmd.batch
+        |> Cmd.map outMsg
+    )
 
 
 setCurrentDate : Date -> Model msg -> Model msg
@@ -120,10 +121,10 @@ prepareDates date model =
         end =
             nextMonth date |> addDays 6
     in
-        { model
-            | currentDate = date
-            , currentDates = datesInRange model.firstDayOfWeek start end
-        }
+    { model
+        | currentDate = date
+        , currentDates = datesInRange model.firstDayOfWeek start end
+    }
 
 
 update : Msg -> Model msg -> ( Model msg, Cmd msg, Maybe Date )
@@ -215,31 +216,31 @@ view config model =
                         }
                     )
     in
-        Element.map model.outMsg <|
-            column
-                [ width fill
-                , if model.open then
-                    below <|
-                        column
-                            [ Border.color grey
-                            , Border.rounded 3
-                            , Border.width 1
-                            , Background.color white
-                            , Font.family [ Font.monospace ]
-                            , moveUp 1
-                            , Events.onMouseEnter MouseEnter
-                            , Events.onMouseLeave MouseLeave
-                            , onPicker "mousedown" NoOp
-                            ]
-                            [ monthSelectorView config model
-                            , weekdaysView config model
-                            , dayGrid config model
-                            ]
-                  else
-                    noAttr
-                ]
-                [ pickedDateView config model
-                ]
+    Element.map model.outMsg <|
+        column
+            [ width fill
+            , if model.open then
+                below <|
+                    column
+                        [ Border.color grey
+                        , Border.rounded 3
+                        , Border.width 1
+                        , Background.color white
+                        , Font.family [ Font.monospace ]
+                        , moveUp 1
+                        , Events.onMouseEnter MouseEnter
+                        , Events.onMouseLeave MouseLeave
+                        , onPicker "mousedown" NoOp
+                        ]
+                        [ monthSelectorView config model
+                        , weekdaysView config model
+                        , dayGrid config model
+                        ]
+              else
+                noAttr
+            ]
+            [ pickedDateView config model
+            ]
 
 
 pickedDateView : Config -> Model msg -> Element Msg
@@ -285,7 +286,8 @@ pickedDateView config model =
                     )
                 )
             )
-          -- "readonly" "true"
+
+        -- "readonly" "true"
         ]
         { onChange = always NoOp
         , text =
@@ -425,28 +427,31 @@ dayGrid config model =
         dayColor d =
             case availability d of
                 Available ->
-                    calGreen
+                    ( calGreen, white, lightGrey )
 
                 NotAvailable ->
-                    calRed
+                    ( calRed, white, lightGrey )
 
                 NoCheckIn ->
-                    calOrange
+                    ( calOrange, white, lightGrey )
 
                 NoCheckOut ->
-                    calOrange
+                    ( calOrange, white, lightGrey )
 
                 NotAvailableAdmin ->
-                    red
+                    ( red, white, lightGrey )
 
                 NoCheckInAdmin ->
-                    blue
+                    ( blue, white, lightGrey )
 
                 NoCheckOutAdmin ->
-                    purple
+                    ( purple, white, lightGrey )
+
+                Booked ->
+                    ( white, blue, lightBlue )
 
                 BookedAdmin s ->
-                    orange
+                    ( orange, white, lightGrey )
 
         handler d =
             case availability d of
@@ -469,17 +474,22 @@ dayGrid config model =
                     noAttr
 
         dayView d =
+            let
+                ( fontColor, bgColor, hoverColor ) =
+                    dayColor d
+            in
             el
                 ([ width fill
                  , centerY
                  , Font.center
-                 , Font.color (dayColor d)
+                 , Font.color fontColor
+                 , Background.color bgColor
                  , handler d
                  , padding 10
                  , Font.size 16
                  , Border.rounded 1
                  , mouseOver
-                    [ Background.color lightGrey ]
+                    [ Background.color hoverColor ]
                  , if Date.compare d model.today == EQ then
                     Background.color grey
                    else
@@ -492,6 +502,8 @@ dayGrid config model =
                     ++ (if isPickedDate d then
                             [ Font.color white
                             , Background.color blue
+                            , mouseOver
+                                [ Background.color lightBlue ]
                             ]
                         else if month d /= month model.currentDate then
                             [ alpha 0.4 ]
@@ -502,26 +514,26 @@ dayGrid config model =
                 )
                 (text <| String.fromInt (day d))
     in
-        column
-            [ width fill
-            ]
-            (List.map
-                (\daysRow ->
-                    row
-                        [ width fill ]
-                        (List.map dayView daysRow)
-                )
-                days
-                |> List.intersperse
-                    (el
-                        [ width fill
-                        , Border.widthEach
-                            { sides | top = 1 }
-                        , Border.color lightGrey
-                        ]
-                        Element.none
-                    )
+    column
+        [ width fill
+        ]
+        (List.map
+            (\daysRow ->
+                row
+                    [ width fill ]
+                    (List.map dayView daysRow)
             )
+            days
+            |> List.intersperse
+                (el
+                    [ width fill
+                    , Border.widthEach
+                        { sides | top = 1 }
+                    , Border.color lightGrey
+                    ]
+                    Element.none
+                )
+        )
 
 
 groupDates : List Date -> List (List Date)
@@ -538,4 +550,4 @@ groupDates dates =
                     else
                         go (i + 1) xs_ (x :: racc) acc
     in
-        go 0 dates [] []
+    go 0 dates [] []
