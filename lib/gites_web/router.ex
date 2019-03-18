@@ -26,8 +26,8 @@ defmodule GitesWeb.Router do
     
     post "/signup", UserController, :create
     post "/login", UserSessionController, :create
-    get "/list_bucket", AwsUploadController, :index
-    get "/list_bucket/:folder", AwsUploadController, :show
+    # get "/list_bucket", AwsUploadController, :index
+    # get "/list_bucket/:folder", AwsUploadController, :show
     get "/delete_obj/:filename", AwsUploadController, :delete
     resources "/bookings", BookingController, only: [:create, :show, :index, :delete]
     resources "/availabilities", AvailabilityController, only: [:index]
