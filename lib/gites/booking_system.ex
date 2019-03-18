@@ -145,8 +145,10 @@ defmodule Gites.BookingSystem do
       {:error, %Ecto.Changeset{}}
 
   """
-  def bulk_create_availabilities(availabilities) do 
-    res = Enum.map(availabilities, &Gites.BookingSystem.create_availability/1)
+  def bulk_create_availabilities(id, availabilities) do    
+    res = availabilities
+          |> Enum.map(fn av -> Map.put(av, "bookingId", id) end)
+          |> Enum.map(&Gites.BookingSystem.create_availability/1)
     {:ok, res}
   end 
 

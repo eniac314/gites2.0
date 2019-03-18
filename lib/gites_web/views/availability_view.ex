@@ -11,8 +11,7 @@ defmodule GitesWeb.AvailabilityView do
   end
 
   def render("availability.json", %{availability: availability}) do
-    %{id: availability.id,
-      date: availability.date,
+    %{date: availability.date,
       availability: availability.availability}
   end
 end

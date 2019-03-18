@@ -33,11 +33,11 @@ defmodule GitesWeb.AvailabilityController do
   #   end
   # end
 
-  # def delete(conn, %{"id" => id}) do
-  #   availability = BookingSystem.get_availability!(id)
+  def delete(conn, %{"id" => id}) do
+    availability = BookingSystem.get_availability!(id)
 
-  #   with {:ok, %Availability{}} <- BookingSystem.delete_availability(availability) do
-  #     send_resp(conn, :no_content, "")
-  #   end
-  # end
+    with {:ok, %Availability{}} <- BookingSystem.delete_availability(availability) do
+      send_resp(conn, :no_content, "")
+    end
+  end
 end

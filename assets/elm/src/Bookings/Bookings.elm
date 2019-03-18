@@ -167,6 +167,7 @@ type Msg
     | CaptchaResponse String
     | SendBookingData
     | BookingProcessed (Result Http.Error Bool)
+    | ReceiveAvailabilities (Result Http.Error Slots)
     | ReceiveInitialLockedDays Encode.Value
     | ReceiveLockedDays Encode.Value
     | ReceivePresenceState Decode.Value
@@ -185,6 +186,9 @@ init outMsg ( seed, seedExtension ) =
 
         ( newUuid, newSeed ) =
             step Uuid.generator (initialSeed seed seedExtension)
+
+        slots =
+            Slots [] [] [] [] Dict.empty
     in
     ( { checkInPicker = checkInPicker
       , checkInDate =
@@ -196,8 +200,7 @@ init outMsg ( seed, seedExtension ) =
             Nothing
 
       --Just <| Date.fromCalendarDate 2020 Time.Jan 12
-      , slots =
-            Slots [] [] [] [] Dict.empty
+      , slots = slots
 
       --
       --, selectedTitle = Nothing
@@ -252,6 +255,7 @@ init outMsg ( seed, seedExtension ) =
         Cmd.batch
             [ checkInPickerCmd
             , checkOutPickerCmd
+            , getAvailabilities slots
             , joinChannel (Uuid.encode newUuid)
             ]
     )
@@ -510,6 +514,14 @@ update msg model =
                     ( { model | bookingProcessed = Failure }
                     , Cmd.none
                     )
+
+        ReceiveAvailabilities res ->
+            case res of
+                Ok slots ->
+                    ( { model | slots = slots }, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
 
         ReceiveInitialLockedDays json ->
             case Decode.decodeValue (Decode.field "payload" <| Decode.list lockedDaysDecoder) json of
@@ -1705,6 +1717,76 @@ decodePresenceDiff jsonVal =
     Decode.decodeValue
         (Presence.presenceDiffDecoder userDecoder)
         jsonVal
+
+
+getAvailabilities slots =
+    Http.get
+        { url = "/api/availabilities"
+        , expect =
+            Http.expectJson
+                ReceiveAvailabilities
+                (decodeSlots slots)
+        }
+
+
+decodeSlots currentSlots =
+    let
+        swapBooked =
+            List.map
+                (\( d, av ) ->
+                    if av == DP.Booked then
+                        ( d, DP.NotAvailable )
+                    else
+                        ( d, av )
+                )
+
+        putInSlot ( d, av ) ({ booked, notAvailable, noCheckIn, noCheckOut } as slots) =
+            case av of
+                DP.NotAvailable ->
+                    { slots | notAvailable = d :: slots.notAvailable }
+
+                DP.NoCheckIn ->
+                    { slots | noCheckIn = d :: slots.noCheckIn }
+
+                DP.NoCheckOut ->
+                    { slots | noCheckOut = d :: slots.noCheckOut }
+
+                _ ->
+                    slots
+    in
+    Decode.field "data"
+        (Decode.list
+            (Decode.map2 Tuple.pair
+                (Decode.field "date" (Decode.map Date.fromRataDie Decode.int))
+                (Decode.field "availability" decodeAvailability)
+            )
+            |> Decode.map swapBooked
+            |> Decode.map (List.foldr (\x acc -> putInSlot x acc) currentSlots)
+        )
+
+
+decodeAvailability =
+    Decode.string
+        |> Decode.andThen
+            (\str ->
+                case str of
+                    "NotAvailable" ->
+                        Decode.succeed DP.NotAvailable
+
+                    "NoCheckIn" ->
+                        Decode.succeed DP.NoCheckIn
+
+                    "NoCheckOut" ->
+                        Decode.succeed DP.NoCheckOut
+
+                    "Booked" ->
+                        Decode.succeed DP.Booked
+
+                    somethingElse ->
+                        Decode.fail <|
+                            "Unknown CellContent: "
+                                ++ somethingElse
+            )
 
 
 

@@ -26,10 +26,9 @@ defmodule GitesWeb.Router do
     
     post "/signup", UserController, :create
     post "/login", UserSessionController, :create
-    get "/delete_obj/:filename", AwsUploadController, :delete
-    resources "/bookings", BookingController, only: [:create, :show, :index, :delete]
+    resources "/bookings", BookingController, only: [:create]
     resources "/availabilities", AvailabilityController, only: [:index]
-    resources "/pagesdata", PageDataController, only: [:show, :index]
+    resources "/pagesdata", PageDataController, only: [:show]
   end
 
   scope "/api/restricted", GitesWeb do 

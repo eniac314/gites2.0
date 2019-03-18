@@ -14,8 +14,8 @@ defmodule Gites.BookingSystem.Availability do
   @doc false
   def changeset(availability, attrs) do
     availability
-    |> cast(attrs, [:date, :availability])
-    |> validate_required([:date, :availability])
+    |> cast(attrs, [:date, :availability, :bookingId])
+    |> validate_required([:date, :availability, :bookingId])
     |> unique_constraint(:date)
   end
 end
