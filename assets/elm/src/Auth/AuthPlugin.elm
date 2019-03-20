@@ -383,7 +383,7 @@ internalUpdate msg model =
                             , pluginMode = LoginMode Success
                             , checkForExistingJwtDone = True
                           }
-                        , Cmd.none
+                        , refreshJwt jwt
                         , Nothing
                         )
                     else

@@ -1,5 +1,7 @@
 defmodule GitesWeb.AvailabilityController do
   use GitesWeb, :controller
+  
+  plug Guardian.Plug.EnsureAuthenticated when action in [:index_admin]
 
   alias Gites.BookingSystem
   alias Gites.BookingSystem.Availability
@@ -9,6 +11,11 @@ defmodule GitesWeb.AvailabilityController do
   def index(conn, _params) do
     availabilities = BookingSystem.list_availabilities()
     render(conn, "index.json", availabilities: availabilities)
+  end
+
+  def index_admin(conn, _params) do
+    availabilities = BookingSystem.list_availabilities()
+    render(conn, "index_admin.json", availabilities: availabilities)
   end
 
   # def create(conn, %{"availability" => availability_params}) do

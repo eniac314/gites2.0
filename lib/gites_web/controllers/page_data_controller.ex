@@ -1,7 +1,7 @@
 defmodule GitesWeb.PageDataController do
   use GitesWeb, :controller
   
-    plug Guardian.Plug.EnsureAuthenticated when action in [:create]
+  plug Guardian.Plug.EnsureAuthenticated when action in [:create]
 
 
   alias Gites.PagesData

@@ -155,7 +155,7 @@ defmodule Gites.BookingSystem do
   def create_availability(attrs \\ %{}) do
     %Availability{}
     |> Availability.changeset(attrs)
-    |> Repo.insert()
+    |> Repo.insert(on_conflict: :replace_all, conflict_target: :date)
   end
 
   @doc """

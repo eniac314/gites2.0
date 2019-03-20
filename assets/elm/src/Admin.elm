@@ -1,6 +1,7 @@
 module Admin exposing (..)
 
 import Auth.AuthPlugin as Auth
+import Bookings.BookingsAdmin as BookingsAdmin
 import Browser exposing (Document)
 import Browser.Events exposing (onResize)
 import Element exposing (..)
@@ -47,12 +48,14 @@ type alias Model =
     , zone : Time.Zone
     , authPlugin : Auth.Model Msg
     , frontPageAdmin : FrontPageAdmin.Model Msg
+    , bookingsAdmin : BookingsAdmin.Model Msg
     }
 
 
 type Msg
     = AuthMsg Auth.Msg
     | FrontPageAdminMsg FrontPageAdmin.Msg
+    | BookingAdminMsg BookingsAdmin.Msg
     | SetDisplayMode DisplayMode
     | WinResize Int Int
     | SetZone Time.Zone
@@ -73,6 +76,7 @@ subscriptions model =
         [ onResize WinResize
         , Auth.subscriptions model.authPlugin
         , FrontPageAdmin.subscriptions model.frontPageAdmin
+        , BookingsAdmin.subscriptions model.bookingsAdmin
         ]
 
 
@@ -81,6 +85,9 @@ init flags =
     let
         ( newFrontPageAdmin, fpaCmd ) =
             FrontPageAdmin.init FrontPageAdminMsg
+
+        ( newBookingAdmin, bkAdCmd ) =
+            BookingsAdmin.init BookingAdminMsg
 
         ( newAuthPlugin, authPluginCmd ) =
             Auth.init AuthMsg
@@ -96,11 +103,13 @@ init flags =
       , zone = Time.utc
       , authPlugin = newAuthPlugin
       , frontPageAdmin = newFrontPageAdmin
+      , bookingsAdmin = newBookingAdmin
       }
     , Cmd.batch
         [ Task.perform SetZone Time.here
         , authPluginCmd
         , fpaCmd
+        , bkAdCmd
         ]
     )
 
@@ -140,12 +149,32 @@ update msg model =
             , cmd
             )
 
+        BookingAdminMsg bkAdMsg ->
+            let
+                ( newBookingAdmin, cmd ) =
+                    BookingsAdmin.update
+                        { logInfo = model.authPlugin.logInfo }
+                        bkAdMsg
+                        model.bookingsAdmin
+            in
+            ( { model | bookingsAdmin = newBookingAdmin }
+            , cmd
+            )
+
         SetDisplayMode dm ->
             if Auth.isLogged model.authPlugin.logInfo then
+                let
+                    ( newBookingAdmin, cmd ) =
+                        BookingsAdmin.load
+                            { logInfo = model.authPlugin.logInfo }
+                            model.bookingsAdmin
+                in
                 ( { model
                     | displayMode = dm
+                    , bookingsAdmin = newBookingAdmin
                   }
-                , Cmd.none
+                , Cmd.batch
+                    [ cmd ]
                 )
             else
                 ( model, Cmd.none )
@@ -194,7 +223,11 @@ view model =
                             model.frontPageAdmin
 
                     DisplayBookingsAdmin ->
-                        Element.none
+                        BookingsAdmin.view
+                            { lang = model.lang
+                            , width = model.width
+                            }
+                            model.bookingsAdmin
 
                     DisplayNearbyAdmin ->
                         Element.none

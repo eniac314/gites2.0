@@ -53,7 +53,8 @@ type Availability
     | NoCheckInAdmin
     | NoCheckOutAdmin
     | Booked
-    | BookedAdmin String
+    | BookedAdmin Int
+    | Locked
 
 
 defaultAvailability =
@@ -452,6 +453,9 @@ dayGrid config model =
 
                 BookedAdmin s ->
                     ( orange, white, lightGrey )
+
+                Locked ->
+                    ( darkGreen, white, lightGrey )
 
         handler d =
             case availability d of

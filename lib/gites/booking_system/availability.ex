@@ -6,7 +6,7 @@ defmodule Gites.BookingSystem.Availability do
   schema "availabilities" do
     field :availability, :string
     field :date, :integer
-    field :bookingId, :id
+    field :bookingId, :id, default: nil
 
     timestamps()
   end
@@ -15,7 +15,7 @@ defmodule Gites.BookingSystem.Availability do
   def changeset(availability, attrs) do
     availability
     |> cast(attrs, [:date, :availability, :bookingId])
-    |> validate_required([:date, :availability, :bookingId])
+    |> validate_required([:date, :availability])
     |> unique_constraint(:date)
   end
 end

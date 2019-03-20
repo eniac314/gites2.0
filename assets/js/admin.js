@@ -1,3 +1,7 @@
+import "phoenix_html"
+
+import socket from "./socket"
+
 import { Elm } from "../elm/src/Admin.elm"
 
 var currentTime = new Date().getTime();
@@ -11,6 +15,33 @@ var app = Elm.Admin.init({
 	}
 });
 
+// Channel code //////////////////
+
+socket.connect()
+
+let channel = socket.channel("bookings:locked_days", {uuid: "bookingsAdmin"})
+
+channel.join()
+  .receive("ok", resp => { console.log("Joined successfully", resp) })
+  .receive("error", resp => { console.log("Unable to join", resp) })
+
+channel.on("broadcast_initial_locked_days",payload => {
+    app.ports.receiveInitialLockedDays.send(payload)
+});
+  
+channel.on("broadcast_locked_days",payload => {
+    app.ports.receiveLockedDays.send(payload)
+});
+
+channel.on("presence_state", payload => {
+    app.ports.presenceState.send(payload)
+});
+
+channel.on("presence_diff",payload => {
+    app.ports.presenceDiff.send(payload)
+});
+
+// Auth code /////////////////////
 
 app.ports.toAuthLocalStorage.subscribe(function (cmd) {
 	if (cmd.action === "set") {
@@ -47,6 +78,8 @@ app.ports.toAuthLocalStorage.subscribe(function (cmd) {
 		});
 	}
 });
+
+// Image processing code /////////
 
 app.ports.toImageProcessor.subscribe(function(d){
     processImage(d);

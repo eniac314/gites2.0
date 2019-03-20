@@ -1,5 +1,6 @@
 port module Bookings.Bookings exposing (..)
 
+import Bookings.BookingsShared exposing (..)
 import Bookings.DatePicker.Date exposing (formatDate)
 import Bookings.DatePicker.DatePicker as DP
 import Date exposing (..)
@@ -23,6 +24,7 @@ import Internals.Helpers exposing (Status(..))
 import Internals.PhoenixPresence as Presence exposing (..)
 import Json.Decode as Decode
 import Json.Encode as Encode
+import Json.Value as JsonValue
 import List.Extra exposing (uniqueBy)
 import MultLang.MultLang exposing (..)
 import Prng.Uuid as Uuid
@@ -107,24 +109,6 @@ type alias Model msg =
     , bookingProcessed : Status
     , outMsg : Msg -> msg
     }
-
-
-type Title
-    = Mr
-    | Ms
-    | Other
-
-
-titleMLS t =
-    case t of
-        Mr ->
-            MultLangStr "Mr" "M."
-
-        Ms ->
-            MultLangStr "Ms" "Mme"
-
-        Other ->
-            MultLangStr "Other" "Autre"
 
 
 type DisplayMode
@@ -242,8 +226,6 @@ init outMsg ( seed, seedExtension ) =
       , nbrChildrenSelector = Select.init
       , comments =
             Nothing
-
-      --
       , currentSeed = newSeed
       , currentUuid = newUuid
       , presences = Dict.empty
@@ -725,10 +707,6 @@ checkOutAvailability { booked, notAvailable, noCheckIn, noCheckOut, lockedDays }
             DP.NoCheckOut
         else
             DP.Available
-
-
-
---view : { a | lang : Lang } -> Model msg -> Html msg
 
 
 type alias ViewConfig =
@@ -1297,8 +1275,8 @@ mandatoryLabel config mls =
 
 confirmView : ViewConfig -> Model msg -> Element Msg
 confirmView config model =
-    case ( model.checkInDate, model.checkOutDate, validateForm model ) of
-        ( Just cInDate, Just cOutDate, True ) ->
+    case ( ( model.checkInDate, model.checkOutDate ), ( validateForm model, toBookingInfo model ) ) of
+        ( ( Just cInDate, Just cOutDate ), ( True, Ok bookingInfo ) ) ->
             let
                 textS mbStr =
                     text <| Maybe.withDefault "" mbStr
@@ -1308,11 +1286,6 @@ confirmView config model =
             in
             column
                 [ spacing 20
-
-                --, if not model.captchaLoaded then
-                --    Events.onMouseEnter LoadCaptcha
-                --  else
-                --    noAttr
                 ]
                 [ el
                     [ Font.bold
@@ -1323,172 +1296,9 @@ confirmView config model =
                             "Confirmation"
                         )
                     )
-                , column
-                    [ spacing 15 ]
-                    [ el
-                        [ Font.size 20
-                        ]
-                        (textM config.lang
-                            (MultLangStr "Customer details"
-                                "Informations client"
-                            )
-                        )
-                    , row
-                        [ spacing 5 ]
-                        [ textM config.lang <|
-                            case Maybe.withDefault Mr model.selectedTitle of
-                                Mr ->
-                                    MultLangStr "Mr"
-                                        "M."
-
-                                Ms ->
-                                    MultLangStr "Ms"
-                                        "Mme"
-
-                                Other ->
-                                    MultLangStr "Other"
-                                        "Autre"
-                        , el [] (textS model.firstName)
-                        , el [] (textS model.lastName)
-                        ]
-                    , paragraph [] [ textS model.address ]
-                    , case model.addAddress of
-                        Just addAddress ->
-                            paragraph [] [ text addAddress ]
-
-                        _ ->
-                            Element.none
-                    , el [] (textS (Maybe.map String.fromInt model.postcode))
-                    , el [] (textS model.city)
-                    , el [] (textS model.country)
-                    ]
-                , column
-                    [ spacing 15 ]
-                    [ el
-                        [ Font.size 20
-                        ]
-                        (text "Contact")
-                    , el [] (textS model.phone1)
-                    , case model.phone2 of
-                        Just phone2 ->
-                            el [] (text phone2)
-
-                        _ ->
-                            Element.none
-                    , el [] (textS model.email)
-                    ]
-                , column
-                    [ spacing 15 ]
-                    [ el
-                        [ Font.size 20
-                        ]
-                        (textM config.lang
-                            (MultLangStr "Your booking"
-                                "Votre réservation"
-                            )
-                        )
-                    , row
-                        [ spacing 20 ]
-                        [ el
-                            []
-                            (text <|
-                                strM config.lang
-                                    (MultLangStr
-                                        "Check-In"
-                                        "Date d'arrivée"
-                                    )
-                                    ++ " : "
-                                    ++ formatDate config.lang cInDate
-                            )
-                        , el
-                            []
-                            (text <|
-                                strM config.lang
-                                    (MultLangStr
-                                        "Check-out"
-                                        "Date de départ"
-                                    )
-                                    ++ " : "
-                                    ++ formatDate config.lang cOutDate
-                            )
-                        ]
-                    , case model.nbrAdults of
-                        Just n ->
-                            el
-                                []
-                                (text <|
-                                    strM config.lang
-                                        (MultLangStr
-                                            "Number of adults"
-                                            "Nombre d'adultes"
-                                        )
-                                        ++ " : "
-                                        ++ String.fromInt n
-                                )
-
-                        Nothing ->
-                            Element.none
-                    , case model.nbrChildren of
-                        Just n ->
-                            el
-                                []
-                                (text <|
-                                    strM config.lang
-                                        (MultLangStr
-                                            "Number of children"
-                                            "Nombre d'enfants"
-                                        )
-                                        ++ " : "
-                                        ++ String.fromInt n
-                                )
-
-                        Nothing ->
-                            Element.none
-                    , el
-                        []
-                        (text <|
-                            strM config.lang
-                                (MultLangStr "Your stay: "
-                                    "Réservation pour "
-                                )
-                                ++ String.fromInt nc
-                                ++ (if nc > 1 then
-                                        strM config.lang
-                                            (MultLangStr " nights"
-                                                " nuits"
-                                            )
-                                    else
-                                        strM config.lang
-                                            (MultLangStr " night"
-                                                " nuit"
-                                            )
-                                   )
-                        )
-                    , el
-                        []
-                        (text <|
-                            "Total: "
-                                ++ String.fromInt (nc * 50)
-                                ++ " €"
-                        )
-                    ]
-                , case model.comments of
-                    Just _ ->
-                        column
-                            [ spacing 15 ]
-                            [ el
-                                [ Font.size 20
-                                ]
-                                (textM config.lang
-                                    (MultLangStr "Remarks / Requests"
-                                        "Remarques / Demandes particulières"
-                                    )
-                                )
-                            , paragraph [] [ textS model.comments ]
-                            ]
-
-                    _ ->
-                        Element.none
+                , customerDetailView config bookingInfo
+                , contactView config bookingInfo
+                , recapView config cInDate cOutDate bookingInfo
                 , html <|
                     Html.img
                         [ HtmlAttr.hidden True
@@ -1545,7 +1355,7 @@ confirmView config model =
                 ]
 
         _ ->
-            Element.none
+            paragraph [] [ text <| Debug.toString <| toBookingInfo model ]
 
 
 
@@ -1690,35 +1500,6 @@ broadcastLockedDaysCmd mbCIn mbCOut =
             Cmd.none
 
 
-dateDecoder : Decode.Decoder Date
-dateDecoder =
-    Decode.int
-        |> Decode.map Date.fromRataDie
-
-
-lockedDaysDecoder =
-    Decode.map3 (\cIn cOut uuid -> { cIn = cIn, cOut = cOut, uuid = uuid })
-        (Decode.field "cIn" dateDecoder)
-        (Decode.field "cOut" dateDecoder)
-        (Decode.field "uuid" (Decode.map Uuid.toString Uuid.decoder))
-
-
-userDecoder =
-    Decode.field "uuid" (Decode.map Uuid.toString Uuid.decoder)
-
-
-decodePresenceState jsonVal =
-    Decode.decodeValue
-        (Presence.presenceStateDecoder userDecoder)
-        jsonVal
-
-
-decodePresenceDiff jsonVal =
-    Decode.decodeValue
-        (Presence.presenceDiffDecoder userDecoder)
-        jsonVal
-
-
 getAvailabilities slots =
     Http.get
         { url = "/api/availabilities"
@@ -1793,6 +1574,17 @@ decodeAvailability =
 -------------------------------------------------------------------------------
 
 
+toBookingInfo model =
+    encodeBookingData model
+        |> JsonValue.decodeValue
+        |> JsonValue.setIn [ "confirmed" ] (JsonValue.BoolValue False)
+        |> Result.withDefault JsonValue.NullValue
+        |> JsonValue.setIn [ "id" ] (JsonValue.NumericValue 0)
+        |> Result.withDefault JsonValue.NullValue
+        |> JsonValue.encode
+        |> Decode.decodeValue decodeBookingInfo
+
+
 validateForm : Model msg -> Bool
 validateForm { selectedTitle, firstName, lastName, address, postcode, city, country, phone1, email, confEmail, nbrAdults } =
     let
@@ -1847,13 +1639,3 @@ validateForm { selectedTitle, firstName, lastName, address, postcode, city, coun
         && validPhone1
         && validEmail
         && validNbrAdults
-
-
-nightsCount : Date -> Date -> Int
-nightsCount d1 d2 =
-    Date.diff Date.Days d1 d2
-
-
-daysBooked : Date -> Date -> List Date
-daysBooked d1 d2 =
-    Date.range Date.Day 1 d1 d2
