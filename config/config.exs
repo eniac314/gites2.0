@@ -26,6 +26,13 @@ config :gites, Gites.Guardian,
   ttl: { 5, :minutes },
   serializer: Gites.Guardian
 
+#configures Mailer 
+config :gites, Gites.Mailer, 
+  adapter: Bamboo.MailgunAdapter,
+  api_key: System.get_env("MAILGUN_API_KEY"),
+  domain: "levieuxlilas.fr"
+
+config :bamboo, :mailgun_base_uri, "https://api.eu.mailgun.net/v3"
 
 # Configures Elixir's Logger
 config :logger, :console,
@@ -48,6 +55,7 @@ config :ex_aws,
     scheme: "https://",
     host: "s3.eu-west-3.amazonaws.com",
     region: "eu-west-3" ]
+
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

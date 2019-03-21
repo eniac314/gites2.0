@@ -1,6 +1,6 @@
 port module Bookings.BookingsAdmin exposing (..)
 
-import Auth.AuthPlugin exposing (LogInfo, cmdIfLogged, secureGet, securePost)
+import Auth.AuthPlugin exposing (LogInfo, cmdIfLogged, secureGet, securePost, secureRequest)
 import Bookings.BookingsShared exposing (..)
 import Bookings.DatePicker.Date exposing (formatDate)
 import Bookings.DatePicker.DatePicker as DP
@@ -23,7 +23,7 @@ import Json.Decode.Pipeline exposing (optional, required)
 import Json.Encode as Encode
 import MultLang.MultLang exposing (..)
 import Prng.Uuid as Uuid
-import Style.Helpers exposing (noAttr, sides)
+import Style.Helpers exposing (buttonStyle, noAttr, sides)
 import Style.Palette exposing (..)
 
 
@@ -72,6 +72,10 @@ type Msg
     | GetAvailabilities
     | ReceiveAvailabilities (Result Http.Error (Dict Int DP.Availability))
     | GetBookingInfo
+    | ConfirmBooking BookingInfo
+    | BookingConfirmed Int (Result Http.Error ())
+    | DeleteBooking Int
+    | BookingDeleted Int (Result Http.Error ())
     | ReceiveBookingInfo (Result Http.Error (List BookingInfo))
     | ReceiveInitialLockedDays Encode.Value
     | ReceiveLockedDays Encode.Value
@@ -215,6 +219,42 @@ update config msg model =
 
         GetBookingInfo ->
             ( model, Cmd.none )
+
+        ConfirmBooking bookingInfo ->
+            ( model
+            , Cmd.map model.outMsg <|
+                confirmBooking config.logInfo bookingInfo
+            )
+
+        BookingConfirmed id res ->
+            case res of
+                Ok () ->
+                    ( model
+                    , Cmd.map model.outMsg <| getBookingInfo config.logInfo
+                    )
+
+                Err _ ->
+                    ( model, Cmd.none )
+
+        DeleteBooking id ->
+            ( model
+            , Cmd.map model.outMsg <|
+                deleteBooking config.logInfo id
+            )
+
+        BookingDeleted id res ->
+            case res of
+                Ok () ->
+                    ( model
+                    , Cmd.map model.outMsg <|
+                        Cmd.batch
+                            [ getBookingInfo config.logInfo
+                            , getAvailabilities config.logInfo
+                            ]
+                    )
+
+                Err _ ->
+                    ( model, Cmd.none )
 
         ReceiveBookingInfo res ->
             case res of
@@ -687,10 +727,50 @@ bookingEditorView config model =
 
 bookingView config bookingInfo model =
     column
-        [ spacing 15 ]
+        [ Background.color white
+        , padding 15
+        , Border.rounded 5
+        , Border.color grey
+        , Border.width 1
+        , spacing 15
+        , width fill
+        ]
         [ customerDetailView config bookingInfo
         , contactView config bookingInfo
         , recapView config bookingInfo.checkIn bookingInfo.checkOut bookingInfo
+        , row
+            [ spacing 15
+            , padding 15
+            , Background.color lightGrey
+            , Border.rounded 5
+            , Border.color grey
+            , Border.width 1
+            , width fill
+            ]
+            [ Input.button
+                (buttonStyle (not bookingInfo.confirmed))
+                { onPress =
+                    if bookingInfo.confirmed then
+                        Nothing
+                    else
+                        Just (ConfirmBooking bookingInfo)
+                , label =
+                    textM config.lang
+                        (MultLangStr "Confirm booking"
+                            "Confirmer la réservation"
+                        )
+                }
+            , Input.button
+                (buttonStyle True)
+                { onPress =
+                    Just (DeleteBooking bookingInfo.bookingId)
+                , label =
+                    textM config.lang
+                        (MultLangStr "Delete booking"
+                            "Effacer la réservation"
+                        )
+                }
+            ]
         ]
 
 
@@ -706,6 +786,11 @@ editAvailabilityView config model =
 
                 _ ->
                     DP.Available
+
+        pDateStr =
+            model.pickedDate
+                |> Maybe.withDefault (Date.fromRataDie 0)
+                |> formatDate config.lang
     in
     column
         [ Background.color white
@@ -723,7 +808,7 @@ editAvailabilityView config model =
                 )
             )
         , column
-            [ spacing 15 ]
+            [ spacing 10 ]
             [ textM config.lang
                 (MultLangStr "Current availability:"
                     "Disponibilité actuelle:\n"
@@ -732,6 +817,15 @@ editAvailabilityView config model =
                 [ Font.bold ]
                 (text <| strM config.lang (avStr availability))
             ]
+        , textM config.lang
+            (MultLangStr
+                ("New availability on: "
+                    ++ pDateStr
+                )
+                ("Nouvelle disponibilité pour le:"
+                    ++ pDateStr
+                )
+            )
         ]
 
 
@@ -833,18 +927,41 @@ getBookingInfo logInfo =
         }
 
 
+deleteBooking logInfo id =
+    secureRequest logInfo
+        { method = "DELETE"
+        , headers = []
+        , url = "api/restricted/bookings/" ++ String.fromInt id
+        , body = Http.emptyBody
+        , expect = Http.expectWhatever (BookingDeleted id)
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
+confirmBooking logInfo bookingInfo =
+    let
+        bookingVal =
+            encodeBookingInfo { bookingInfo | confirmed = True }
+    in
+    secureRequest logInfo
+        { method = "PUT"
+        , headers = []
+        , url =
+            "api/restricted/bookings/"
+        , body =
+            Encode.object
+                [ ( "booking", bookingVal ) ]
+                |> Http.jsonBody
+        , expect =
+            Http.expectWhatever (BookingConfirmed bookingInfo.bookingId)
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
 
 -------------------------------------------------------------------------------
 ---------------------------
 -- Misc Helper functions --
 ---------------------------
---findDateKind : Model msg -> Date -> DateKind
---findDateKind model d =
---    if Date.toRataDie d < Date.toTime (Maybe.withDefault (Date.fromTime 0) (.today model)) then
---        NotAvailable
---    else
---        case Dict.get d model.bookingKindUpdate of
---            Nothing ->
---                Available
---            Just bk ->
---                bk.dateKind

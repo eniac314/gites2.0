@@ -56,7 +56,7 @@ defmodule Gites.AuthLock do
     	{:noreply, {false, @expiration}}
     else
       schedule_countdown()
-      IO.puts "AuthLock server: #{inspect({state, timer})}"
+      # IO.puts "AuthLock server: #{inspect({state, timer})}"
       {:noreply, {state, timer - @countdown_interval}}
     end 
   end 

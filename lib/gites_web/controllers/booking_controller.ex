@@ -1,9 +1,13 @@
 defmodule GitesWeb.BookingController do
   use GitesWeb, :controller
+  
+  plug Guardian.Plug.EnsureAuthenticated when action in [:delete, :update]
+
 
   alias Gites.BookingSystem
   alias Gites.BookingSystem.Booking
-
+  alias Gites.Mailer 
+  alias Gites.Email
   # require IEx
 
   action_fallback GitesWeb.FallbackController
@@ -18,6 +22,9 @@ defmodule GitesWeb.BookingController do
     with  {:ok, _response} <- Recaptcha.verify(booking_params["captcha_response"]),
           {:ok, %Booking{} = booking} <- BookingSystem.create_booking(booking_params),
           {:ok, _res } <- BookingSystem.bulk_create_availabilities(booking.id, booking_params["days_booked"]) do          
+      
+      Email.confirm_email(booking_params["email"]) |> Mailer.deliver_now
+
       conn
       |> put_status(:created)
       |> render("booking_success.json", booking: booking)
@@ -29,8 +36,8 @@ defmodule GitesWeb.BookingController do
     render(conn, "show.json", booking: booking)
   end
 
-  def update(conn, %{"id" => id, "booking" => booking_params}) do
-    booking = BookingSystem.get_booking!(id)
+  def update(conn, %{"booking" => booking_params}) do
+    booking = BookingSystem.get_booking!(booking_params["bookingId"])
 
     with {:ok, %Booking{} = booking} <- BookingSystem.update_booking(booking, booking_params) do
       render(conn, "show.json", booking: booking)

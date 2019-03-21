@@ -42,6 +42,94 @@ type alias BookingInfo =
     }
 
 
+encodeBookingInfo : BookingInfo -> Encode.Value
+encodeBookingInfo bookingInfo =
+    Encode.object
+        [ ( "bookingId"
+          , Encode.int bookingInfo.bookingId
+          )
+        , ( "check_in"
+          , bookingInfo.checkIn
+                |> Date.toRataDie
+                |> Encode.int
+          )
+        , ( "check_out"
+          , bookingInfo.checkOut
+                |> Date.toRataDie
+                |> Encode.int
+          )
+        , ( "title"
+          , bookingInfo.title
+                |> encodeTitle
+          )
+        , ( "first_name"
+          , Encode.string bookingInfo.firstName
+          )
+        , ( "last_name"
+          , Encode.string bookingInfo.lastName
+          )
+        , ( "address"
+          , Encode.string bookingInfo.address
+          )
+        , ( "add_address"
+          , bookingInfo.addAddress
+                |> Maybe.map Encode.string
+                |> Maybe.withDefault Encode.null
+          )
+        , ( "postcode"
+          , bookingInfo.postcode
+                |> Encode.int
+          )
+        , ( "city"
+          , Encode.string bookingInfo.city
+          )
+        , ( "country"
+          , Encode.string bookingInfo.country
+          )
+        , ( "phone1"
+          , Encode.string bookingInfo.phone1
+          )
+        , ( "phone2"
+          , bookingInfo.phone2
+                |> Maybe.map Encode.string
+                |> Maybe.withDefault Encode.null
+          )
+        , ( "email"
+          , Encode.string bookingInfo.email
+          )
+        , ( "nbr_adults"
+          , bookingInfo.nbrAdults
+                |> Encode.int
+          )
+        , ( "nbr_children"
+          , bookingInfo.nbrKids
+                |> Maybe.map Encode.int
+                |> Maybe.withDefault Encode.null
+          )
+        , ( "comments"
+          , bookingInfo.comment
+                |> Maybe.map Encode.string
+                |> Maybe.withDefault Encode.null
+          )
+        , ( "confirmed"
+          , Encode.bool bookingInfo.confirmed
+          )
+        ]
+
+
+encodeTitle : Title -> Encode.Value
+encodeTitle title =
+    case title of
+        Mr ->
+            Encode.string "Mr"
+
+        Ms ->
+            Encode.string "Ms"
+
+        Other ->
+            Encode.string "Other"
+
+
 decodeBookingInfo : Decode.Decoder BookingInfo
 decodeBookingInfo =
     Decode.succeed BookingInfo

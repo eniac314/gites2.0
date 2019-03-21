@@ -1355,7 +1355,7 @@ confirmView config model =
                 ]
 
         _ ->
-            paragraph [] [ text <| Debug.toString <| toBookingInfo model ]
+            Element.none
 
 
 
@@ -1386,19 +1386,6 @@ sendBookingData model =
 decodeBookingResult =
     Decode.field "message" (Decode.succeed "success")
         |> Decode.map (\s -> s == "success")
-
-
-encodeTitle : Title -> Encode.Value
-encodeTitle title =
-    case title of
-        Mr ->
-            Encode.string "Mr"
-
-        Ms ->
-            Encode.string "Ms"
-
-        Other ->
-            Encode.string "Other"
 
 
 encodeBookingData : Model msg -> Encode.Value

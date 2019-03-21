@@ -42,6 +42,8 @@ defmodule GitesWeb.Router do
     post "/pagesdata", PageDataController, :create
     get "/availabilities", AvailabilityController, :index_admin
     get "/bookings", BookingController, :index
+    delete "/bookings/:id", BookingController, :delete
+    put "/bookings", BookingController, :update
 
   end 
 

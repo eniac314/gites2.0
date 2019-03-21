@@ -59,6 +59,7 @@ type Msg
     | SetDisplayMode DisplayMode
     | WinResize Int Int
     | SetZone Time.Zone
+    | ChangeLang Lang
     | NoOp
 
 
@@ -93,7 +94,7 @@ init flags =
             Auth.init AuthMsg
     in
     ( { displayMode = DisplayAuth
-      , lang = English
+      , lang = French
       , width =
             flags.width
       , height =
@@ -191,6 +192,9 @@ update msg model =
             ( { model | zone = zone }
             , Cmd.none
             )
+
+        ChangeLang l ->
+            ( { model | lang = l }, Cmd.none )
 
         NoOp ->
             ( model, Cmd.none )
@@ -300,4 +304,30 @@ tabsView model =
                     "Authentification"
                 )
             )
+        , column
+            [ alignRight
+            , alignTop
+            , moveLeft 15
+            , moveDown 3
+            ]
+            [ image
+                [ width (px 30)
+                , Events.onClick
+                    (if model.lang == French then
+                        ChangeLang English
+                     else
+                        ChangeLang French
+                    )
+                , pointer
+                ]
+                { src =
+                    case model.lang of
+                        English ->
+                            "/images/french.png"
+
+                        French ->
+                            "/images/english.png"
+                , description = ""
+                }
+            ]
         ]
