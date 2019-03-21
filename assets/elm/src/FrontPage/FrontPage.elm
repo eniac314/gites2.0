@@ -61,5 +61,6 @@ view config model =
             , height (minimum 500 fill)
             , centerX
             , padding 15
+            , spacing 15
             ]
             (List.map (frontPageItemView config) model.content)

@@ -163,10 +163,10 @@ type Msg
 init outMsg ( seed, seedExtension ) =
     let
         ( checkInPicker, checkInPickerCmd ) =
-            DP.init Nothing CheckInPickerMsg
+            DP.init Nothing False CheckInPickerMsg
 
         ( checkOutPicker, checkOutPickerCmd ) =
-            DP.init Nothing CheckOutPickerMsg
+            DP.init Nothing False CheckOutPickerMsg
 
         ( newUuid, newSeed ) =
             step Uuid.generator (initialSeed seed seedExtension)

@@ -6,6 +6,8 @@ add forfait ménage
 mix phx.server
 source .env && mix phx.server
 
+lock log in if login from local storage
+
 ###############################################################################
 git memo:
 

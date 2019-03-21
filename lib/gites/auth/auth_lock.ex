@@ -35,10 +35,10 @@ defmodule Gites.AuthLock do
   	{:reply, state, {state,timer}}
   end 
 
-  def handle_cast(:lock,  {_state,timer}) do 
+  def handle_cast(:lock,  {_state,_timer}) do 
   	IO.puts "AuthLock server: locked"
   	schedule_countdown()
-  	{:noreply, {:true, timer}}
+  	{:noreply, {:true, @expiration}}
   end 
 
   def handle_cast(:unlock, {_state, _timer}) do 

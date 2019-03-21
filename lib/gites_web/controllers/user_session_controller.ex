@@ -32,7 +32,12 @@ defmodule GitesWeb.UserSessionController do
     
     case Gites.Guardian.refresh(jwt) do
       {:ok, _old_stuff, {new_token, %{"exp" => _exp} = _new_claims}} -> 
+        
+        if !AuthLock.is_locked do 
+          AuthLock.lock
+        end
         AuthLock.refresh_expiration
+        
         render(conn, "login_success.json", username: user.username, jwt: new_token)
       {:error, reason} -> 
         conn

@@ -144,7 +144,7 @@ customerDetailView config bi =
     column
         [ spacing 15 ]
         [ el
-            [ Font.size 20
+            [ Font.bold
             ]
             (textM config.lang
                 (MultLangStr "Customer details"
@@ -187,7 +187,7 @@ contactView config bi =
     column
         [ spacing 15 ]
         [ el
-            [ Font.size 20
+            [ Font.bold
             ]
             (text "Contact")
         , el [] (text bi.phone1)
@@ -210,7 +210,7 @@ recapView config cInDate cOutDate bi =
     column
         [ spacing 15 ]
         [ el
-            [ Font.size 20
+            [ Font.bold
             ]
             (textM config.lang
                 (MultLangStr "Your booking"

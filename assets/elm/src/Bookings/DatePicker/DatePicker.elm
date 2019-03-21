@@ -83,8 +83,8 @@ placeholder l =
             "Choisissez une date..."
 
 
-init : Maybe Date -> (Msg -> msg) -> ( Model msg, Cmd msg )
-init mbStartDate outMsg =
+init : Maybe Date -> Bool -> (Msg -> msg) -> ( Model msg, Cmd msg )
+init mbStartDate canPickDateInPast outMsg =
     let
         startDate =
             Maybe.withDefault initDate mbStartDate
@@ -96,7 +96,7 @@ init mbStartDate outMsg =
         , currentDate = startDate
         , currentDates = []
         , firstDayOfWeek = Mon
-        , canPickDateInPast = False
+        , canPickDateInPast = canPickDateInPast
         , outMsg = outMsg
         }
     , [ Task.perform CurrentDate today
@@ -267,6 +267,7 @@ pickedDateView config model =
         , Font.size 16
         , htmlAttribute <| HtmlAttr.readonly True
         , clip
+        , focused [ Border.glow (rgb 1 1 1) 0 ]
         , behindContent
             (el
                 [ Background.color white
@@ -413,12 +414,15 @@ dayGrid config model =
         availability =
             \d ->
                 if
-                    not model.canPickDateInPast
+                    (not model.canPickDateInPast
                         && (Date.compare d model.today
                                 == LT
                            )
-                        || (Date.compare d model.today
-                                == EQ
+                    )
+                        || (not model.canPickDateInPast
+                                && (Date.compare d model.today
+                                        == EQ
+                                   )
                            )
                 then
                     NotAvailable
@@ -498,10 +502,10 @@ dayGrid config model =
                     Background.color grey
                    else
                     noAttr
-                 , if availability d == Available then
-                    pointer
-                   else
+                 , if List.member (availability d) [ NotAvailable, NoCheckIn, NoCheckOut, Booked ] then
                     noAttr
+                   else
+                    pointer
                  ]
                     ++ (if isPickedDate d then
                             [ Font.color white

@@ -53,6 +53,8 @@ subscriptions model =
 type alias Model msg =
     { datePicker : DP.Model Msg
     , pickedDate : Maybe Date
+    , pickedBooking : Maybe BookingInfo
+    , rowHovered : Maybe Int
     , presences : Presence.PresenceState String
     , availabilities : Dict Int DP.Availability
     , bookings : Dict Int BookingInfo
@@ -65,6 +67,8 @@ type alias Model msg =
 
 type Msg
     = DatePickerMsg DP.Msg
+    | PickBooking Int
+    | RowHovered (Maybe Int)
     | GetAvailabilities
     | ReceiveAvailabilities (Result Http.Error (Dict Int DP.Availability))
     | GetBookingInfo
@@ -80,10 +84,12 @@ init : (Msg -> msg) -> ( Model msg, Cmd msg )
 init outMsg =
     let
         ( datePicker, datePickerCmd ) =
-            DP.init Nothing DatePickerMsg
+            DP.init Nothing True DatePickerMsg
     in
     ( { datePicker = datePicker
       , pickedDate = Nothing
+      , pickedBooking = Nothing
+      , rowHovered = Nothing
       , presences = Dict.empty
       , availabilities = Dict.empty
       , bookings = Dict.empty
@@ -149,9 +155,30 @@ update config msg model =
                     ( { model
                         | pickedDate = Just pickedDate
                         , datePicker = datePicker
+                        , pickedBooking =
+                            Dict.get (Date.toRataDie pickedDate) model.availabilities
+                                |> Maybe.andThen
+                                    (\av ->
+                                        case av of
+                                            DP.BookedAdmin id ->
+                                                Dict.get id model.bookings
+
+                                            _ ->
+                                                Nothing
+                                    )
                       }
                     , Cmd.map model.outMsg cmd
                     )
+
+        PickBooking id ->
+            ( { model | pickedBooking = Dict.get id model.bookings }
+            , Cmd.none
+            )
+
+        RowHovered mbInd ->
+            ( { model | rowHovered = mbInd }
+            , Cmd.none
+            )
 
         GetAvailabilities ->
             ( { model | loadingStatus = Waiting }
@@ -277,15 +304,28 @@ type alias ViewConfig =
 view : ViewConfig -> Model msg -> Element msg
 view config model =
     Element.map model.outMsg <|
-        column
+        row
             [ width fill
             , height fill
             , paddingEach { top = 45, right = 45, bottom = 45, left = 45 }
             , spacing 30
             , Background.color lightGrey
             ]
-            [ datePickerView config model
-            , bookingListView config model
+            [ column
+                [ spacing 20
+                , alignTop
+                ]
+                [ datePickerView config model
+                , bookingListView config model
+                ]
+            , column
+                [ spacing 20
+                , alignTop
+                , width fill
+                ]
+                [ presenceStateView config model
+                , bookingEditorView config model
+                ]
             ]
 
 
@@ -293,7 +333,12 @@ datePickerView : { a | lang : Lang } -> Model msg -> Element Msg
 datePickerView config model =
     column
         [ spacing 15
-        , width fill
+        , width (px 630)
+        , Background.color white
+        , padding 15
+        , Border.rounded 5
+        , Border.color grey
+        , Border.width 1
         ]
         [ el [ Font.bold ]
             (textM config.lang
@@ -424,7 +469,7 @@ datePickerView config model =
 bookingListView config model =
     let
         headerStyle =
-            [ Background.color white
+            [ Background.color lightGrey
             , paddingXY 10 10
             , Font.center
             , Border.color grey
@@ -435,11 +480,19 @@ bookingListView config model =
                 }
             ]
 
-        cellStyle i =
+        cellStyle id i =
             [ if modBy 2 i /= 0 then
-                Background.color white
+                Background.color lightGrey
               else
                 noAttr
+            , Events.onMouseEnter (RowHovered <| Just i)
+            , Events.onMouseLeave (RowHovered Nothing)
+            , if model.rowHovered == Just i then
+                Background.color grey
+              else
+                noAttr
+            , Events.onClick (PickBooking id)
+            , pointer
             , paddingXY 0 5
             , Font.center
             , Border.color grey
@@ -453,76 +506,93 @@ bookingListView config model =
         bookings =
             Dict.values model.bookings
     in
-    indexedTable
-        [ Border.color grey
-        , Border.widthEach
-            { sides
-                | top = 1
-                , left = 1
-            }
-        , width (px 500)
+    column
+        [ Background.color white
+        , padding 15
+        , Border.rounded 5
+        , Border.color grey
+        , Border.width 1
+        , height (maximum 400 fill)
+        , scrollbarY
+        , spacing 15
         ]
-        { data = bookings
-        , columns =
-            [ { header =
-                    el
-                        headerStyle
-                        (textM config.lang
-                            (MultLangStr "Check-in" "Date d'arrivée")
-                        )
-              , width = fill
-              , view =
-                    \i bi ->
-                        el (cellStyle i) (text <| formatDate config.lang bi.checkIn)
-              }
-            , { header =
-                    el
-                        headerStyle
-                        (textM config.lang
-                            (MultLangStr "Check-out" "Date de départ")
-                        )
-              , width = fill
-              , view =
-                    \i bi ->
-                        el (cellStyle i) (text <| formatDate config.lang bi.checkOut)
-              }
-            , { header =
-                    el
-                        headerStyle
-                        (textM config.lang
-                            (MultLangStr "Customer name" "Nom client")
-                        )
-              , width = fill
-              , view =
-                    \i bi ->
-                        el (cellStyle i) (text <| bi.firstName ++ " " ++ bi.lastName)
-              }
-            , { header =
-                    el
-                        headerStyle
-                        (textM config.lang
-                            (MultLangStr "Confirmed" "Confirmée")
-                        )
-              , width = fill
-              , view =
-                    \i bi ->
-                        el (cellStyle i)
-                            (if bi.confirmed then
-                                el
-                                    [ Font.color green
-                                    , centerX
-                                    ]
-                                    (textM config.lang (MultLangStr "yes" "oui"))
-                             else
-                                el
-                                    [ Font.color red
-                                    , centerX
-                                    ]
-                                    (textM config.lang (MultLangStr "no" "non"))
-                            )
-              }
+        [ el [ Font.bold ]
+            (textM config.lang
+                (MultLangStr "Booking list"
+                    "Liste des réservations"
+                )
+            )
+        , indexedTable
+            [ Border.color grey
+            , Border.widthEach
+                { sides
+                    | top = 1
+                    , left = 1
+                }
+            , width (px 600)
             ]
-        }
+            { data = bookings
+            , columns =
+                [ { header =
+                        el
+                            headerStyle
+                            (textM config.lang
+                                (MultLangStr "Check-in" "Date d'arrivée")
+                            )
+                  , width = fill
+                  , view =
+                        \i bi ->
+                            el (cellStyle bi.bookingId i) (text <| formatDate config.lang bi.checkIn)
+                  }
+                , { header =
+                        el
+                            headerStyle
+                            (textM config.lang
+                                (MultLangStr "Check-out" "Date de départ")
+                            )
+                  , width = fill
+                  , view =
+                        \i bi ->
+                            el (cellStyle bi.bookingId i) (text <| formatDate config.lang bi.checkOut)
+                  }
+                , { header =
+                        el
+                            headerStyle
+                            (textM config.lang
+                                (MultLangStr "Customer name" "Nom client")
+                            )
+                  , width = fill
+                  , view =
+                        \i bi ->
+                            el (cellStyle bi.bookingId i) (text <| bi.firstName ++ " " ++ bi.lastName)
+                  }
+                , { header =
+                        el
+                            headerStyle
+                            (textM config.lang
+                                (MultLangStr "Confirmed" "Confirmée")
+                            )
+                  , width = fill
+                  , view =
+                        \i bi ->
+                            el (cellStyle bi.bookingId i)
+                                (if bi.confirmed then
+                                    el
+                                        [ Font.color green
+                                        , centerX
+                                        ]
+                                        (textM config.lang (MultLangStr "yes" "oui"))
+                                 else
+                                    el
+                                        [ Font.color red
+                                        , centerX
+                                        ]
+                                        (textM config.lang (MultLangStr "no" "non"))
+                                )
+                  }
+                ]
+            }
+        ]
 
 
 checkAvailability : Model msg -> (Date -> DP.Availability)
@@ -530,6 +600,162 @@ checkAvailability { availabilities } =
     \d ->
         Dict.get (Date.toRataDie d) availabilities
             |> Maybe.withDefault DP.Available
+
+
+presenceStateView config model =
+    let
+        n =
+            Dict.size model.presences - 1
+
+        isPlural =
+            n > 1
+
+        nbrUsers lang =
+            strM
+                lang
+                (MultLangStr
+                    (String.fromInt n
+                        ++ (if isPlural then
+                                " users"
+                            else
+                                " user"
+                           )
+                    )
+                    (String.fromInt n
+                        ++ (if isPlural then
+                                " utilisateurs"
+                            else
+                                " utilisateur"
+                           )
+                    )
+                )
+    in
+    column
+        [ Background.color white
+        , padding 15
+        , Border.rounded 5
+        , Border.color grey
+        , Border.width 1
+        , spacing 15
+        , width fill
+        ]
+        [ el [ Font.bold ]
+            (textM config.lang
+                (MultLangStr "Real-time application usage"
+                    "Utilisation temps réel"
+                )
+            )
+        , paragraph
+            []
+            [ textM config.lang
+                (MultLangStr
+                    ("There "
+                        ++ (if isPlural then
+                                "are"
+                            else
+                                "is"
+                           )
+                        ++ " currently "
+                        ++ nbrUsers config.lang
+                        ++ " online."
+                    )
+                    ("Il y a actuellement "
+                        ++ nbrUsers config.lang
+                        ++ " en ligne."
+                    )
+                )
+            ]
+        ]
+
+
+bookingEditorView config model =
+    column
+        [ spacing 15
+        , width fill
+        ]
+        [ case ( model.pickedDate, model.pickedBooking ) of
+            ( _, Just bookingInfo ) ->
+                bookingView config bookingInfo model
+
+            ( Just date, _ ) ->
+                editAvailabilityView config model
+
+            _ ->
+                Element.none
+        ]
+
+
+bookingView config bookingInfo model =
+    column
+        [ spacing 15 ]
+        [ customerDetailView config bookingInfo
+        , contactView config bookingInfo
+        , recapView config bookingInfo.checkIn bookingInfo.checkOut bookingInfo
+        ]
+
+
+editAvailabilityView config model =
+    let
+        availability =
+            case
+                Maybe.andThen (\d -> Dict.get (Date.toRataDie d) model.availabilities)
+                    model.pickedDate
+            of
+                Just av ->
+                    av
+
+                _ ->
+                    DP.Available
+    in
+    column
+        [ Background.color white
+        , padding 15
+        , Border.rounded 5
+        , Border.color grey
+        , Border.width 1
+        , spacing 15
+        , width fill
+        ]
+        [ el [ Font.bold ]
+            (textM config.lang
+                (MultLangStr "Change availability"
+                    "Modification de la disponibilité"
+                )
+            )
+        , column
+            [ spacing 15 ]
+            [ textM config.lang
+                (MultLangStr "Current availability:"
+                    "Disponibilité actuelle:\n"
+                )
+            , el
+                [ Font.bold ]
+                (text <| strM config.lang (avStr availability))
+            ]
+        ]
+
+
+avStr av =
+    case av of
+        DP.NotAvailableAdmin ->
+            MultLangStr "Not available"
+                "Indisponible"
+
+        DP.NoCheckInAdmin ->
+            MultLangStr "Available but not as checkin date"
+                "Libre mais pas comme date d'arrivée"
+
+        DP.NoCheckOutAdmin ->
+            MultLangStr "Available but not as chekout date"
+                "Libre mais pas comme date de départ"
+
+        DP.BookedAdmin _ ->
+            MultLangStr "Booked"
+                "Réservé"
+
+        _ ->
+            MultLangStr "Available"
+                "Libre"
 
 
 
@@ -567,7 +793,7 @@ decodeAvailability =
                     (\str ->
                         case str of
                             "NotAvailable" ->
-                                Decode.succeed DP.NotAvailable
+                                Decode.succeed DP.NotAvailableAdmin
 
                             "NoCheckIn" ->
                                 Decode.succeed DP.NoCheckInAdmin
@@ -605,3 +831,20 @@ getBookingInfo logInfo =
                 ReceiveBookingInfo
                 (Decode.field "data" <| Decode.list decodeBookingInfo)
         }
+
+
+
+-------------------------------------------------------------------------------
+---------------------------
+-- Misc Helper functions --
+---------------------------
+--findDateKind : Model msg -> Date -> DateKind
+--findDateKind model d =
+--    if Date.toRataDie d < Date.toTime (Maybe.withDefault (Date.fromTime 0) (.today model)) then
+--        NotAvailable
+--    else
+--        case Dict.get d model.bookingKindUpdate of
+--            Nothing ->
+--                Available
+--            Just bk ->
+--                bk.dateKind
