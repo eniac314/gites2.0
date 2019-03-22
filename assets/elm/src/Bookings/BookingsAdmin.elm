@@ -36,6 +36,10 @@ port presenceDiff : (Encode.Value -> msg) -> Sub msg
 port receiveLockedDays : (Encode.Value -> msg) -> Sub msg
 
 
+
+--port broadcastRefresh : (Encode.Value -> msg) -> Sub msg
+
+
 port receiveInitialLockedDays : (Encode.Value -> msg) -> Sub msg
 
 
@@ -45,6 +49,8 @@ subscriptions model =
         Sub.batch
             [ receiveInitialLockedDays ReceiveInitialLockedDays
             , receiveLockedDays ReceiveLockedDays
+
+            --, broadcastRefresh (\_ -> Refresh)
             , presenceState ReceivePresenceState
             , presenceDiff ReceivePresenceDiff
             ]
@@ -72,7 +78,7 @@ type Msg
     | RowHovered (Maybe Int)
     | GetAvailabilities
     | ReceiveAvailabilities (Result Http.Error (Dict Int DP.Availability))
-    | GetBookingInfo
+    | Refresh
     | ConfirmBooking BookingInfo
     | BookingConfirmed Int (Result Http.Error ())
     | DeleteBooking Int
@@ -232,8 +238,14 @@ update config msg model =
                 _ ->
                     ( model, Cmd.none )
 
-        GetBookingInfo ->
-            ( model, Cmd.none )
+        Refresh ->
+            ( model
+            , Cmd.map model.outMsg <|
+                Cmd.batch
+                    [ getAvailabilities config.logInfo
+                    , getBookingInfo config.logInfo
+                    ]
+            )
 
         ConfirmBooking bookingInfo ->
             ( model

@@ -33,6 +33,10 @@ channel.on("broadcast_locked_days",payload => {
     app.ports.receiveLockedDays.send(payload)
 });
 
+channel.on("new_booking",payload => {
+    app.ports.broadcastRefresh.send(null)
+});
+
 channel.on("presence_state", payload => {
     app.ports.presenceState.send(payload)
 });
@@ -40,6 +44,7 @@ channel.on("presence_state", payload => {
 channel.on("presence_diff",payload => {
     app.ports.presenceDiff.send(payload)
 });
+
 
 // Auth code /////////////////////
 

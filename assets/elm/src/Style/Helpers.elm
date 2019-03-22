@@ -51,17 +51,27 @@ buttonStyle2 isActive =
         , Font.sansSerif
         ]
     , Border.rounded 2
-    , mouseOver
-        [ Background.color darkYellow
 
-        --, Border.shadow
-        --    { offset = ( 0, 0 )
-        --    , size = 1
-        --    , blur = 0
-        --    , color = rgb255 47 79 79
-        --    }
-        ]
+    --, mouseOver
+    --    [ Background.color darkYellow
+    --, Border.shadow
+    --    { offset = ( 0, 0 )
+    --    , size = 1
+    --    , blur = 0
+    --    , color = rgb255 47 79 79
+    --    }
+    --]
     ]
+        ++ (if isActive then
+                [ mouseOver
+                    [ Background.color darkYellow
+                    ]
+                ]
+            else
+                [ alpha 0.3
+                , htmlAttribute <| HtmlAttr.style "cursor" "default"
+                ]
+           )
 
 
 iconsStyle =

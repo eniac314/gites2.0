@@ -8,6 +8,7 @@ defmodule GitesWeb.BookingController do
   alias Gites.BookingSystem.Booking
   alias Gites.Mailer 
   alias Gites.Email
+  alias Gites.LockedAvailabilitiesServer
   # require IEx
 
   action_fallback GitesWeb.FallbackController
@@ -22,6 +23,9 @@ defmodule GitesWeb.BookingController do
     with  {:ok, _response} <- Recaptcha.verify(booking_params["captcha_response"]),
           {:ok, %Booking{} = booking} <- BookingSystem.create_booking(booking_params),
           {:ok, _res } <- BookingSystem.bulk_create_availabilities(booking.id, booking_params["days_booked"]) do          
+      
+      GitesWeb.Endpoint.broadcast!("bookings:locked_days", "new_booking", %{})
+      # GitesWeb.Endpoint.broadcast!("bookings:locked_days", "broadcast_initial_locked_days", %{payload: LockedAvailabilitiesServer.list_locked})
       
       Email.confirm_email(booking_params["email"]) |> Mailer.deliver_now
 

@@ -45,6 +45,10 @@ app.ports.joinChannel.subscribe(function(uuid){
     app.ports.receiveLockedDays.send(payload)
   });
 
+  channel.on("new_booking",payload => {
+    app.ports.broadcastRefreshAv.send(null)
+  });
+
   channel.on("presence_state", payload => {
     app.ports.presenceState.send(payload)
   });

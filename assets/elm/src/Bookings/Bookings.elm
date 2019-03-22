@@ -47,6 +47,9 @@ port joinChannel : Encode.Value -> Cmd msg
 port broadcastLockedDays : Encode.Value -> Cmd msg
 
 
+port broadcastRefreshAv : (Encode.Value -> msg) -> Sub msg
+
+
 port receiveInitialLockedDays : (Encode.Value -> msg) -> Sub msg
 
 
@@ -66,6 +69,7 @@ subscriptions model =
             [ captcha_port CaptchaResponse
             , receiveInitialLockedDays ReceiveInitialLockedDays
             , receiveLockedDays ReceiveLockedDays
+            , broadcastRefreshAv (\_ -> GetAvailabilities)
             , presenceState ReceivePresenceState
             , presenceDiff ReceivePresenceDiff
             ]
@@ -151,6 +155,7 @@ type Msg
     | CaptchaResponse String
     | SendBookingData
     | BookingProcessed (Result Http.Error Bool)
+    | GetAvailabilities
     | ReceiveAvailabilities (Result Http.Error Slots)
     | ReceiveInitialLockedDays Encode.Value
     | ReceiveLockedDays Encode.Value
@@ -497,6 +502,12 @@ update msg model =
                     , Cmd.none
                     )
 
+        GetAvailabilities ->
+            ( model
+            , getAvailabilities model.slots
+                |> Cmd.map model.outMsg
+            )
+
         ReceiveAvailabilities res ->
             case res of
                 Ok slots ->
@@ -769,9 +780,46 @@ dateChoiceView : ViewConfig -> Model msg -> Element Msg
 dateChoiceView config model =
     column
         [ width fill
-        , spacing 15
+        , spacing 20
+        , height (minimum 400 fill)
+        , Background.color (rgba 1 1 1 0.7)
+        , padding 15
+        , Border.rounded 5
+        , Border.color grey
+        , Border.width 1
         ]
-        [ (if config.width < 1000 then
+        [ el
+            [ Font.bold
+            , Font.size 22
+            , Font.family
+                [ Font.typeface "Montserrat"
+                , Font.sansSerif
+                ]
+            ]
+            (textM config.lang
+                (MultLangStr "Online booking"
+                    "Réservation en ligne"
+                )
+            )
+        , column [ spacing 15 ]
+            [ paragraph
+                []
+                [ textM config.lang
+                    (MultLangStr
+                        "This page allows you to quickly book your stay online. "
+                        "Cette page vous permet de réserver rapidement votre séjour en ligne. "
+                    )
+                ]
+            , paragraph
+                []
+                [ textM config.lang
+                    (MultLangStr
+                        "You can check that the gîte is available at the desired time using the calendar below."
+                        "Vous pouvez verifier que le gîte est disponible à la période souhaitée à l'aide des calendriers ci-dessous."
+                    )
+                ]
+            ]
+        , (if config.width < 1000 then
             column
            else
             row
@@ -782,14 +830,32 @@ dateChoiceView config model =
             [ checkInView config model
             , checkOutView config model
             ]
-        , link
-            (buttonStyle2 True)
-            { url = "/bookings/form"
-            , label =
-                textM config.lang
-                    (MultLangStr "Next" "Suivant")
-            }
+        , el
+            [ alignLeft
+            , alignBottom
+            ]
+            (link
+                (buttonStyle2 (canShowForm model))
+                { url =
+                    if canShowForm model then
+                        "/bookings/form"
+                    else
+                        ""
+                , label =
+                    textM config.lang
+                        (MultLangStr "Next" "Suivant")
+                }
+            )
         ]
+
+
+canShowForm model =
+    case ( model.checkInDate, model.checkOutDate ) of
+        ( Just _, Just _ ) ->
+            True
+
+        _ ->
+            False
 
 
 checkInView : { a | lang : Lang } -> Model msg -> Element Msg
@@ -797,6 +863,11 @@ checkInView config model =
     column
         [ spacing 15
         , width fill
+        , Background.color lightGrey
+        , padding 15
+        , Border.rounded 5
+        , Border.color grey
+        , Border.width 1
         ]
         [ el [ Font.bold ]
             (textM config.lang
@@ -875,6 +946,11 @@ checkOutView config model =
     column
         [ spacing 15
         , width fill
+        , Background.color lightGrey
+        , padding 15
+        , Border.rounded 5
+        , Border.color grey
+        , Border.width 1
         ]
         [ el [ Font.bold ]
             (textM config.lang
@@ -960,8 +1036,28 @@ formView config model =
             column
                 [ padding 10
                 , spacing 10
+                , height (minimum 400 fill)
+                , width fill
+                , Background.color (rgba 1 1 1 0.7)
+                , padding 15
+                , Border.rounded 5
+                , Border.color grey
+                , Border.width 1
                 ]
-                [ row
+                [ el
+                    [ Font.bold
+                    , Font.size 22
+                    , Font.family
+                        [ Font.typeface "Montserrat"
+                        , Font.sansSerif
+                        ]
+                    ]
+                    (textM config.lang
+                        (MultLangStr "Guest information"
+                            "Informations client"
+                        )
+                    )
+                , row
                     [ spacing 20 ]
                     [ el
                         []
@@ -1241,7 +1337,7 @@ formView config model =
                     [ spacing 15 ]
                     [ link
                         (buttonStyle2 True)
-                        { url = "/bookings/form"
+                        { url = "/bookings"
                         , label =
                             textM config.lang
                                 (MultLangStr "Go back" "Retour")
@@ -1257,7 +1353,16 @@ formView config model =
                 ]
 
         _ ->
-            Element.none
+            column
+                []
+                [ link
+                    (buttonStyle2 True)
+                    { url = "/bookings"
+                    , label =
+                        textM config.lang
+                            (MultLangStr "Go back" "Retour")
+                    }
+                ]
 
 
 regLabel config mls =
@@ -1306,10 +1411,21 @@ confirmView config model =
             in
             column
                 [ spacing 20
+                , width fill
+                , height (minimum 400 fill)
+                , Background.color (rgba 1 1 1 0.7)
+                , padding 15
+                , Border.rounded 5
+                , Border.color grey
+                , Border.width 1
                 ]
                 [ el
                     [ Font.bold
                     , Font.size 22
+                    , Font.family
+                        [ Font.typeface "Montserrat"
+                        , Font.sansSerif
+                        ]
                     ]
                     (textM config.lang
                         (MultLangStr "Confirmation"
@@ -1334,48 +1450,67 @@ confirmView config model =
                         { sides | top = 10 }
                     ]
                     Element.none
-                , case model.bookingProcessed of
-                    Initial ->
-                        Input.button
-                            (buttonStyle_ (model.captchaResp /= ""))
-                            { onPress =
-                                if model.captchaResp /= "" then
-                                    Just SendBookingData
-                                else
-                                    Nothing
-                            , label =
-                                textM config.lang
-                                    (MultLangStr "Send"
-                                        "Envoyer"
+                , row
+                    [ spacing 15 ]
+                    [ link
+                        (buttonStyle2 True)
+                        { url = "/bookings/form"
+                        , label =
+                            textM config.lang
+                                (MultLangStr "Go back" "Retour")
+                        }
+                    , case model.bookingProcessed of
+                        Initial ->
+                            Input.button
+                                (buttonStyle_ (model.captchaResp /= ""))
+                                { onPress =
+                                    if model.captchaResp /= "" then
+                                        Just SendBookingData
+                                    else
+                                        Nothing
+                                , label =
+                                    textM config.lang
+                                        (MultLangStr "Send"
+                                            "Envoyer"
+                                        )
+                                }
+
+                        Waiting ->
+                            el
+                                []
+                                (textM config.lang
+                                    (MultLangStr "Your request is being processed, please wait... "
+                                        "Votre demande est en cours de traitement, veuillez patienter... "
                                     )
-                            }
-
-                    Waiting ->
-                        el
-                            []
-                            (textM config.lang
-                                (MultLangStr "Your request is being processed, please wait... "
-                                    "Votre demande est en cours de traitement, veuillez patienter... "
                                 )
-                            )
 
-                    Success ->
-                        el
-                            []
-                            (textM config.lang
-                                (MultLangStr "Your request has been processed, you will receive a confirmation email in the next 24H."
-                                    "Votre demande à été prise en compte, vous allez recevoir un email de confirmation dans les prochaines 24H."
+                        Success ->
+                            el
+                                []
+                                (textM config.lang
+                                    (MultLangStr "Your request has been processed, you will receive a confirmation email in the next 24H."
+                                        "Votre demande à été prise en compte, vous allez recevoir un email de confirmation dans les prochaines 24H."
+                                    )
                                 )
-                            )
 
-                    Failure ->
-                        el
-                            []
-                            (text <| "Failure")
+                        Failure ->
+                            el
+                                []
+                                (text <| "Failure")
+                    ]
                 ]
 
         _ ->
-            Element.none
+            column
+                []
+                [ link
+                    (buttonStyle2 True)
+                    { url = "/bookings"
+                    , label =
+                        textM config.lang
+                            (MultLangStr "Go back" "Retour")
+                    }
+                ]
 
 
 
