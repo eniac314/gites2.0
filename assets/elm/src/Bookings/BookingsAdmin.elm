@@ -54,6 +54,7 @@ type alias Model msg =
     { datePicker : DP.Model Msg
     , pickedDate : Maybe Date
     , pickedBooking : Maybe BookingInfo
+    , pickedAvailability : Maybe DP.Availability
     , rowHovered : Maybe Int
     , presences : Presence.PresenceState String
     , availabilities : Dict Int DP.Availability
@@ -77,6 +78,8 @@ type Msg
     | DeleteBooking Int
     | BookingDeleted Int (Result Http.Error ())
     | ReceiveBookingInfo (Result Http.Error (List BookingInfo))
+    | SetAvailability Date DP.Availability
+    | AvailabilitySet Date (Result Http.Error ())
     | ReceiveInitialLockedDays Encode.Value
     | ReceiveLockedDays Encode.Value
     | ReceivePresenceState Decode.Value
@@ -93,6 +96,7 @@ init outMsg =
     ( { datePicker = datePicker
       , pickedDate = Nothing
       , pickedBooking = Nothing
+      , pickedAvailability = Nothing
       , rowHovered = Nothing
       , presences = Dict.empty
       , availabilities = Dict.empty
@@ -156,11 +160,15 @@ update config msg model =
                     )
 
                 Just pickedDate ->
+                    let
+                        currentAv =
+                            Dict.get (Date.toRataDie pickedDate) model.availabilities
+                    in
                     ( { model
                         | pickedDate = Just pickedDate
                         , datePicker = datePicker
                         , pickedBooking =
-                            Dict.get (Date.toRataDie pickedDate) model.availabilities
+                            currentAv
                                 |> Maybe.andThen
                                     (\av ->
                                         case av of
@@ -170,6 +178,13 @@ update config msg model =
                                             _ ->
                                                 Nothing
                                     )
+                        , pickedAvailability =
+                            case currentAv of
+                                Just ac ->
+                                    currentAv
+
+                                _ ->
+                                    Just DP.Available
                       }
                     , Cmd.map model.outMsg cmd
                     )
@@ -296,6 +311,20 @@ update config msg model =
                       }
                     , Cmd.none
                     )
+
+        SetAvailability d av ->
+            ( { model | pickedAvailability = Just av }
+            , Cmd.map model.outMsg <|
+                setAvailability config.logInfo d av
+            )
+
+        AvailabilitySet d res ->
+            ( model
+            , Cmd.map model.outMsg <|
+                Cmd.batch
+                    [ getAvailabilities config.logInfo
+                    ]
+            )
 
         ReceivePresenceState jsonVal ->
             let
@@ -826,6 +855,20 @@ editAvailabilityView config model =
                     ++ pDateStr
                 )
             )
+        , Input.radio
+            [ spacing 10 ]
+            { onChange =
+                Maybe.map SetAvailability model.pickedDate
+                    |> Maybe.withDefault (\_ -> NoOp)
+            , selected = model.pickedAvailability
+            , label = Input.labelHidden ""
+            , options =
+                [ Input.option DP.Available (textM config.lang <| avStr DP.Available)
+                , Input.option DP.NotAvailableAdmin (textM config.lang <| avStr DP.NotAvailableAdmin)
+                , Input.option DP.NoCheckInAdmin (textM config.lang <| avStr DP.NoCheckInAdmin)
+                , Input.option DP.NoCheckOutAdmin (textM config.lang <| avStr DP.NoCheckOutAdmin)
+                ]
+            }
         ]
 
 
@@ -958,6 +1001,70 @@ confirmBooking logInfo bookingInfo =
         , timeout = Nothing
         , tracker = Nothing
         }
+
+
+setAvailability logInfo d av =
+    let
+        ( method, url ) =
+            if av == DP.Available then
+                ( "DELETE"
+                , "api/restricted/availabilities/"
+                    ++ String.fromInt (Date.toRataDie d)
+                )
+            else
+                ( "PUT", "api/restricted/availabilities/" )
+    in
+    secureRequest logInfo
+        { method = method
+        , headers = []
+        , url = url
+        , body =
+            Encode.object
+                [ ( "availability", encodeAvailability d av ) ]
+                |> Http.jsonBody
+        , expect =
+            Http.expectWhatever (AvailabilitySet d)
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
+encodeAvailability d av =
+    Encode.object
+        [ ( "date", Encode.int (Date.toRataDie d) )
+        , ( "availability"
+          , case av of
+                DP.Available ->
+                    Encode.string "Available"
+
+                DP.NotAvailable ->
+                    Encode.string "NotAvailable"
+
+                DP.NoCheckIn ->
+                    Encode.string "NoCheckIn"
+
+                DP.NoCheckOut ->
+                    Encode.string "NoCheckOut"
+
+                DP.NotAvailableAdmin ->
+                    Encode.string "NotAvailable"
+
+                DP.NoCheckInAdmin ->
+                    Encode.string "NoCheckIn"
+
+                DP.NoCheckOutAdmin ->
+                    Encode.string "NoCheckOut"
+
+                DP.Booked ->
+                    Encode.string "Booked"
+
+                DP.BookedAdmin _ ->
+                    Encode.string "Booked"
+
+                DP.Locked ->
+                    Encode.string "Locked"
+          )
+        ]
 
 
 

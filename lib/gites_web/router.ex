@@ -41,6 +41,8 @@ defmodule GitesWeb.Router do
     get "/delete_obj/:filename", AwsUploadController, :delete
     post "/pagesdata", PageDataController, :create
     get "/availabilities", AvailabilityController, :index_admin
+    delete "/availabilities/:id", AvailabilityController, :delete
+    put "/availabilities", AvailabilityController, :create
     get "/bookings", BookingController, :index
     delete "/bookings/:id", BookingController, :delete
     put "/bookings", BookingController, :update

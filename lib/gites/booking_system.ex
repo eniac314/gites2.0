@@ -132,7 +132,8 @@ defmodule Gites.BookingSystem do
 
   """
   def get_availability!(id), do: Repo.get!(Availability, id)
-
+  
+  def get_availability_by_date!(d), do: Repo.get_by!(Availability, date: d)
   @doc """
   Creates a availability.
 

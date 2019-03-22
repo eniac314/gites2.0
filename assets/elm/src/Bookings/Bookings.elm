@@ -654,6 +654,15 @@ checkInAvailability { booked, notAvailable, noCheckIn, noCheckOut, lockedDays } 
             Dict.values lockedDays
                 |> List.concat
                 |> List.Extra.uniqueBy Date.toRataDie
+
+        isBridging d =
+            case mbCheckOutDate of
+                Nothing ->
+                    False
+
+                Just cOut ->
+                    (booked ++ notAvailable)
+                        |> List.any (\d_ -> Date.compare d_ cOut == LT && Date.compare d_ d == GT)
     in
     \d ->
         if List.member d booked then
@@ -669,6 +678,7 @@ checkInAvailability { booked, notAvailable, noCheckIn, noCheckOut, lockedDays } 
             )
                 || List.member d booked
                 || List.member d notAvailable
+                || isBridging d
                 || List.member d locked
         then
             DP.NotAvailable
@@ -685,6 +695,15 @@ checkOutAvailability { booked, notAvailable, noCheckIn, noCheckOut, lockedDays }
             Dict.values lockedDays
                 |> List.concat
                 |> List.Extra.uniqueBy Date.toRataDie
+
+        isBridging d =
+            case mbCheckInDate of
+                Nothing ->
+                    False
+
+                Just cIn ->
+                    (booked ++ notAvailable)
+                        |> List.any (\d_ -> Date.compare d_ cIn == GT && Date.compare d_ d == LT)
     in
     \d ->
         if List.member d booked then
@@ -700,6 +719,7 @@ checkOutAvailability { booked, notAvailable, noCheckIn, noCheckOut, lockedDays }
             )
                 || List.member d booked
                 || List.member d notAvailable
+                || isBridging d
                 || List.member d locked
         then
             DP.NotAvailable
