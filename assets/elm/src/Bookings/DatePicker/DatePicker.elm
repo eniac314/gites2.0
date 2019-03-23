@@ -39,8 +39,6 @@ type Msg
     | Pick Date
     | Open
     | Close
-    | MouseEnter
-    | MouseLeave
     | NoOp
 
 
@@ -63,7 +61,6 @@ defaultAvailability =
 
 type alias Model msg =
     { open : Bool
-    , mouseInside : Bool
     , today : Date
     , currentDate : Date
     , currentDates : List Date
@@ -91,7 +88,6 @@ init mbStartDate canPickDateInPast outMsg =
     in
     ( prepareDates startDate
         { open = False
-        , mouseInside = False
         , today = startDate
         , currentDate = startDate
         , currentDates = []
@@ -177,18 +173,6 @@ update msg model =
             , Nothing
             )
 
-        MouseEnter ->
-            ( { model | mouseInside = True }
-            , Cmd.none
-            , Nothing
-            )
-
-        MouseLeave ->
-            ( { model | mouseInside = False }
-            , Cmd.none
-            , Nothing
-            )
-
         NoOp ->
             ( model
             , Cmd.none
@@ -229,8 +213,6 @@ view config model =
                         , Background.color white
                         , Font.family [ Font.monospace ]
                         , moveUp 1
-                        , Events.onMouseEnter MouseEnter
-                        , Events.onMouseLeave MouseLeave
                         , onPicker "mousedown" NoOp
                         ]
                         [ monthSelectorView config model
@@ -255,11 +237,11 @@ pickedDateView config model =
         , Font.color charcoal
         , Font.center
         , width (px 282)
-        , if model.open && not model.mouseInside then
+        , if model.open then
             Events.onLoseFocus Close
           else
             noAttr
-        , if model.open && not model.mouseInside then
+        , if model.open then
             Events.onClick Close
           else
             Events.onClick Open
