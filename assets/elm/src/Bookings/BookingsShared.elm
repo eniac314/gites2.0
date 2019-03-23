@@ -38,7 +38,18 @@ type alias BookingInfo =
     , nbrAdults : Int
     , nbrKids : Maybe Int
     , comment : Maybe String
+    , options : BookingOptions
     , confirmed : Bool
+    }
+
+
+type alias BookingOptions =
+    { cleaningFee : Bool
+    }
+
+
+defaultOptions =
+    { cleaningFee = False
     }
 
 
@@ -111,6 +122,9 @@ encodeBookingInfo bookingInfo =
                 |> Maybe.map Encode.string
                 |> Maybe.withDefault Encode.null
           )
+        , ( "options"
+          , encodeBookingOptions bookingInfo.options
+          )
         , ( "confirmed"
           , Encode.bool bookingInfo.confirmed
           )
@@ -128,6 +142,12 @@ encodeTitle title =
 
         Other ->
             Encode.string "Other"
+
+
+encodeBookingOptions : BookingOptions -> Encode.Value
+encodeBookingOptions { cleaningFee } =
+    Encode.object
+        [ ( "cleaningFee", Encode.bool cleaningFee ) ]
 
 
 decodeBookingInfo : Decode.Decoder BookingInfo
@@ -150,6 +170,7 @@ decodeBookingInfo =
         |> required "nbr_adults" Decode.int
         |> optional "nbr_children" (dJust Decode.int) Nothing
         |> optional "comments" (dJust Decode.string) Nothing
+        |> required "options" decodeBookingOptions
         |> required "confirmed" Decode.bool
 
 
@@ -174,6 +195,14 @@ dateDecoder : Decode.Decoder Date
 dateDecoder =
     Decode.int
         |> Decode.map Date.fromRataDie
+
+
+decodeBookingOptions =
+    Decode.nullable
+        (Decode.succeed BookingOptions
+            |> required "cleaningFee" Decode.bool
+        )
+        |> Decode.map (Maybe.withDefault defaultOptions)
 
 
 lockedDaysDecoder =
@@ -384,6 +413,17 @@ recapView config cInDate cOutDate bi =
                     ++ String.fromInt (nc * 50)
                     ++ " €"
             )
+        , if bi.options.cleaningFee then
+            el
+                []
+                (text <|
+                    strM config.lang
+                        (MultLangStr "Cleaning service: 50 €"
+                            "Forfait ménage: 50 €"
+                        )
+                )
+          else
+            Element.none
         , case bi.comment of
             Just c ->
                 column

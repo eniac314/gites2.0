@@ -102,8 +102,8 @@ type alias Model msg =
     , nbrAdultSelector : Select.Model
     , nbrChildren : Maybe Int
     , nbrChildrenSelector : Select.Model
-    , comments :
-        Maybe String
+    , comments : Maybe String
+    , options : BookingOptions
 
     --
     , currentSeed : Seed
@@ -151,6 +151,7 @@ type Msg
     | SelectNbrChildren Int
     | NbrChildrenSelectorMsg Select.Msg
     | SetComment String
+    | SetCleaningFee Bool
     | LoadCaptcha
     | CaptchaResponse String
     | SendBookingData
@@ -229,8 +230,8 @@ init outMsg ( seed, seedExtension ) =
       , nbrAdultSelector = Select.init
       , nbrChildren = Nothing
       , nbrChildrenSelector = Select.init
-      , comments =
-            Nothing
+      , comments = Nothing
+      , options = defaultOptions
       , currentSeed = newSeed
       , currentUuid = newUuid
       , presences = Dict.empty
@@ -472,6 +473,18 @@ update msg model =
                         Nothing
                     else
                         Just s
+              }
+            , Cmd.none
+            )
+
+        SetCleaningFee b ->
+            let
+                options =
+                    model.options
+            in
+            ( { model
+                | options =
+                    { options | cleaningFee = b }
               }
             , Cmd.none
             )
@@ -836,6 +849,40 @@ dateChoiceView config model =
             [ checkInView config model
             , checkOutView config model
             ]
+        , column
+            [ spacing 15 ]
+            [ el
+                [ Font.bold
+                , Font.size 18
+                , Font.family
+                    [ Font.typeface "Montserrat"
+                    , Font.sansSerif
+                    ]
+                ]
+                (textM config.lang
+                    (MultLangStr "Options"
+                        "Options"
+                    )
+                )
+            , Input.checkbox
+                []
+                { onChange = SetCleaningFee
+                , icon = Input.defaultCheckbox
+                , checked = model.options.cleaningFee
+                , label =
+                    Input.labelRight
+                        []
+                        (el
+                            []
+                            (textM config.lang
+                                (MultLangStr
+                                    "Cleaning service"
+                                    "Forfait ménage"
+                                )
+                            )
+                        )
+                }
+            ]
         , el
             [ alignLeft
             , alignBottom
@@ -874,6 +921,7 @@ checkInView config model =
         , Border.rounded 5
         , Border.color grey
         , Border.width 1
+        , alignTop
         ]
         [ el [ Font.bold ]
             (textM config.lang
@@ -960,6 +1008,7 @@ checkOutView config model =
         , Border.rounded 5
         , Border.color grey
         , Border.width 1
+        , alignTop
         ]
         [ el [ Font.bold ]
             (textM config.lang
@@ -1624,6 +1673,10 @@ encodeBookingData model =
           )
         , ( "comments"
           , strEncode model.comments
+          )
+        , ( "options"
+          , encodeBookingOptions
+                model.options
           )
         , ( "days_booked"
           , model.slots.booked

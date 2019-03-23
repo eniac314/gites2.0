@@ -1,7 +1,7 @@
 defmodule GitesWeb.BookingController do
   use GitesWeb, :controller
   
-  plug Guardian.Plug.EnsureAuthenticated when action in [:delete, :update]
+  plug Guardian.Plug.EnsureAuthenticated when action in [:delete, :update, :index]
 
 
   alias Gites.BookingSystem
@@ -9,17 +9,31 @@ defmodule GitesWeb.BookingController do
   alias Gites.Mailer 
   alias Gites.Email
   alias Gites.LockedAvailabilitiesServer
-  # require IEx
-
+  
   action_fallback GitesWeb.FallbackController
 
   def index(conn, _params) do
-    bookings = BookingSystem.list_bookings()
+    bookings =
+      BookingSystem.list_bookings()
+      |> Enum.map(fn b ->
+        %{
+          b
+          | options:
+              if b.options do
+                Poison.decode!(b.options)
+              else
+                nil
+              end
+        }
+      end)
+
     render(conn, "index.json", bookings: bookings)
   end
 
   def create(conn, %{"booking" => booking_params}) do
-    # IEx.pry()
+    serialized_options = Poison.encode!(booking_params["options"]) 
+    booking_params = Map.put(booking_params, "options", serialized_options)
+    
     with  {:ok, _response} <- Recaptcha.verify(booking_params["captcha_response"]),
           {:ok, %Booking{} = booking} <- BookingSystem.create_booking(booking_params),
           {:ok, _res } <- BookingSystem.bulk_create_availabilities(booking.id, booking_params["days_booked"]) do          
@@ -35,7 +49,20 @@ defmodule GitesWeb.BookingController do
   end
 
   def show(conn, %{"id" => id}) do
-    booking = BookingSystem.get_booking!(id)
+    booking =
+      BookingSystem.get_booking!(id)
+      |> (fn b ->
+            %{
+              b
+              | options:
+                  if b.options do
+                    Poison.decode!(b.options)
+                  else
+                    nil
+                  end
+            }
+          end).()
+
     render(conn, "show.json", booking: booking)
   end
 
