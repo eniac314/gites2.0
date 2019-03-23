@@ -432,34 +432,34 @@ dayGrid config model =
         dayColor d =
             case availability d of
                 Available ->
-                    ( calGreen, white, lightGrey )
+                    ( white, calGreen, grey )
 
                 NotAvailable ->
-                    ( calRed, white, lightGrey )
+                    ( white, calRed, grey )
 
                 NoCheckIn ->
-                    ( calOrange, white, lightGrey )
+                    ( white, calOrange, grey )
 
                 NoCheckOut ->
-                    ( calOrange, white, lightGrey )
+                    ( white, calOrange, grey )
 
                 NotAvailableAdmin ->
-                    ( red, white, lightGrey )
+                    ( white, calRed, grey )
 
                 NoCheckInAdmin ->
-                    ( blue, white, lightGrey )
+                    ( white, blue, grey )
 
                 NoCheckOutAdmin ->
-                    ( purple, white, lightGrey )
+                    ( white, purple, grey )
 
                 Booked ->
-                    ( white, blue, lightBlue )
+                    ( white, blue, grey )
 
                 BookedAdmin s ->
-                    ( orange, white, lightGrey )
+                    ( white, calOrange, grey )
 
                 Locked ->
-                    ( darkGreen, white, lightGrey )
+                    ( white, darkGreen, grey )
 
         handler d =
             case availability d of
@@ -473,6 +473,9 @@ dayGrid config model =
                     Events.onClick (Pick d)
 
                 NoCheckOutAdmin ->
+                    Events.onClick (Pick d)
+
+                Booked ->
                     Events.onClick (Pick d)
 
                 BookedAdmin s ->
@@ -495,14 +498,15 @@ dayGrid config model =
                  , handler d
                  , padding 10
                  , Font.size 16
-                 , Border.rounded 1
+
+                 --, Border.rounded 1
                  , mouseOver
                     [ Background.color hoverColor ]
                  , if Date.compare d model.today == EQ then
                     Background.color grey
                    else
                     noAttr
-                 , if List.member (availability d) [ NotAvailable, NoCheckIn, NoCheckOut, Booked ] then
+                 , if List.member (availability d) [ NotAvailable, NoCheckIn, NoCheckOut ] then
                     noAttr
                    else
                     pointer

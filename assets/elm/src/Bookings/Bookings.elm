@@ -672,7 +672,7 @@ checkInAvailability { booked, notAvailable, noCheckIn, noCheckOut, lockedDays } 
                     False
 
                 Just cOut ->
-                    (booked ++ notAvailable)
+                    notAvailable
                         |> List.any (\d_ -> Date.compare d_ cOut == LT && Date.compare d_ d == GT)
     in
     \d ->
@@ -681,13 +681,12 @@ checkInAvailability { booked, notAvailable, noCheckIn, noCheckOut, lockedDays } 
         else if
             (Maybe.map
                 (\cOut ->
-                    (Date.compare d cOut == GT)
-                        || (Date.compare d cOut == EQ)
+                    (Date.compare d (Date.add Days -1 cOut) == GT)
+                        || (Date.compare d (Date.add Days -1 cOut) == EQ)
                 )
                 mbCheckOutDate
                 |> Maybe.withDefault False
             )
-                || List.member d booked
                 || List.member d notAvailable
                 || isBridging d
                 || List.member d locked
@@ -713,7 +712,7 @@ checkOutAvailability { booked, notAvailable, noCheckIn, noCheckOut, lockedDays }
                     False
 
                 Just cIn ->
-                    (booked ++ notAvailable)
+                    notAvailable
                         |> List.any (\d_ -> Date.compare d_ cIn == GT && Date.compare d_ d == LT)
     in
     \d ->
@@ -722,13 +721,12 @@ checkOutAvailability { booked, notAvailable, noCheckIn, noCheckOut, lockedDays }
         else if
             (Maybe.map
                 (\cIn ->
-                    (Date.compare d cIn == LT)
-                        || (Date.compare d cIn == EQ)
+                    (Date.compare d (Date.add Days 1 cIn) == LT)
+                        || (Date.compare d (Date.add Days 1 cIn) == EQ)
                 )
                 mbCheckInDate
                 |> Maybe.withDefault False
             )
-                || List.member d booked
                 || List.member d notAvailable
                 || isBridging d
                 || List.member d locked
@@ -816,6 +814,14 @@ dateChoiceView config model =
                     (MultLangStr
                         "You can check that the gîte is available at the desired time using the calendar below."
                         "Vous pouvez verifier que le gîte est disponible à la période souhaitée à l'aide des calendriers ci-dessous."
+                    )
+                ]
+            , paragraph
+                []
+                [ textM config.lang
+                    (MultLangStr
+                        "The minimum stay is two nights."
+                        "La durée minimum du séjour est de deux nuits."
                     )
                 ]
             ]
@@ -914,23 +920,26 @@ checkInView config model =
                         )
                     ]
                 ]
-            , row
-                [ spacing 10 ]
-                [ el
-                    [ width (px 15)
-                    , height (px 15)
-                    , Border.color grey
-                    , Border.width 1
-                    , Background.color calOrange
-                    ]
-                    Element.none
-                , el []
-                    (textM config.lang
-                        (MultLangStr "Available but not as checkin date"
-                            "Libre mais pas comme date d'arrivée"
+            , if model.slots.noCheckIn == [] then
+                Element.none
+              else
+                row
+                    [ spacing 10 ]
+                    [ el
+                        [ width (px 15)
+                        , height (px 15)
+                        , Border.color grey
+                        , Border.width 1
+                        , Background.color calOrange
+                        ]
+                        Element.none
+                    , el []
+                        (textM config.lang
+                            (MultLangStr "Available but not as checkin date"
+                                "Libre mais pas comme date d'arrivée"
+                            )
                         )
-                    )
-                ]
+                    ]
             ]
         , DP.view
             { lang = config.lang
@@ -997,24 +1006,27 @@ checkOutView config model =
                         )
                     ]
                 ]
-            , row
-                [ spacing 10 ]
-                [ el
-                    [ width (px 15)
-                    , height (px 15)
-                    , Border.color grey
-                    , Border.width 1
-                    , Background.color calOrange
-                    ]
-                    Element.none
-                , el []
-                    (textM config.lang
-                        (MultLangStr
-                            "Available but not as checkout date"
-                            "Libre mais pas comme date de départ"
+            , if model.slots.noCheckOut == [] then
+                Element.none
+              else
+                row
+                    [ spacing 10 ]
+                    [ el
+                        [ width (px 15)
+                        , height (px 15)
+                        , Border.color grey
+                        , Border.width 1
+                        , Background.color calOrange
+                        ]
+                        Element.none
+                    , el []
+                        (textM config.lang
+                            (MultLangStr
+                                "Available but not as checkout date"
+                                "Libre mais pas comme date de départ"
+                            )
                         )
-                    )
-                ]
+                    ]
             ]
         , DP.view
             { lang = config.lang
