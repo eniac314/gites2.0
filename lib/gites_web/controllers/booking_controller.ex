@@ -25,9 +25,8 @@ defmodule GitesWeb.BookingController do
           {:ok, _res } <- BookingSystem.bulk_create_availabilities(booking.id, booking_params["days_booked"]) do          
       
       GitesWeb.Endpoint.broadcast!("bookings:locked_days", "new_booking", %{})
-      # GitesWeb.Endpoint.broadcast!("bookings:locked_days", "broadcast_initial_locked_days", %{payload: LockedAvailabilitiesServer.list_locked})
       
-      Email.confirm_email(booking_params["email"]) |> Mailer.deliver_now
+      Email.confirm_email(booking_params["email"]) |> Mailer.deliver_later
 
       conn
       |> put_status(:created)

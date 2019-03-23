@@ -36,8 +36,7 @@ port presenceDiff : (Encode.Value -> msg) -> Sub msg
 port receiveLockedDays : (Encode.Value -> msg) -> Sub msg
 
 
-
---port broadcastRefresh : (Encode.Value -> msg) -> Sub msg
+port broadcastRefresh : (Encode.Value -> msg) -> Sub msg
 
 
 port receiveInitialLockedDays : (Encode.Value -> msg) -> Sub msg
@@ -49,8 +48,7 @@ subscriptions model =
         Sub.batch
             [ receiveInitialLockedDays ReceiveInitialLockedDays
             , receiveLockedDays ReceiveLockedDays
-
-            --, broadcastRefresh (\_ -> Refresh)
+            , broadcastRefresh (\_ -> Refresh)
             , presenceState ReceivePresenceState
             , presenceDiff ReceivePresenceDiff
             ]
@@ -214,7 +212,23 @@ update config msg model =
         ReceiveInitialLockedDays json ->
             case Decode.decodeValue (Decode.field "payload" <| Decode.list lockedDaysDecoder) json of
                 Ok lDays ->
-                    ( model, Cmd.none )
+                    let
+                        availabilities =
+                            List.foldr
+                                (\{ cIn, cOut, uuid } acc ->
+                                    List.foldr
+                                        (\d acc_ ->
+                                            Dict.insert (Date.toRataDie d) DP.Locked acc_
+                                        )
+                                        acc
+                                        (daysBooked cIn cOut)
+                                )
+                                model.availabilities
+                                lDays
+                    in
+                    ( { model | availabilities = availabilities }
+                    , Cmd.none
+                    )
 
                 _ ->
                     ( model, Cmd.none )
@@ -309,7 +323,10 @@ update config msg model =
             case res of
                 Ok avs ->
                     ( { model
-                        | availabilities = avs
+                        | availabilities =
+                            Dict.union
+                                avs
+                                (Dict.filter (\k v -> v == DP.Locked) model.availabilities)
                         , avLoadingStatus = Success
                         , loadingStatus = loadingStatus model.bookingLoadingStatus Success
                       }
