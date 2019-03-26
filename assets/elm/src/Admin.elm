@@ -13,6 +13,7 @@ import Element.Input as Input
 import File exposing (..)
 import File.Select as Select
 import FrontPage.FrontPageAdmin as FrontPageAdmin
+import Gallery.GalleryAdmin as GalleryAdmin
 import Http exposing (expectString)
 import Internals.Helpers exposing (..)
 import Internals.Uploader as Uploader
@@ -48,6 +49,7 @@ type alias Model =
     , zone : Time.Zone
     , authPlugin : Auth.Model Msg
     , frontPageAdmin : FrontPageAdmin.Model Msg
+    , galleryAdmin : GalleryAdmin.Model Msg
     , bookingsAdmin : BookingsAdmin.Model Msg
     }
 
@@ -55,6 +57,7 @@ type alias Model =
 type Msg
     = AuthMsg Auth.Msg
     | FrontPageAdminMsg FrontPageAdmin.Msg
+    | GalleryAdminMsg GalleryAdmin.Msg
     | BookingAdminMsg BookingsAdmin.Msg
     | SetDisplayMode DisplayMode
     | WinResize Int Int
@@ -66,6 +69,7 @@ type Msg
 type DisplayMode
     = DisplayAuth
     | DisplayFrontPageAdmin
+    | DisplayGalleryAdmin
     | DisplayBookingsAdmin
     | DisplayNearbyAdmin
     | DisplayRatesAdmin
@@ -77,6 +81,7 @@ subscriptions model =
         [ onResize WinResize
         , Auth.subscriptions model.authPlugin
         , FrontPageAdmin.subscriptions model.frontPageAdmin
+        , GalleryAdmin.subscriptions model.galleryAdmin
         , BookingsAdmin.subscriptions model.bookingsAdmin
         ]
 
@@ -86,6 +91,9 @@ init flags =
     let
         ( newFrontPageAdmin, fpaCmd ) =
             FrontPageAdmin.init FrontPageAdminMsg
+
+        ( newGalleryAdmin, gAdCmd ) =
+            GalleryAdmin.init GalleryAdminMsg
 
         ( newBookingAdmin, bkAdCmd ) =
             BookingsAdmin.init BookingAdminMsg
@@ -104,12 +112,14 @@ init flags =
       , zone = Time.utc
       , authPlugin = newAuthPlugin
       , frontPageAdmin = newFrontPageAdmin
+      , galleryAdmin = newGalleryAdmin
       , bookingsAdmin = newBookingAdmin
       }
     , Cmd.batch
         [ Task.perform SetZone Time.here
         , authPluginCmd
         , fpaCmd
+        , gAdCmd
         , bkAdCmd
         ]
     )
@@ -147,6 +157,18 @@ update msg model =
                         model.frontPageAdmin
             in
             ( { model | frontPageAdmin = newFrontPageAdmin }
+            , cmd
+            )
+
+        GalleryAdminMsg gAdMsg ->
+            let
+                ( newGalleryAdmin, cmd ) =
+                    GalleryAdmin.update
+                        { logInfo = model.authPlugin.logInfo }
+                        gAdMsg
+                        model.galleryAdmin
+            in
+            ( { model | galleryAdmin = newGalleryAdmin }
             , cmd
             )
 
@@ -226,6 +248,14 @@ view model =
                             }
                             model.frontPageAdmin
 
+                    DisplayGalleryAdmin ->
+                        GalleryAdmin.view
+                            { lang = model.lang
+                            , width = model.width
+                            , logInfo = Auth.getLogInfo model.authPlugin
+                            }
+                            model.galleryAdmin
+
                     DisplayBookingsAdmin ->
                         BookingsAdmin.view
                             { lang = model.lang
@@ -270,6 +300,14 @@ tabsView model =
             (strM model.lang
                 (MultLangStr "Front page Admin"
                     "Editeur page accueil"
+                )
+            )
+        , tabView model.displayMode
+            DisplayGalleryAdmin
+            SetDisplayMode
+            (strM model.lang
+                (MultLangStr "Details Admin"
+                    "Editeur présentation"
                 )
             )
         , tabView model.displayMode

@@ -14,6 +14,7 @@ import Element.Input as Input
 import Element.Keyed as Keyed
 import Element.Region as Region
 import FrontPage.FrontPage as FrontPage
+import Gallery.GalleryPage as GalleryPage
 import Html.Attributes as HtmlAttr
 import Json.Decode as D
 import Json.Encode as E
@@ -47,6 +48,7 @@ type DisplayMode
 
 type alias Model =
     { frontPage : FrontPage.Model Msg
+    , galleryPage : GalleryPage.Model Msg
     , bookings : Bookings.Model Msg
     , lang : Lang
     , displayMode : DisplayMode
@@ -63,6 +65,7 @@ type Msg
     | ClickedLink UrlRequest
     | WinResize Int Int
     | FrontPageMsg FrontPage.Msg
+    | GalleryPageMsg GalleryPage.Msg
     | BookingsMsg Bookings.Msg
     | ChangeLang Lang
     | NoOp
@@ -85,6 +88,9 @@ init flags url key =
         ( newFrontPage, frontPageCmd ) =
             FrontPage.init FrontPageMsg
 
+        ( newGalleryPage, galleryCmd ) =
+            GalleryPage.init GalleryPageMsg
+
         url_ =
             if
                 (url.path == "/")
@@ -95,6 +101,7 @@ init flags url key =
                 url
     in
     ( { frontPage = newFrontPage
+      , galleryPage = newGalleryPage
       , bookings = newBookings
       , lang = French
       , displayMode =
@@ -115,6 +122,7 @@ init flags url key =
           else
             Cmd.none
         , frontPageCmd
+        , galleryCmd
         , bookingsCmd
         ]
     )
@@ -124,6 +132,7 @@ subscriptions model =
     Sub.batch
         [ onResize WinResize
         , Bookings.subscriptions model.bookings
+        , GalleryPage.subscriptions model.galleryPage
         ]
 
 
@@ -172,6 +181,20 @@ update msg model =
             in
             ( { model | frontPage = newFrontPage }
             , Cmd.none
+            )
+
+        GalleryPageMsg galleryPageMsg ->
+            let
+                ( newGalleryPage, cmd ) =
+                    GalleryPage.update
+                        { width = model.width
+                        , lang = model.lang
+                        }
+                        galleryPageMsg
+                        model.galleryPage
+            in
+            ( { model | galleryPage = newGalleryPage }
+            , cmd
             )
 
         BookingsMsg bookingsMsg ->
@@ -258,7 +281,12 @@ view model =
                                     model.frontPage
 
                             DisplayDetails ->
-                                Element.none
+                                GalleryPage.view
+                                    { lang = model.lang
+                                    , url = model.url
+                                    , width = model.width
+                                    }
+                                    model.galleryPage
 
                             DisplayBookings ->
                                 Bookings.view

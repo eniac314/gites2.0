@@ -8,7 +8,6 @@ defmodule GitesWeb.BookingController do
   alias Gites.BookingSystem.Booking
   alias Gites.Mailer 
   alias Gites.Email
-  alias Gites.LockedAvailabilitiesServer
   
   action_fallback GitesWeb.FallbackController
 
@@ -78,6 +77,7 @@ defmodule GitesWeb.BookingController do
     booking = BookingSystem.get_booking!(id)
 
     with {:ok, %Booking{}} <- BookingSystem.delete_booking(booking) do
+      GitesWeb.Endpoint.broadcast!("bookings:locked_days", "need_refresh", %{})
       send_resp(conn, :no_content, "")
     end
   end

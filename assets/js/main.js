@@ -49,6 +49,10 @@ app.ports.joinChannel.subscribe(function(uuid){
     app.ports.broadcastRefreshAv.send(null)
   });
 
+  channel.on("need_refresh",payload => {
+    app.ports.broadcastRefreshAv.send(null)
+  });
+
   channel.on("presence_state", payload => {
     app.ports.presenceState.send(payload)
   });

@@ -20,6 +20,7 @@ defmodule GitesWeb.AvailabilityController do
 
   def create(conn, %{"availability" => availability_params}) do
     with {:ok, %Availability{} = availability} <- BookingSystem.create_availability(availability_params) do
+      GitesWeb.Endpoint.broadcast!("bookings:locked_days", "need_refresh", %{})
       conn
       |> put_status(:created)
       |> render("show.json", availability: availability)
@@ -43,6 +44,7 @@ defmodule GitesWeb.AvailabilityController do
     availability = BookingSystem.get_availability_by_date!(id)
 
     with {:ok, %Availability{}} <- BookingSystem.delete_availability(availability) do
+      GitesWeb.Endpoint.broadcast!("bookings:locked_days", "need_refresh", %{})
       send_resp(conn, :no_content, "")
     end
   end

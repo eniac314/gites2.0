@@ -11,6 +11,7 @@ import Element.Lazy exposing (lazy)
 import Element.Region as Region
 import Html as Html
 import Html.Attributes as HtmlAttr
+import MultLang.MultLang exposing (..)
 import Style.Palette exposing (..)
 
 
@@ -51,16 +52,6 @@ buttonStyle2 isActive =
         , Font.sansSerif
         ]
     , Border.rounded 2
-
-    --, mouseOver
-    --    [ Background.color darkYellow
-    --, Border.shadow
-    --    { offset = ( 0, 0 )
-    --    , size = 1
-    --    , blur = 0
-    --    , color = rgb255 47 79 79
-    --    }
-    --]
     ]
         ++ (if isActive then
                 [ mouseOver
@@ -188,14 +179,37 @@ textInputStyle_ =
     ]
 
 
+textInputStyle =
+    [ width (px 250)
+    , paddingXY 5 5
+    , spacing 15
+    , focused [ Border.glow (rgb 1 1 1) 0 ]
+    ]
+
+
 
 -------------------------------------------------------------------------------
 
 
+type alias GalleryMeta =
+    { title : MultLangStr
+    , titleImg : Maybe String
+    , article : Maybe MultLangStr
+    , album : List ImageMeta
+    }
+
+
 type alias ImageMeta =
     { url : String
-    , caption : Maybe String
+    , caption : Maybe MultLangStr
     , size : { height : Int, width : Int }
+    }
+
+
+dummyPic =
+    { url = ""
+    , caption = Nothing
+    , size = { height = 0, width = 0 }
     }
 
 

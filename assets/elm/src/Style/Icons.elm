@@ -1,9 +1,75 @@
 module Style.Icons exposing (..)
 
 import Element as E
-import Html
+import Html exposing (Html)
 import Octicons as O
 import Style.Palette exposing (..)
+import Svg exposing (Svg, svg)
+import Svg.Attributes exposing (..)
+
+
+customSvgFeatherIcon : Int -> String -> List (Svg msg) -> Html msg
+customSvgFeatherIcon size_ className =
+    svg
+        [ class <| "feather feather-" ++ className
+        , fill "none"
+        , height (String.fromInt size_)
+        , stroke "currentColor"
+        , strokeLinecap "round"
+        , strokeLinejoin "round"
+        , strokeWidth "2"
+        , viewBox "0 0 24 24"
+        , width (String.fromInt size_)
+        ]
+
+
+imageIcon : Int -> Html msg
+imageIcon size_ =
+    customSvgFeatherIcon size_
+        "image"
+        [ Svg.rect
+            [ Svg.Attributes.x "3"
+            , y "3"
+            , width "18"
+            , height "18"
+            , rx "2"
+            , ry "2"
+            ]
+            []
+        , Svg.circle [ cx "8.5", cy "8.5", r "1.5" ] []
+        , Svg.polyline [ points "21 15 16 10 5 21" ] []
+        ]
+
+
+grid : Int -> Html msg
+grid size_ =
+    customSvgFeatherIcon size_
+        "grid"
+        [ Svg.rect
+            [ Svg.Attributes.x "3", y "3", width "7", height "7" ]
+            []
+        , Svg.rect [ Svg.Attributes.x "14", y "3", width "7", height "7" ] []
+        , Svg.rect [ Svg.Attributes.x "14", y "14", width "7", height "7" ] []
+        , Svg.rect [ Svg.Attributes.x "3", y "14", width "7", height "7" ] []
+        ]
+
+
+chevronLeft_ : Int -> Html msg
+chevronLeft_ size_ =
+    customSvgFeatherIcon size_
+        "chevrons-left"
+        [ Svg.polyline [ points "11 17 6 12 11 7" ] [], Svg.polyline [ points "18 17 13 12 18 7" ] [] ]
+
+
+chevronRight_ : Int -> Html msg
+chevronRight_ size_ =
+    customSvgFeatherIcon size_
+        "chevrons-right"
+        [ Svg.polyline [ points "13 17 18 12 13 7" ] [], Svg.polyline [ points "6 17 11 12 6 7" ] [] ]
+
+
+
+-------------------------------------------------------------------------------
 
 
 defOptions =

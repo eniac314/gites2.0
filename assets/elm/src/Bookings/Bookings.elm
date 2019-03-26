@@ -1719,6 +1719,9 @@ getAvailabilities slots =
 
 decodeSlots currentSlots =
     let
+        currentSlots_ =
+            { currentSlots | notAvailable = [], noCheckIn = [], noCheckOut = [] }
+
         swapBooked =
             List.map
                 (\( d, av ) ->
@@ -1749,7 +1752,7 @@ decodeSlots currentSlots =
                 (Decode.field "availability" decodeAvailability)
             )
             |> Decode.map swapBooked
-            |> Decode.map (List.foldr (\x acc -> putInSlot x acc) currentSlots)
+            |> Decode.map (List.foldr (\x acc -> putInSlot x acc) currentSlots_)
         )
 
 

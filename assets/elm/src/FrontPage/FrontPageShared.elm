@@ -45,7 +45,7 @@ frontPageItemView config item =
                                 [ width (maximum config.width fill) ]
                                 { src = awsUrl ++ url
                                 , description =
-                                    caption
+                                    Maybe.map (strM config.lang) caption
                                         |> Maybe.withDefault ""
                                 }
                         )
@@ -112,7 +112,7 @@ decodeImageMeta : D.Decoder ImageMeta
 decodeImageMeta =
     D.map3 ImageMeta
         (D.field "url" D.string)
-        (D.field "caption" (D.nullable D.string))
+        (D.field "caption" (D.nullable decodeMls))
         (D.field "size" decodeSize)
 
 

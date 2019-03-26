@@ -20,10 +20,11 @@ import Internals.Helpers exposing (..)
 import Internals.Uploader as Uploader
 import Json.Decode as Decode
 import Json.Encode as Encode
-import List.Extra exposing (remove)
+import List.Extra exposing (remove, swapAt)
 import MultLang.MultLang exposing (..)
 import String.Extra exposing (leftOf, rightOfBack)
 import Style.Helpers exposing (..)
+import Style.Icons as Icons exposing (..)
 import Style.Palette exposing (..)
 import Task exposing (perform)
 
@@ -46,6 +47,7 @@ processCmd model filename data =
 
 type alias Model msg =
     { workingDirectory : String
+    , mode : Mode
     , contents : Dict String ImageMeta
     , contentsLoadStatus : Status
     , processingQueue : List ( String, File )
@@ -53,14 +55,16 @@ type alias Model msg =
     , sizes : Dict String { width : Int, height : Int }
     , picked : List ImageMeta
     , locked : List ImageMeta
+    , output : Dict Int ImageMeta
     , displayMode : DisplayMode
     , outMsg : Msg -> msg
     }
 
 
-init : String -> (Msg -> msg) -> ( Model msg, Cmd msg )
-init wc outMsg =
+init : String -> Mode -> (Msg -> msg) -> ( Model msg, Cmd msg )
+init wc mode outMsg =
     ( { workingDirectory = wc
+      , mode = mode
       , contents = Dict.empty
       , contentsLoadStatus = Initial
       , processingQueue = []
@@ -68,6 +72,7 @@ init wc outMsg =
       , sizes = Dict.empty
       , picked = []
       , locked = []
+      , output = Dict.empty
       , displayMode = DisplaySelector
       , outMsg = outMsg
       }
@@ -78,9 +83,11 @@ init wc outMsg =
 
 
 load : Auth.LogInfo -> Model msg -> List ImageMeta -> ( Model msg, Cmd msg )
-load logInfo model picked =
+load logInfo model output =
     ( { model
-        | picked = picked
+        | output =
+            List.indexedMap Tuple.pair output
+                |> Dict.fromList
         , contentsLoadStatus =
             case model.contentsLoadStatus of
                 Initial ->
@@ -109,6 +116,11 @@ subscriptions model =
         )
 
 
+type Mode
+    = RowMode
+    | GalleryMode
+
+
 type DisplayMode
     = DisplaySelector
     | DisplayUploader
@@ -123,8 +135,12 @@ type Msg
     | GetContents
     | GotContents (Result Http.Error (Dict String ImageMeta))
     | PickImage ImageMeta
+    | ConfirmSelection
     | DeletePicked
     | Deleted ImageMeta (Result Http.Error Bool)
+    | SetCaption Int String
+    | SwapUp Int
+    | SwapDown Int
     | GoBack
     | SaveAndQuit
     | NoOp
@@ -316,6 +332,16 @@ update config msg model =
             , Nothing
             )
 
+        ConfirmSelection ->
+            ( { model
+                | output =
+                    List.indexedMap Tuple.pair model.picked
+                        |> Dict.fromList
+              }
+            , Cmd.none
+            , Nothing
+            )
+
         DeletePicked ->
             ( { model
                 | locked = model.picked
@@ -345,6 +371,54 @@ update config msg model =
                     , Nothing
                     )
 
+        SetCaption id s ->
+            case Dict.get id model.output of
+                Just img ->
+                    ( { model
+                        | output =
+                            Dict.insert id
+                                { img
+                                    | caption =
+                                        if s == "" then
+                                            Nothing
+                                        else
+                                            Just (MultLangStr s s)
+                                }
+                                model.output
+                      }
+                    , Cmd.none
+                    , Nothing
+                    )
+
+                _ ->
+                    ( model, Cmd.none, Nothing )
+
+        SwapUp id ->
+            let
+                newOutput =
+                    Dict.values model.output
+                        |> swapAt id (id - 1)
+                        |> List.indexedMap Tuple.pair
+                        |> Dict.fromList
+            in
+            ( { model | output = newOutput }
+            , Cmd.none
+            , Nothing
+            )
+
+        SwapDown id ->
+            let
+                newOutput =
+                    Dict.values model.output
+                        |> swapAt id (id + 1)
+                        |> List.indexedMap Tuple.pair
+                        |> Dict.fromList
+            in
+            ( { model | output = newOutput }
+            , Cmd.none
+            , Nothing
+            )
+
         GoBack ->
             ( { model | picked = [] }
             , Cmd.none
@@ -356,7 +430,7 @@ update config msg model =
             , Cmd.none
             , Just
                 (PluginData
-                    model.picked
+                    (Dict.values model.output)
                 )
             )
 
@@ -407,6 +481,16 @@ view config model =
                             textM config.lang (MultLangStr "Upload images" "Mettre en ligne")
                         }
                     , Input.button
+                        (buttonStyle (model.locked == []))
+                        { onPress =
+                            if model.locked == [] then
+                                Just ConfirmSelection
+                            else
+                                Nothing
+                        , label =
+                            textM config.lang (MultLangStr "Confirm selection" "Valider selection")
+                        }
+                    , Input.button
                         (buttonStyle (model.picked /= []))
                         { onPress =
                             if model.picked /= [] then
@@ -427,7 +511,12 @@ view config model =
                   else
                     Element.none
                 , mainPanelView config model
-                , pickedImageView config model
+                , case model.mode of
+                    RowMode ->
+                        rowOutputView config model
+
+                    GalleryMode ->
+                        galleryOutPutView config model
                 , row
                     [ centerX
                     , spacing 10
@@ -561,8 +650,8 @@ imageSelectorView config model =
         )
 
 
-pickedImageView config model =
-    if model.picked == [] then
+rowOutputView config model =
+    if model.output == Dict.empty then
         Element.none
     else
         column
@@ -586,8 +675,111 @@ pickedImageView config model =
             , sameHeightImgRow
                 awsUrl
                 Nothing
-                model.picked
+                (Dict.values model.output)
             ]
+
+
+galleryOutPutView config model =
+    if model.output == Dict.empty then
+        Element.none
+    else
+        column
+            [ width (px <| min (config.width - 30) 1000)
+            , centerX
+            , spacing 15
+            ]
+            ([ el
+                [ centerX
+                , Font.size 20
+                , Font.family
+                    [ Font.typeface "Montserrat"
+                    , Font.sansSerif
+                    ]
+                ]
+                (textM config.lang
+                    (MultLangStr "Preview"
+                        "Apercu"
+                    )
+                )
+             ]
+                ++ (Dict.toList model.output
+                        |> List.map (captionEditorView config model.workingDirectory)
+                   )
+            )
+
+
+captionEditorView : ViewConfig a -> String -> ( Int, ImageMeta ) -> Element Msg
+captionEditorView config wc ( id, { url, caption } ) =
+    row
+        [ width fill
+        , Background.color grey
+        , Border.rounded 5
+        , padding 5
+        , spacing 15
+        ]
+        [ el
+            [ padding 5
+            , Background.color lightGrey
+            , Border.rounded 5
+            ]
+            (el
+                [ width (px 140)
+                , height (px 105)
+                , centerX
+                , Background.uncropped
+                    (awsUrl
+                        ++ wc
+                        ++ "/thumbs/"
+                        ++ rightOfBack "/" url
+                    )
+                , alignLeft
+                ]
+                Element.none
+            )
+        , Input.text
+            (textInputStyle ++ [ alignLeft, width (px 400) ])
+            { onChange = SetCaption id
+            , text =
+                Maybe.map (strM config.lang) caption
+                    |> Maybe.withDefault ""
+            , placeholder =
+                Just <|
+                    Input.placeholder []
+                        (textM config.lang
+                            (MultLangStr "Optional caption"
+                                "Legende optionnelle"
+                            )
+                        )
+            , label =
+                Input.labelHidden ""
+            }
+        , column
+            [ spacing 15
+            , paddingXY 15 0
+            , alignRight
+            ]
+            [ Input.button
+                iconsStyle
+                { onPress = Just <| SwapUp id
+                , label =
+                    Icons.arrowUp
+                        (Icons.defOptions
+                            |> Icons.color black
+                            |> Icons.size 25
+                        )
+                }
+            , Input.button
+                iconsStyle
+                { onPress = Just <| SwapDown id
+                , label =
+                    Icons.arrowDown
+                        (Icons.defOptions
+                            |> Icons.color black
+                            |> Icons.size 25
+                        )
+                }
+            ]
+        ]
 
 
 

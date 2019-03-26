@@ -9,6 +9,7 @@ import Element.Input as Input
 import Element.Keyed as Keyed
 import Element.Lazy exposing (lazy)
 import Http exposing (Error(..))
+import String.Extra exposing (insertAt)
 import Style.Helpers exposing (..)
 import Task exposing (perform)
 import Time exposing (Posix)
@@ -143,6 +144,23 @@ chunk n xs =
     helper [] xs
 
 
+break : (a -> Bool) -> List a -> ( List a, List a )
+break p xs =
+    let
+        helper ys left =
+            case ys of
+                [] ->
+                    ( left, [] )
+
+                y :: ys_ ->
+                    if p y then
+                        ( List.reverse left, y :: ys_ )
+                    else
+                        helper ys_ (y :: left)
+    in
+    helper xs []
+
+
 bestFit : Int -> Int -> Int
 bestFit elemWidth width =
     let
@@ -180,3 +198,13 @@ httpErrorToString e =
 
 awsUrl =
     "https://s3.eu-west-3.amazonaws.com/gite-vieux-lilas/"
+
+
+thumbSrc : String -> String
+thumbSrc s =
+    case List.reverse <| String.indexes "/" s of
+        [] ->
+            s
+
+        n :: _ ->
+            String.Extra.insertAt "/thumbs" n s

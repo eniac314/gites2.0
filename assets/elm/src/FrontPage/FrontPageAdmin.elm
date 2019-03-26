@@ -66,6 +66,7 @@ init outMsg =
         ( imageController, imgCtrlCmd ) =
             ImageController.init
                 "frontPage"
+                ImageController.RowMode
                 (outMsg << ImageControllerMsg)
     in
     ( { content =
@@ -566,7 +567,7 @@ encodeImageMeta { url, caption, size } =
     E.object
         [ ( "url", E.string url )
         , ( "caption"
-          , Maybe.map E.string caption
+          , Maybe.map encodeMls caption
                 |> Maybe.withDefault E.null
           )
         , ( "size", encodeSize size )
