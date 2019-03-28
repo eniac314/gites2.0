@@ -106,30 +106,6 @@ view config model =
 
 homeView : ViewConfig -> Model msg -> Element Msg
 homeView config model =
-    let
-        imgBlockView ( title, titleImg ) =
-            column
-                [ spacing 10
-                , padding 10
-                , width (px 200)
-                , alignTop
-                , mouseOver
-                    [ alpha 0.7 ]
-                , Border.rounded 5
-                ]
-                [ el
-                    [ width (px 190)
-                    , height (px 190)
-                    , centerX
-                    , Background.image <|
-                        awsUrl
-                            ++ title
-                            ++ "/thumbs/"
-                            ++ titleImg
-                    ]
-                    Element.none
-                ]
-    in
     column
         []
         (chunkedRows
@@ -137,7 +113,7 @@ homeView config model =
             (bestFit 200)
             (Dict.map (\k v -> ( k, v.title.en )) model.galleries
                 |> Dict.values
-                |> List.map imgBlockView
+                |> List.map (imgBlockView (\_ -> NoOp))
             )
         )
 

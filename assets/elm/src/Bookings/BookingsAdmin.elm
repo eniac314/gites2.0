@@ -393,6 +393,13 @@ update config msg model =
             ( model, Cmd.none )
 
 
+
+-------------------------------------------------------------------------------
+--------------------
+-- View functions --
+--------------------
+
+
 type alias ViewConfig =
     { lang : Lang
     , width : Int

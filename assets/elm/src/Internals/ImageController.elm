@@ -50,6 +50,7 @@ type alias Model msg =
     , mode : Mode
     , contents : Dict String ImageMeta
     , contentsLoadStatus : Status
+    , portActive : Bool
     , processingQueue : List ( String, File )
     , uploaders : Dict String (Uploader.Model Msg)
     , sizes : Dict String { width : Int, height : Int }
@@ -67,6 +68,7 @@ init wc mode outMsg =
       , mode = mode
       , contents = Dict.empty
       , contentsLoadStatus = Initial
+      , portActive = False
       , processingQueue = []
       , uploaders = Dict.empty
       , sizes = Dict.empty
@@ -106,7 +108,11 @@ load logInfo model output =
 subscriptions : Model msg -> Sub msg
 subscriptions model =
     Sub.batch
-        ([ processedImages (model.outMsg << ImageProcessed) ]
+        ([ if model.portActive then
+            processedImages (model.outMsg << ImageProcessed)
+           else
+            Sub.none
+         ]
             ++ List.map
                 (\uploader ->
                     Uploader.subscriptions uploader
@@ -168,6 +174,7 @@ update config msg model =
                     List.map
                         (\f -> ( jpgName f, f ))
                         remaining
+                , portActive = True
               }
             , Task.perform
                 (Base64Img (jpgName first))
@@ -186,10 +193,10 @@ update config msg model =
             case Decode.decodeValue decodeProcessedData json of
                 Ok ({ content, filename } as pi) ->
                     let
-                        ( cmd, processingQueue ) =
+                        ( cmd, processingQueue, portActive ) =
                             case model.processingQueue of
                                 [] ->
-                                    ( Cmd.none, [] )
+                                    ( Cmd.none, [], False )
 
                                 ( filename_, file ) :: rest ->
                                     ( Task.perform
@@ -197,6 +204,7 @@ update config msg model =
                                         (File.toUrl file)
                                         |> Cmd.map model.outMsg
                                     , rest
+                                    , True
                                     )
 
                         outMsg_ s =
@@ -245,6 +253,7 @@ update config msg model =
                                 , height = pi.height
                                 }
                                 model.sizes
+                        , portActive = portActive
                       }
                     , Cmd.batch
                         [ cmd
@@ -868,6 +877,16 @@ deleteImage logInfo outMsg ({ url } as imgMeta) =
                 (Decode.field "message"
                     (Decode.map (\s -> s == "success") Decode.string)
                 )
+        }
+
+
+deleteWorkingDirectory : Auth.LogInfo -> Model msg -> Cmd msg
+deleteWorkingDirectory logInfo model =
+    Auth.secureGet logInfo
+        { url = "api/restricted/delete_folder/" ++ model.workingDirectory
+        , expect =
+            Http.expectWhatever
+                (\_ -> model.outMsg NoOp)
         }
 
 

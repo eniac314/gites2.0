@@ -164,7 +164,9 @@ update msg model =
             let
                 ( newGalleryAdmin, cmd ) =
                     GalleryAdmin.update
-                        { logInfo = model.authPlugin.logInfo }
+                        { logInfo = model.authPlugin.logInfo
+                        , width = model.width
+                        }
                         gAdMsg
                         model.galleryAdmin
             in

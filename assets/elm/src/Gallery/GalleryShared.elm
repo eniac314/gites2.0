@@ -2,11 +2,20 @@ module Gallery.GalleryShared exposing (..)
 
 import Dict exposing (..)
 import Element exposing (..)
+import Element.Background as Background
+import Element.Border as Border
+import Element.Events as Events
+import Element.Font as Font
+import Element.Input as Input
+import Element.Keyed as Keyed
+import Element.Lazy as Lazy
+import Element.Region as Region
 import FrontPage.FrontPageShared exposing (decodeImageMeta, decodeMls)
 import Html as Html
 import Html.Attributes as HtmlAttr
 import Html.Events as HtmlEvents
 import Http exposing (..)
+import Internals.Helpers exposing (awsUrl)
 import Json.Decode as Decode
 import Json.Decode.Pipeline exposing (required)
 import Style.Helpers exposing (..)
@@ -97,3 +106,28 @@ decodeGalleryMeta =
         |> required "titleImg" (Decode.nullable Decode.string)
         |> required "article" (Decode.nullable decodeMls)
         |> required "album" (Decode.list decodeImageMeta)
+
+
+imgBlockView handler ( title, titleImg ) =
+    column
+        [ spacing 10
+        , padding 10
+        , width (px 200)
+        , alignTop
+        , mouseOver
+            [ alpha 0.7 ]
+        , Border.rounded 5
+        , Events.onClick (handler title)
+        ]
+        [ el
+            [ width (px 190)
+            , height (px 190)
+            , centerX
+            , Background.image <|
+                awsUrl
+                    ++ title
+                    ++ "/thumbs/"
+                    ++ titleImg
+            ]
+            Element.none
+        ]

@@ -114,8 +114,6 @@ view config model =
                 [ paddingXY 10 10
                 , spacing 15
                 , centerX
-
-                --, Background.color red
                 , width fill
                 ]
                 [ (if config.width < 970 then
@@ -126,13 +124,12 @@ view config model =
                     [ spacing 15
                     , width fill
                     , centerX
-
-                    --, Background.color lightBlue
                     ]
                     [ Input.multiline
                         [ width fill
                         , height (px 350)
                         , centerX
+                        , focused [ Border.glow (rgb 1 1 1) 0 ]
                         ]
                         { onChange = StrInputFr
                         , text =
@@ -148,6 +145,7 @@ view config model =
                         [ width fill
                         , height (px 350)
                         , centerX
+                        , focused [ Border.glow (rgb 1 1 1) 0 ]
                         ]
                         { onChange = StrInputEn
                         , text =

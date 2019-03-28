@@ -134,7 +134,6 @@ init { title, titleImg, article, album } outMsg =
 type alias Config a =
     { a
         | width : Int
-        , lang : Lang
     }
 
 
@@ -366,7 +365,14 @@ update config msg model =
 --------------------
 
 
-view : Config a -> Model msg -> Element msg
+type alias ViewConfig a =
+    { a
+        | lang : Lang
+        , width : Int
+    }
+
+
+view : ViewConfig a -> Model msg -> Element msg
 view config model =
     let
         w =
@@ -392,7 +398,7 @@ view config model =
             ]
 
 
-titleRow : Config a -> Model msg -> Element Msg
+titleRow : ViewConfig a -> Model msg -> Element Msg
 titleRow config model =
     let
         w =
@@ -432,7 +438,7 @@ titleRow config model =
         ]
 
 
-captionRow : Config a -> Model msg -> Element Msg
+captionRow : ViewConfig a -> Model msg -> Element Msg
 captionRow config model =
     let
         w =
@@ -471,7 +477,7 @@ captionRow config model =
             Element.none
 
 
-galleryView : Config a -> Model msg -> Element Msg
+galleryView : ViewConfig a -> Model msg -> Element Msg
 galleryView config model =
     let
         w =
@@ -527,7 +533,7 @@ galleryView config model =
         (chunkView config model (current model.imagesStream))
 
 
-chunkView : Config a -> Model msg -> List ImageMeta -> Element Msg
+chunkView : ViewConfig a -> Model msg -> List ImageMeta -> Element Msg
 chunkView config model chunk =
     let
         w =
@@ -555,7 +561,7 @@ chunkView config model chunk =
             Element.none
 
 
-moveChunk : Config a -> Model msg -> Attribute Msg
+moveChunk : ViewConfig a -> Model msg -> Attribute Msg
 moveChunk config model =
     let
         w =
@@ -584,7 +590,7 @@ moveChunk config model =
                 moveLeft (toFloat <| w + start.x - stop.x)
 
 
-picView : Config a -> Model msg -> ImageMeta -> Element Msg
+picView : ViewConfig a -> Model msg -> ImageMeta -> Element Msg
 picView config model { url, size } =
     let
         w =
@@ -599,7 +605,7 @@ picView config model { url, size } =
             (el
                 ([ width (px w)
                  , height (px h)
-                 , Background.uncropped url
+                 , Background.uncropped (awsUrl ++ url)
                  ]
                     ++ unselectable
                 )
@@ -616,20 +622,20 @@ picView config model { url, size } =
                 , centerY
                 , clip
                 ]
-                { src = "/assets/images/loading.gif"
+                { src = "/images/loading.gif"
                 , description = "chargement en cours"
                 }
             , html <|
                 Html.img
                     [ HtmlAttr.hidden True
                     , HtmlEvents.on "load" (Decode.succeed (ImgLoaded url))
-                    , HtmlAttr.src url
+                    , HtmlAttr.src (awsUrl ++ url)
                     ]
                     []
             ]
 
 
-gridView : Config a -> Model msg -> Element Msg
+gridView : ViewConfig a -> Model msg -> Element Msg
 gridView config model =
     let
         w =
@@ -672,7 +678,7 @@ gridView config model =
                         , centerX
                         , mouseOver
                             [ alpha 0.5 ]
-                        , Background.uncropped (thumbSrc url)
+                        , Background.uncropped (awsUrl ++ thumbSrc url)
                         ]
                         Element.none
                     )
@@ -691,14 +697,14 @@ gridView config model =
                         Html.img
                             [ HtmlAttr.hidden True
                             , HtmlEvents.on "load" (Decode.succeed (ThumbLoaded url))
-                            , HtmlAttr.src (thumbSrc url)
+                            , HtmlAttr.src (awsUrl ++ thumbSrc url)
                             ]
                             []
                     , image
                         [ centerX
                         , centerY
                         ]
-                        { src = "/assets/images/loading.gif"
+                        { src = "/images/loading.gif"
                         , description = "chargement"
                         }
                     ]
