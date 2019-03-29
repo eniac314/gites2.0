@@ -189,6 +189,7 @@ update msg model =
                     GalleryPage.update
                         { width = model.width
                         , lang = model.lang
+                        , key = model.key
                         }
                         galleryPageMsg
                         model.galleryPage

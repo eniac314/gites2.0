@@ -77,7 +77,7 @@ init outMsg =
       , outMsg = outMsg
       }
     , Cmd.batch
-        [ getGalleryMetas (outMsg << GotGalleryMetas)
+        [ getDetailsPage (outMsg << GotGalleryMetas)
         ]
     )
 
@@ -147,17 +147,20 @@ update config msg model =
                                 enTitle
                                 ImageController.GalleryMode
                                 (model.outMsg << ImageControllerMsg enTitle)
+
+                        newModel =
+                            { model
+                                | galleries =
+                                    Dict.insert enTitle newGallery model.galleries
+                                , controllers =
+                                    Dict.insert enTitle c model.controllers
+                                , displayMode =
+                                    EditGalleryMeta enTitle
+                            }
+                                |> reloadGallery enTitle
                     in
-                    ( { model
-                        | galleries =
-                            Dict.insert enTitle newGallery model.galleries
-                        , controllers =
-                            Dict.insert enTitle c model.controllers
-                        , displayMode =
-                            EditGalleryMeta enTitle
-                      }
-                        |> reloadGallery enTitle
-                    , cmd
+                    ( newModel
+                    , saveDetailsPage config.logInfo newModel
                     )
 
                 _ ->
@@ -211,9 +214,18 @@ update config msg model =
         DeleteGallery title ->
             case Dict.get title model.controllers of
                 Just controller ->
-                    ( { model | displayMode = DisplayHome }
+                    let
+                        newModel =
+                            { model
+                                | displayMode = DisplayHome
+                                , galleries = Dict.remove title model.galleries
+                                , controllers = Dict.remove title model.controllers
+                            }
+                    in
+                    ( newModel
                     , Cmd.batch
                         [ ImageController.deleteWorkingDirectory config.logInfo controller
+                        , saveDetailsPage config.logInfo newModel
                         ]
                     )
 
@@ -246,24 +258,28 @@ update config msg model =
                             )
 
                         Just (PluginData data) ->
-                            ( { model
-                                | markdownEditor = newEditor
-                                , galleries =
-                                    Dict.update
-                                        title
-                                        (\mbG ->
-                                            case mbG of
-                                                Nothing ->
-                                                    Nothing
+                            let
+                                newModel =
+                                    { model
+                                        | markdownEditor = newEditor
+                                        , galleries =
+                                            Dict.update
+                                                title
+                                                (\mbG ->
+                                                    case mbG of
+                                                        Nothing ->
+                                                            Nothing
 
-                                                Just g ->
-                                                    Just { g | article = Just data }
-                                        )
-                                        model.galleries
-                                , displayMode = EditGalleryMeta title
-                              }
-                                |> reloadGallery title
-                            , Cmd.none
+                                                        Just g ->
+                                                            Just { g | article = Just data }
+                                                )
+                                                model.galleries
+                                        , displayMode = EditGalleryMeta title
+                                    }
+                                        |> reloadGallery title
+                            in
+                            ( newModel
+                            , saveDetailsPage config.logInfo newModel
                             )
 
                 _ ->
@@ -305,28 +321,32 @@ update config msg model =
                             )
 
                         Just (PluginData data) ->
-                            ( { model
-                                | controllers =
-                                    Dict.insert
-                                        title
-                                        newImgCtrl
-                                        model.controllers
-                                , galleries =
-                                    Dict.update
-                                        title
-                                        (\mbG ->
-                                            case mbG of
-                                                Nothing ->
-                                                    Nothing
+                            let
+                                newModel =
+                                    { model
+                                        | controllers =
+                                            Dict.insert
+                                                title
+                                                newImgCtrl
+                                                model.controllers
+                                        , galleries =
+                                            Dict.update
+                                                title
+                                                (\mbG ->
+                                                    case mbG of
+                                                        Nothing ->
+                                                            Nothing
 
-                                                Just g ->
-                                                    Just { g | album = data }
-                                        )
-                                        model.galleries
-                                , displayMode = EditGalleryMeta title
-                              }
-                                |> reloadGallery title
-                            , cmd
+                                                        Just g ->
+                                                            Just { g | album = data }
+                                                )
+                                                model.galleries
+                                        , displayMode = EditGalleryMeta title
+                                    }
+                                        |> reloadGallery title
+                            in
+                            ( newModel
+                            , saveDetailsPage config.logInfo newModel
                             )
 
                 _ ->
@@ -453,11 +473,17 @@ homeView config model =
         , width fill
         ]
         [ row
-            [ width fill
-            , spacing 15
+            [ spacing 15
+            , centerX
+            , padding 15
+            , Background.color white
+            , Border.rounded 5
+            , Border.width 1
+            , Border.color grey
             ]
-            [ column
-                [ spacing 15 ]
+            [ row
+                [ spacing 15
+                ]
                 [ Input.text
                     textInputStyle
                     { onChange = NewGalleryEnTitle
@@ -506,13 +532,28 @@ homeView config model =
                 }
             ]
         , column
-            []
+            [ centerX ]
             (chunkedRows
                 (min config.width 1000)
                 (bestFit 200)
-                (Dict.map (\k v -> ( k, v.titleImg |> Maybe.withDefault "" )) model.galleries
+                (Dict.map
+                    (\k v ->
+                        let
+                            defTitleImg =
+                                case v.titleImg of
+                                    Just url ->
+                                        url
+
+                                    Nothing ->
+                                        List.head v.album
+                                            |> Maybe.map .url
+                                            |> Maybe.withDefault ""
+                        in
+                        ( k, v.title, defTitleImg )
+                    )
+                    model.galleries
                     |> Dict.values
-                    |> List.map (imgBlockView EditMeta)
+                    |> List.map (imgBlockView config.lang EditMeta)
                 )
             )
         ]
@@ -520,62 +561,81 @@ homeView config model =
 
 galleryMetaView : ViewConfig -> Model msg -> String -> Element msg
 galleryMetaView config model title =
-    column
-        [ spacing 15
-        , width fill
-        ]
-        [ row
-            [ centerX
-            , spacing 15
-            ]
-            [ Input.button
-                (buttonStyle True)
-                { onPress =
-                    Just (model.outMsg <| EditArticle title)
-                , label =
-                    textM config.lang
-                        (MultLangStr "Edit article" "Modifier article")
-                }
-            , Input.button
-                (buttonStyle True)
-                { onPress =
-                    Just (model.outMsg <| EditImgs title)
-                , label =
-                    textM config.lang
-                        (MultLangStr "Edit Album" "Modifier album")
-                }
-            , Input.button
-                (buttonStyle True)
-                { onPress =
-                    Just (model.outMsg <| DeleteGallery title)
-                , label =
-                    textM config.lang
-                        (MultLangStr "Delete page" "Supprimer page")
-                }
-            , Input.button
-                (buttonStyle True)
-                { onPress =
-                    Just (model.outMsg <| SetDisplayMode DisplayHome)
-                , label =
-                    textM config.lang
-                        (MultLangStr "Go back" "Retour")
-                }
-            ]
-        , case model.gallery of
-            Just gallery ->
-                column
-                    [ padding 15
-                    , Background.color white
-                    , Border.color grey
-                    , Border.rounded 5
-                    , width (px (min config.width 1000))
-                    , centerX
-                    ]
-                    [ Gallery.view config gallery ]
+    case Dict.get title model.galleries of
+        Just g ->
+            let
+                defTitleImg =
+                    case g.titleImg of
+                        Just url ->
+                            url
 
-            _ ->
-                Element.none
-        ]
+                        Nothing ->
+                            List.head g.album
+                                |> Maybe.map .url
+                                |> Maybe.withDefault ""
+            in
+            column
+                [ spacing 15
+                , width fill
+                ]
+                [ el
+                    [ centerX ]
+                    (imgBlockView config.lang (\_ -> model.outMsg NoOp) ( title, g.title, defTitleImg ))
+                , row
+                    [ centerX
+                    , spacing 15
+                    ]
+                    [ Input.button
+                        (buttonStyle True)
+                        { onPress =
+                            Just (model.outMsg <| EditArticle title)
+                        , label =
+                            textM config.lang
+                                (MultLangStr "Edit article" "Modifier article")
+                        }
+                    , Input.button
+                        (buttonStyle True)
+                        { onPress =
+                            Just (model.outMsg <| EditImgs title)
+                        , label =
+                            textM config.lang
+                                (MultLangStr "Edit Album" "Modifier album")
+                        }
+                    , Input.button
+                        (buttonStyle True)
+                        { onPress =
+                            Just (model.outMsg <| DeleteGallery title)
+                        , label =
+                            textM config.lang
+                                (MultLangStr "Delete page" "Supprimer page")
+                        }
+                    , Input.button
+                        (buttonStyle True)
+                        { onPress =
+                            Just (model.outMsg <| SetDisplayMode DisplayHome)
+                        , label =
+                            textM config.lang
+                                (MultLangStr "Go back" "Retour")
+                        }
+                    ]
+                , case model.gallery of
+                    Just gallery ->
+                        column
+                            [ padding 15
+                            , Background.color white
+                            , Border.color grey
+                            , Border.rounded 5
+                            , width (px (min config.width 1000))
+                            , centerX
+                            ]
+                            [ Gallery.view config gallery ]
+
+                    _ ->
+                        Element.none
+                ]
+
+        _ ->
+            Element.none
 
 
 galleryImgView : ViewConfig -> Model msg -> String -> Element msg
@@ -598,3 +658,43 @@ galleryArticleView config model title =
 -----------------------------------
 -- Json handling and server coms --
 -----------------------------------
+
+
+saveDetailsPage : LogInfo -> Model msg -> Cmd msg
+saveDetailsPage logInfo model =
+    let
+        body =
+            E.object
+                [ ( "name", E.string "details" )
+                , ( "content", encodeGalleryMetas model.galleries )
+                ]
+                |> Http.jsonBody
+    in
+    securePost logInfo
+        { url = "api/restricted/pagesdata"
+        , body = body
+        , expect =
+            Http.expectWhatever (model.outMsg << Saved)
+        }
+
+
+encodeGalleryMetas : Dict String GalleryMeta -> E.Value
+encodeGalleryMetas galleries =
+    Dict.values galleries
+        |> E.list encodeGalleryMeta
+
+
+encodeGalleryMeta : GalleryMeta -> E.Value
+encodeGalleryMeta { title, titleImg, article, album } =
+    E.object
+        [ ( "title", encodeMls title )
+        , ( "titleImg"
+          , Maybe.map E.string titleImg
+                |> Maybe.withDefault E.null
+          )
+        , ( "article"
+          , Maybe.map encodeMls article
+                |> Maybe.withDefault E.null
+          )
+        , ( "album", E.list encodeImageMeta album )
+        ]

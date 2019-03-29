@@ -548,35 +548,3 @@ encodeFrontPageItem fpi =
 
         NewsBlock ->
             E.string "NewsBlock"
-
-
-encodeMls : MultLangStr -> E.Value
-encodeMls { en, fr } =
-    E.object
-        [ ( "MultLangStr"
-          , E.object
-                [ ( "en", E.string en )
-                , ( "fr", E.string fr )
-                ]
-          )
-        ]
-
-
-encodeImageMeta : ImageMeta -> E.Value
-encodeImageMeta { url, caption, size } =
-    E.object
-        [ ( "url", E.string url )
-        , ( "caption"
-          , Maybe.map encodeMls caption
-                |> Maybe.withDefault E.null
-          )
-        , ( "size", encodeSize size )
-        ]
-
-
-encodeSize : { width : Int, height : Int } -> E.Value
-encodeSize size =
-    E.object
-        [ ( "width", E.int size.width )
-        , ( "height", E.int size.height )
-        ]

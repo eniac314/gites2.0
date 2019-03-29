@@ -12,6 +12,7 @@ import Element.Region as Region
 import Html as Html
 import Html.Attributes as HtmlAttr
 import MultLang.MultLang exposing (..)
+import Style.Icons as Icons exposing (..)
 import Style.Palette exposing (..)
 
 
@@ -213,8 +214,15 @@ dummyPic =
     }
 
 
-sameHeightImgRow : String -> Maybe (Int -> List (Attribute msg)) -> List ImageMeta -> Element msg
-sameHeightImgRow baseUrl mbattrs images =
+type alias ImgRowControls msg =
+    { swapLeft : Int -> msg
+    , swapRight : Int -> msg
+    , delete : Int -> msg
+    }
+
+
+sameHeightImgRow : String -> Maybe (ImgRowControls msg) -> List ImageMeta -> Element msg
+sameHeightImgRow baseUrl mbControls images =
     let
         images_ =
             List.map
@@ -255,13 +263,48 @@ sameHeightImgRow baseUrl mbattrs images =
         totalImgWidth =
             List.foldr (\i n -> i.newWidth + n) 0 imgsScaledToMinHeight
 
-        extraAttrs index =
-            case mbattrs of
-                Just f ->
-                    f index
+        controlsView id =
+            case mbControls of
+                Just { swapLeft, swapRight, delete } ->
+                    column
+                        [ alignRight
+                        , spacing 10
+                        , padding 10
+                        ]
+                        [ Input.button
+                            iconsStyle
+                            { onPress = Just <| delete id
+                            , label =
+                                Icons.x
+                                    (Icons.defOptions
+                                        |> Icons.color black
+                                        |> Icons.size 25
+                                    )
+                            }
+                        , Input.button
+                            iconsStyle
+                            { onPress = Just <| swapLeft id
+                            , label =
+                                Icons.arrowLeft
+                                    (Icons.defOptions
+                                        |> Icons.color black
+                                        |> Icons.size 25
+                                    )
+                            }
+                        , Input.button
+                            iconsStyle
+                            { onPress = Just <| swapRight id
+                            , label =
+                                Icons.arrowRight
+                                    (Icons.defOptions
+                                        |> Icons.color black
+                                        |> Icons.size 25
+                                    )
+                            }
+                        ]
 
                 _ ->
-                    []
+                    Element.none
     in
     Keyed.row
         [ spacing 15 ]
@@ -269,10 +312,10 @@ sameHeightImgRow baseUrl mbattrs images =
             (\i im ->
                 ( String.fromInt (i * List.length imgsScaledToMinHeight)
                 , el
-                    ([ width <| fillPortion (floor <| 10000 * im.newWidth / totalImgWidth)
-                     ]
-                        ++ extraAttrs i
-                    )
+                    [ width <| fillPortion (floor <| 10000 * im.newWidth / totalImgWidth)
+                    , inFront <|
+                        controlsView i
+                    ]
                     (html <|
                         Html.img
                             [ HtmlAttr.style "width" "100%"

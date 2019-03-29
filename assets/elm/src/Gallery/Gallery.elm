@@ -111,7 +111,7 @@ init { title, titleImg, article, album } outMsg =
     { loaded = Set.empty
     , loadedThumbs = Set.empty
     , imagesStream = stream
-    , imagesSrcs = List.map .url images
+    , imagesSrcs = List.map .url album
     , mbDrag = Nothing
     , mbAnim = Nothing
     , clock = 0
@@ -383,17 +383,19 @@ view config model =
     in
     Element.map model.outMsg <|
         column
-            [ Background.color lightGrey
-            , Border.rounded 5
+            [ Background.color lightCharcoal
             , centerX
             ]
             [ titleRow config model
-            , case model.displayMode of
-                DisplayImage ->
-                    galleryView config model
+            , el
+                [ Background.color white ]
+                (case model.displayMode of
+                    DisplayImage ->
+                        galleryView config model
 
-                DisplayGrid ->
-                    gridView config model
+                    DisplayGrid ->
+                        gridView config model
+                )
             , captionRow config model
             ]
 
@@ -410,9 +412,13 @@ titleRow config model =
         , spacing 20
         ]
         [ el
-            [ Font.size 16
-            , Font.color (rgb 0 0.5 0)
-            , Font.bold
+            [ Font.size 30
+            , Font.center
+            , Font.color white
+            , Font.family
+                [ Font.typeface "Great Vibes"
+                , Font.serif
+                ]
             ]
             (text <|
                 String.Extra.toSentenceCase
@@ -451,6 +457,7 @@ captionRow config model =
                 , padding 15
                 , spacing 20
                 , height (minimum 20 fill)
+                , Font.color white
                 ]
                 [ paragraph
                     []
@@ -505,9 +512,9 @@ galleryView config model =
                 (el
                     ([ Font.bold
                      , centerY
-                     , Font.color (rgb255 255 255 255)
+                     , Font.color lightCharcoal
                      , Border.rounded 20
-                     , Background.color (rgba 255 255 255 0.5)
+                     , Background.color (rgba 255 255 255 0.7)
                      ]
                         ++ attr
                     )
@@ -601,7 +608,17 @@ picView config model { url, size } =
     in
     if Set.member url model.loaded then
         el
-            [ Background.color grey ]
+            [ Background.tiled "/images/canvas.png"
+            , behindContent
+                (el
+                    [ Background.color white
+                    , alpha 0.5
+                    , width (px w)
+                    , height (px h)
+                    ]
+                    Element.none
+                )
+            ]
             (el
                 ([ width (px w)
                  , height (px h)
@@ -613,7 +630,7 @@ picView config model { url, size } =
             )
     else
         column
-            [ Background.color grey
+            [ Background.tiled "/images/canvas.png"
             , width (px w)
             , height (px h)
             ]
@@ -665,7 +682,7 @@ gridView config model =
             if Set.member url model.loadedThumbs then
                 el
                     [ padding 5
-                    , Background.color lightGrey
+                    , Background.color lightCharcoal
                     , mouseOver
                         [ Background.color darkGrey ]
                     , Border.rounded 5
@@ -683,34 +700,30 @@ gridView config model =
                         Element.none
                     )
             else
-                column
-                    [ padding 5
-                    , Background.color lightGrey
-                    , mouseOver
-                        [ Background.color darkGrey ]
+                el
+                    [ Background.color lightCharcoal
                     , Border.rounded 5
-                    , pointer
-                    , width (px <| thumbSize + 10)
-                    , height (px <| thumbSize + 10)
                     ]
-                    [ html <|
-                        Html.img
-                            [ HtmlAttr.hidden True
-                            , HtmlEvents.on "load" (Decode.succeed (ThumbLoaded url))
-                            , HtmlAttr.src (awsUrl ++ thumbSrc url)
-                            ]
-                            []
-                    , image
-                        [ centerX
-                        , centerY
+                    (column
+                        [ padding 5
+                        , Border.rounded 5
+                        , pointer
+                        , width (px <| thumbSize + 10)
+                        , height (px <| thumbSize + 10)
+                        , Background.image "/images/loadingSmall.gif"
                         ]
-                        { src = "/images/loading.gif"
-                        , description = "chargement"
-                        }
-                    ]
+                        [ html <|
+                            Html.img
+                                [ HtmlAttr.hidden True
+                                , HtmlEvents.on "load" (Decode.succeed (ThumbLoaded url))
+                                , HtmlAttr.src (awsUrl ++ thumbSrc url)
+                                ]
+                                []
+                        ]
+                    )
     in
     column
-        [ Background.color grey
+        [ Background.tiled "/images/canvas.png"
         , width (px w)
         , height (px h)
         , scrollbarY

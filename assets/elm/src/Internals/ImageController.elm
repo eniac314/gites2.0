@@ -141,10 +141,11 @@ type Msg
     | GetContents
     | GotContents (Result Http.Error (Dict String ImageMeta))
     | PickImage ImageMeta
-    | ConfirmSelection
+    | AddToSelection
+    | RemoveFromOutput Int
     | DeletePicked
     | Deleted ImageMeta (Result Http.Error Bool)
-    | SetCaption Int String
+    | SetCaption Lang Int String
     | SwapUp Int
     | SwapDown Int
     | GoBack
@@ -341,10 +342,25 @@ update config msg model =
             , Nothing
             )
 
-        ConfirmSelection ->
+        AddToSelection ->
             ( { model
                 | output =
-                    List.indexedMap Tuple.pair model.picked
+                    Dict.values model.output
+                        ++ model.picked
+                        |> List.Extra.uniqueBy .url
+                        |> List.indexedMap Tuple.pair
+                        |> Dict.fromList
+              }
+            , Cmd.none
+            , Nothing
+            )
+
+        RemoveFromOutput id ->
+            ( { model
+                | output =
+                    Dict.remove id model.output
+                        |> Dict.values
+                        |> List.indexedMap Tuple.pair
                         |> Dict.fromList
               }
             , Cmd.none
@@ -380,19 +396,30 @@ update config msg model =
                     , Nothing
                     )
 
-        SetCaption id s ->
+        SetCaption lang id s ->
             case Dict.get id model.output of
                 Just img ->
                     ( { model
                         | output =
-                            Dict.insert id
-                                { img
-                                    | caption =
-                                        if s == "" then
-                                            Nothing
-                                        else
-                                            Just (MultLangStr s s)
-                                }
+                            Dict.update id
+                                (\mbImg ->
+                                    case Maybe.map .caption mbImg of
+                                        Just (Just { fr, en }) ->
+                                            case lang of
+                                                English ->
+                                                    Just { img | caption = Just <| MultLangStr s fr }
+
+                                                _ ->
+                                                    Just { img | caption = Just <| MultLangStr en s }
+
+                                        _ ->
+                                            case lang of
+                                                English ->
+                                                    Just { img | caption = Just <| MultLangStr s "" }
+
+                                                _ ->
+                                                    Just { img | caption = Just <| MultLangStr "" s }
+                                )
                                 model.output
                       }
                     , Cmd.none
@@ -493,11 +520,11 @@ view config model =
                         (buttonStyle (model.locked == []))
                         { onPress =
                             if model.locked == [] then
-                                Just ConfirmSelection
+                                Just AddToSelection
                             else
                                 Nothing
                         , label =
-                            textM config.lang (MultLangStr "Confirm selection" "Valider selection")
+                            textM config.lang (MultLangStr "Add to selection" "Ajouter à la selection")
                         }
                     , Input.button
                         (buttonStyle (model.picked /= []))
@@ -683,7 +710,12 @@ rowOutputView config model =
                 )
             , sameHeightImgRow
                 awsUrl
-                Nothing
+                (Just <|
+                    { swapLeft = SwapUp
+                    , swapRight = SwapDown
+                    , delete = RemoveFromOutput
+                    }
+                )
                 (Dict.values model.output)
             ]
 
@@ -726,12 +758,13 @@ captionEditorView config wc ( id, { url, caption } ) =
         , padding 5
         , spacing 15
         ]
-        [ el
+        [ Keyed.el
             [ padding 5
             , Background.color lightGrey
             , Border.rounded 5
             ]
-            (el
+            ( url
+            , el
                 [ width (px 140)
                 , height (px 105)
                 , centerX
@@ -745,48 +778,79 @@ captionEditorView config wc ( id, { url, caption } ) =
                 ]
                 Element.none
             )
-        , Input.text
-            (textInputStyle ++ [ alignLeft, width (px 400) ])
-            { onChange = SetCaption id
-            , text =
-                Maybe.map (strM config.lang) caption
-                    |> Maybe.withDefault ""
-            , placeholder =
-                Just <|
-                    Input.placeholder []
-                        (textM config.lang
-                            (MultLangStr "Optional caption"
-                                "Legende optionnelle"
+        , column [ spacing 15 ]
+            [ Input.text
+                (textInputStyle ++ [ alignLeft, width (px 400) ])
+                { onChange = SetCaption French id
+                , text =
+                    Maybe.map (strM French) caption
+                        |> Maybe.withDefault ""
+                , placeholder =
+                    Just <|
+                        Input.placeholder []
+                            (textM config.lang
+                                (MultLangStr "Optional caption (French)"
+                                    "Legende optionnelle (Français)"
+                                )
                             )
-                        )
-            , label =
-                Input.labelHidden ""
-            }
-        , column
-            [ spacing 15
-            , paddingXY 15 0
-            , alignRight
+                , label =
+                    Input.labelHidden ""
+                }
+            , Input.text
+                (textInputStyle ++ [ alignLeft, width (px 400) ])
+                { onChange = SetCaption English id
+                , text =
+                    Maybe.map (strM English) caption
+                        |> Maybe.withDefault ""
+                , placeholder =
+                    Just <|
+                        Input.placeholder []
+                            (textM config.lang
+                                (MultLangStr "Optional caption (English)"
+                                    "Legende optionnelle (Anglais)"
+                                )
+                            )
+                , label =
+                    Input.labelHidden ""
+                }
             ]
+        , row
+            [ alignRight ]
             [ Input.button
                 iconsStyle
-                { onPress = Just <| SwapUp id
+                { onPress = Just <| RemoveFromOutput id
                 , label =
-                    Icons.arrowUp
+                    Icons.x
                         (Icons.defOptions
                             |> Icons.color black
                             |> Icons.size 25
                         )
                 }
-            , Input.button
-                iconsStyle
-                { onPress = Just <| SwapDown id
-                , label =
-                    Icons.arrowDown
-                        (Icons.defOptions
-                            |> Icons.color black
-                            |> Icons.size 25
-                        )
-                }
+            , column
+                [ spacing 15
+                , paddingXY 15 0
+                ]
+                [ Input.button
+                    iconsStyle
+                    { onPress = Just <| SwapUp id
+                    , label =
+                        Icons.arrowUp
+                            (Icons.defOptions
+                                |> Icons.color black
+                                |> Icons.size 25
+                            )
+                    }
+                , Input.button
+                    iconsStyle
+                    { onPress = Just <| SwapDown id
+                    , label =
+                        Icons.arrowDown
+                            (Icons.defOptions
+                                |> Icons.color black
+                                |> Icons.size 25
+                            )
+                    }
+                ]
             ]
         ]
 

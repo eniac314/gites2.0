@@ -15,9 +15,10 @@ import Html as Html
 import Html.Attributes as HtmlAttr
 import Html.Events as HtmlEvents
 import Http exposing (..)
-import Internals.Helpers exposing (awsUrl)
+import Internals.Helpers exposing (awsUrl, thumbSrc)
 import Json.Decode as Decode
 import Json.Decode.Pipeline exposing (required)
+import MultLang.MultLang exposing (..)
 import Style.Helpers exposing (..)
 
 
@@ -81,10 +82,10 @@ decodePosition =
 -----------------------------------
 
 
-getGalleryMetas : (Result Error (Dict String GalleryMeta) -> msg) -> Cmd msg
-getGalleryMetas responseHandler =
+getDetailsPage : (Result Error (Dict String GalleryMeta) -> msg) -> Cmd msg
+getDetailsPage responseHandler =
     Http.get
-        { url = "api/pagesdata/galleryMetas"
+        { url = "/api/pagesdata/details"
         , expect =
             Http.expectJson
                 responseHandler
@@ -94,9 +95,12 @@ getGalleryMetas responseHandler =
 
 decodeGalleryMetas : Decode.Decoder (Dict String GalleryMeta)
 decodeGalleryMetas =
-    Decode.list decodeGalleryMeta
-        |> Decode.map (List.map (\g -> ( g.title.en, g )))
-        |> Decode.map Dict.fromList
+    Decode.field "data" <|
+        Decode.field "content"
+            (Decode.list decodeGalleryMeta
+                |> Decode.map (List.map (\g -> ( g.title.en, g )))
+                |> Decode.map Dict.fromList
+            )
 
 
 decodeGalleryMeta : Decode.Decoder GalleryMeta
@@ -108,26 +112,40 @@ decodeGalleryMeta =
         |> required "album" (Decode.list decodeImageMeta)
 
 
-imgBlockView handler ( title, titleImg ) =
+imgBlockView lang handler ( folder, title, titleImg ) =
     column
-        [ spacing 10
-        , padding 10
-        , width (px 200)
-        , alignTop
+        [ width (px 200)
+        , height (px 200)
         , mouseOver
             [ alpha 0.7 ]
-        , Border.rounded 5
-        , Events.onClick (handler title)
+        , Events.onClick (handler folder)
+        , Background.image <|
+            awsUrl
+                ++ thumbSrc titleImg
+        , pointer
         ]
         [ el
-            [ width (px 190)
-            , height (px 190)
+            [ width (px 187)
+            , height (px 187)
             , centerX
-            , Background.image <|
-                awsUrl
-                    ++ title
-                    ++ "/thumbs/"
-                    ++ titleImg
+            , centerY
+            , Background.color (rgba 1 1 1 0.6)
+            , Border.width 3
+            , Border.color (rgb255 101 51 61)
             ]
-            Element.none
+            (paragraph
+                [ centerX
+                , centerY
+                , Font.color (rgb255 101 51 61)
+                , Font.size 24
+                , Font.center
+                , Font.family
+                    [ Font.typeface "times"
+                    ]
+                ]
+                [ strM lang title
+                    |> String.toUpper
+                    |> text
+                ]
+            )
         ]

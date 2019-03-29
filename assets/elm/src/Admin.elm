@@ -308,8 +308,8 @@ tabsView model =
             DisplayGalleryAdmin
             SetDisplayMode
             (strM model.lang
-                (MultLangStr "Details Admin"
-                    "Editeur présentation"
+                (MultLangStr "Our Gîte Admin"
+                    "Editeur Notre gîte"
                 )
             )
         , tabView model.displayMode

@@ -1,5 +1,6 @@
 module Gallery.GalleryPage exposing (..)
 
+import Browser.Navigation exposing (pushUrl)
 import Dict exposing (..)
 import Element exposing (..)
 import Element.Background as Background
@@ -12,19 +13,23 @@ import Element.Lazy as Lazy
 import Element.Region as Region
 import Gallery.Gallery as Gallery exposing (..)
 import Gallery.GalleryShared exposing (..)
+import Http exposing (..)
 import Internals.Helpers exposing (..)
 import MultLang.MultLang exposing (..)
+import Style.Helpers exposing (..)
 import Url
 
 
 type alias Model msg =
-    { galleries : Dict String (Gallery.Model Msg)
+    { galleries : Dict String (Gallery.Model msg)
     , outMsg : Msg -> msg
     }
 
 
 type Msg
     = GalleryMsg String Gallery.Msg
+    | OpenGallery String
+    | GotGalleryMetas (Result Http.Error (Dict String GalleryMeta))
     | NoOp
 
 
@@ -32,6 +37,7 @@ type alias Config a =
     { a
         | width : Int
         , lang : Lang
+        , key : Browser.Navigation.Key
     }
 
 
@@ -39,16 +45,17 @@ init outMsg =
     ( { galleries = Dict.empty
       , outMsg = outMsg
       }
-    , Cmd.none
+    , Cmd.batch
+        [ getDetailsPage (outMsg << GotGalleryMetas)
+        ]
     )
 
 
 subscriptions model =
-    Sub.map model.outMsg <|
-        Sub.batch
-            (Dict.map (\t g -> Gallery.subscriptions g) model.galleries
-                |> Dict.values
-            )
+    Sub.batch
+        (Dict.map (\t g -> Gallery.subscriptions g) model.galleries
+            |> Dict.values
+        )
 
 
 update : Config a -> Msg -> Model msg -> ( Model msg, Cmd msg )
@@ -65,7 +72,28 @@ update config msg ({ galleries } as model) =
                         | galleries =
                             Dict.insert title gallery model.galleries
                       }
-                    , Cmd.map model.outMsg cmd
+                    , cmd
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        OpenGallery title ->
+            ( model, pushUrl config.key <| "details/" ++ title )
+
+        GotGalleryMetas res ->
+            case res of
+                Ok galleryMetas ->
+                    ( { model
+                        | galleries =
+                            Dict.map
+                                (\k gm ->
+                                    Gallery.init gm
+                                        (model.outMsg << GalleryMsg k)
+                                )
+                                galleryMetas
+                      }
+                    , Cmd.none
                     )
 
                 _ ->
@@ -84,41 +112,59 @@ type alias ViewConfig =
 
 view : ViewConfig -> Model msg -> Element msg
 view config model =
-    Element.map model.outMsg <|
-        column
-            [ spacing 15
-            , padding 15
-            , width (maximum 1000 fill)
-            , centerX
-            , Font.size 16
-            ]
-            (case String.split "/" config.url.path of
-                "" :: "presentation" :: [] ->
-                    [ homeView config model ]
+    column
+        [ spacing 15
+        , padding 15
+        , width (maximum 1000 fill)
+        , centerX
+        , Font.size 16
+        ]
+        (case
+            String.split "/"
+                (Url.percentDecode config.url.path
+                    |> Maybe.withDefault ""
+                )
+         of
+            "" :: "details" :: [] ->
+                [ homeView config model ]
 
-                "" :: "presentation" :: galleryTitle :: [] ->
-                    [ galleryView config model galleryTitle ]
+            "" :: "details" :: galleryTitle :: [] ->
+                [ galleryView config model galleryTitle ]
 
-                _ ->
-                    []
-            )
+            _ ->
+                []
+        )
 
 
-homeView : ViewConfig -> Model msg -> Element Msg
+homeView : ViewConfig -> Model msg -> Element msg
 homeView config model =
     column
-        []
+        [ centerX ]
         (chunkedRows
             (min config.width 1000)
             (bestFit 200)
-            (Dict.map (\k v -> ( k, v.title.en )) model.galleries
+            (Dict.map
+                (\k v ->
+                    let
+                        defTitleImg =
+                            case v.titleImg of
+                                Just url ->
+                                    url
+
+                                Nothing ->
+                                    List.head v.imagesSrcs
+                                        |> Maybe.withDefault ""
+                    in
+                    ( k, v.title, defTitleImg )
+                )
+                model.galleries
                 |> Dict.values
-                |> List.map (imgBlockView (\_ -> NoOp))
+                |> List.map (imgBlockView config.lang (model.outMsg << OpenGallery))
             )
         )
 
 
-galleryView : ViewConfig -> Model msg -> String -> Element Msg
+galleryView : ViewConfig -> Model msg -> String -> Element msg
 galleryView config model title =
     case Dict.get title model.galleries of
         Just gallery ->

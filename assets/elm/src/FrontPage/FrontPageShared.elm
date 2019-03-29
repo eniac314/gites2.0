@@ -61,7 +61,7 @@ frontPageItemView config item =
 getFrontPageContent : (Result Error FrontPageContent -> msg) -> Cmd msg
 getFrontPageContent responseHandler =
     Http.get
-        { url = "api/pagesdata/frontPage"
+        { url = "/api/pagesdata/frontPage"
         , expect =
             Http.expectJson
                 responseHandler

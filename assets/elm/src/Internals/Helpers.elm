@@ -9,6 +9,8 @@ import Element.Input as Input
 import Element.Keyed as Keyed
 import Element.Lazy exposing (lazy)
 import Http exposing (Error(..))
+import Json.Encode as E
+import MultLang.MultLang exposing (..)
 import String.Extra exposing (insertAt)
 import Style.Helpers exposing (..)
 import Task exposing (perform)
@@ -208,3 +210,35 @@ thumbSrc s =
 
         n :: _ ->
             String.Extra.insertAt "/thumbs" n s
+
+
+encodeMls : MultLangStr -> E.Value
+encodeMls { en, fr } =
+    E.object
+        [ ( "MultLangStr"
+          , E.object
+                [ ( "en", E.string en )
+                , ( "fr", E.string fr )
+                ]
+          )
+        ]
+
+
+encodeImageMeta : ImageMeta -> E.Value
+encodeImageMeta { url, caption, size } =
+    E.object
+        [ ( "url", E.string url )
+        , ( "caption"
+          , Maybe.map encodeMls caption
+                |> Maybe.withDefault E.null
+          )
+        , ( "size", encodeSize size )
+        ]
+
+
+encodeSize : { width : Int, height : Int } -> E.Value
+encodeSize size =
+    E.object
+        [ ( "width", E.int size.width )
+        , ( "height", E.int size.height )
+        ]
