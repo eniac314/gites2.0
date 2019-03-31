@@ -86,7 +86,7 @@ update config msg model =
 
         GotGalleryMetas res ->
             case res of
-                Ok { galleries, mainArticle } ->
+                Ok { mainArticle, galleries } ->
                     ( { model
                         | galleries =
                             Dict.map

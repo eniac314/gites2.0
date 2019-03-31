@@ -100,19 +100,20 @@ type alias DetailsPage =
 
 
 decodePage =
-    Decode.map2 DetailsPage
-        (Decode.field "mainArticle" (Decode.nullable decodeMls))
-        (Decode.field "galleries" decodeGalleryMetas)
+    Decode.field "data" <|
+        Decode.field "content"
+            (Decode.map2
+                DetailsPage
+                (Decode.field "mainArticle" (Decode.nullable decodeMls))
+                (Decode.field "galleries" decodeGalleryMetas)
+            )
 
 
 decodeGalleryMetas : Decode.Decoder (Dict String GalleryMeta)
 decodeGalleryMetas =
-    Decode.field "data" <|
-        Decode.field "content"
-            (Decode.list decodeGalleryMeta
-                |> Decode.map (List.map (\g -> ( g.key, g )))
-                |> Decode.map Dict.fromList
-            )
+    Decode.list decodeGalleryMeta
+        |> Decode.map (List.map (\g -> ( g.key, g )))
+        |> Decode.map Dict.fromList
 
 
 decodeGalleryMeta : Decode.Decoder GalleryMeta
