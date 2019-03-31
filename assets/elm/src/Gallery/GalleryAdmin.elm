@@ -17,10 +17,13 @@ import Http exposing (..)
 import Internals.Helpers exposing (..)
 import Internals.ImageController as ImageController
 import Internals.MarkdownEditor as MarkdownEditor
+import Internals.MarkdownParser as MarkdownParser
 import Json.Decode as D
 import Json.Encode as E
+import List.Extra exposing (swapAt)
 import MultLang.MultLang exposing (..)
 import Style.Helpers exposing (..)
+import Style.Icons as Icons
 import Style.Palette exposing (..)
 
 
@@ -29,8 +32,9 @@ type alias Model msg =
     , markdownEditor : MarkdownEditor.Model msg
     , gallery : Maybe (Gallery.Model msg)
     , controllers : Dict String (ImageController.Model msg)
-    , newGalleryInputEn : Maybe String
-    , newGalleryInputFr : Maybe String
+    , mainArticle : Maybe MultLangStr
+    , titleInputEn : Maybe String
+    , titleInputFr : Maybe String
     , displayMode : DisplayMode
     , outMsg : Msg -> msg
     }
@@ -40,14 +44,25 @@ type DisplayMode
     = DisplayHome
     | EditGalleryMeta String
     | EditGalleryImgs String
-    | EditGalleryArticle String
+    | EditMarkdown EditMarkdownMode String
+
+
+type EditMarkdownMode
+    = EditArticleMode
+    | EditHeaderMode
+    | EditMainArticleMode
 
 
 type Msg
     = NewGalleryEnTitle String
     | NewGalleryFrTitle String
+    | ConfirmTitleChange String
     | MakeNewGallery
+    | EditMainArticle
+    | SwapLeft Int
+    | SwapRight Int
     | EditMeta String
+    | EditHeader String
     | EditArticle String
     | EditImgs String
     | DeleteGallery String
@@ -55,7 +70,7 @@ type Msg
     | MarkdownEditorMsg MarkdownEditor.Msg
     | ImageControllerMsg String ImageController.Msg
     | GalleryMsg Gallery.Msg
-    | GotGalleryMetas (Result Http.Error (Dict String GalleryMeta))
+    | GotGalleryMetas (Result Http.Error DetailsPage)
     | Save
     | Saved (Result Http.Error ())
     | SetDisplayMode DisplayMode
@@ -71,8 +86,9 @@ init outMsg =
                 (outMsg << MarkdownEditorMsg)
       , gallery = Nothing
       , controllers = Dict.empty
-      , newGalleryInputEn = Nothing
-      , newGalleryInputFr = Nothing
+      , mainArticle = Nothing
+      , titleInputEn = Nothing
+      , titleInputFr = Nothing
       , displayMode = DisplayHome
       , outMsg = outMsg
       }
@@ -110,7 +126,7 @@ update config msg model =
     case msg of
         NewGalleryEnTitle title ->
             ( { model
-                | newGalleryInputEn =
+                | titleInputEn =
                     if title == "" then
                         Nothing
                     else
@@ -121,7 +137,7 @@ update config msg model =
 
         NewGalleryFrTitle title ->
             ( { model
-                | newGalleryInputFr =
+                | titleInputFr =
                     if title == "" then
                         Nothing
                     else
@@ -130,14 +146,81 @@ update config msg model =
             , Cmd.none
             )
 
+        EditMainArticle ->
+            ( { model
+                | markdownEditor =
+                    MarkdownEditor.load
+                        model.markdownEditor
+                        model.mainArticle
+                , displayMode = EditMarkdown EditMainArticleMode ""
+              }
+            , Cmd.none
+            )
+
+        SwapLeft id ->
+            let
+                newGalleries =
+                    Dict.toList model.galleries
+                        |> List.sortBy (.ordering << Tuple.second)
+                        |> swapAt id (id - 1)
+                        |> List.indexedMap (\i ( k, v ) -> ( k, { v | ordering = i } ))
+                        |> Dict.fromList
+
+                newModel =
+                    { model | galleries = newGalleries }
+            in
+            ( newModel
+            , saveDetailsPage config.logInfo newModel
+            )
+
+        SwapRight id ->
+            let
+                newGalleries =
+                    Dict.toList model.galleries
+                        |> List.sortBy (.ordering << Tuple.second)
+                        |> swapAt id (id + 1)
+                        |> List.indexedMap (\i ( k, v ) -> ( k, { v | ordering = i } ))
+                        |> Dict.fromList
+
+                newModel =
+                    { model | galleries = newGalleries }
+            in
+            ( newModel
+            , saveDetailsPage config.logInfo newModel
+            )
+
+        ConfirmTitleChange key ->
+            case ( model.titleInputFr, model.titleInputEn, Dict.get key model.galleries ) of
+                ( Just fr, Just en, Just g ) ->
+                    let
+                        newModel =
+                            { model
+                                | galleries =
+                                    Dict.insert
+                                        key
+                                        { g | title = MultLangStr en fr }
+                                        model.galleries
+                            }
+                                |> reloadGallery key
+                    in
+                    ( newModel
+                    , saveDetailsPage config.logInfo newModel
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
+
         MakeNewGallery ->
-            case ( model.newGalleryInputEn, model.newGalleryInputFr ) of
+            case ( model.titleInputEn, model.titleInputFr ) of
                 ( Just enTitle, Just frTitle ) ->
                     let
                         newGallery =
                             { title =
                                 MultLangStr enTitle frTitle
+                            , key = enTitle
+                            , ordering = Dict.size model.galleries
                             , titleImg = Nothing
+                            , header = Nothing
                             , article = Nothing
                             , album = []
                             }
@@ -169,10 +252,32 @@ update config msg model =
         EditMeta title ->
             ( { model
                 | displayMode = EditGalleryMeta title
+                , titleInputFr =
+                    Dict.get title model.galleries
+                        |> Maybe.map (.fr << .title)
+                , titleInputEn =
+                    Dict.get title model.galleries
+                        |> Maybe.map (.en << .title)
               }
                 |> reloadGallery title
             , Cmd.none
             )
+
+        EditHeader title ->
+            case Dict.get title model.galleries of
+                Just { header } ->
+                    ( { model
+                        | markdownEditor =
+                            MarkdownEditor.load
+                                model.markdownEditor
+                                header
+                        , displayMode = EditMarkdown EditHeaderMode title
+                      }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
 
         EditArticle title ->
             case Dict.get title model.galleries of
@@ -182,7 +287,7 @@ update config msg model =
                             MarkdownEditor.load
                                 model.markdownEditor
                                 article
-                        , displayMode = EditGalleryArticle title
+                        , displayMode = EditMarkdown EditArticleMode title
                       }
                     , Cmd.none
                     )
@@ -241,7 +346,7 @@ update config msg model =
                     MarkdownEditor.update markdownEditorMsg model.markdownEditor
             in
             case model.displayMode of
-                EditGalleryArticle title ->
+                EditMarkdown mode title ->
                     case mbPluginRes of
                         Nothing ->
                             ( { model | markdownEditor = newEditor }
@@ -251,7 +356,11 @@ update config msg model =
                         Just PluginQuit ->
                             ( { model
                                 | markdownEditor = newEditor
-                                , displayMode = EditGalleryMeta title
+                                , displayMode =
+                                    if mode == EditMainArticleMode then
+                                        DisplayHome
+                                    else
+                                        EditGalleryMeta title
                               }
                                 |> reloadGallery title
                             , Cmd.none
@@ -260,23 +369,37 @@ update config msg model =
                         Just (PluginData data) ->
                             let
                                 newModel =
-                                    { model
-                                        | markdownEditor = newEditor
-                                        , galleries =
-                                            Dict.update
-                                                title
-                                                (\mbG ->
-                                                    case mbG of
-                                                        Nothing ->
-                                                            Nothing
+                                    if mode == EditMainArticleMode then
+                                        { model
+                                            | mainArticle = Just data
+                                            , displayMode = DisplayHome
+                                        }
+                                    else
+                                        { model
+                                            | markdownEditor = newEditor
+                                            , galleries =
+                                                Dict.update
+                                                    title
+                                                    (\mbG ->
+                                                        case mbG of
+                                                            Nothing ->
+                                                                Nothing
 
-                                                        Just g ->
-                                                            Just { g | article = Just data }
-                                                )
-                                                model.galleries
-                                        , displayMode = EditGalleryMeta title
-                                    }
-                                        |> reloadGallery title
+                                                            Just g ->
+                                                                case mode of
+                                                                    EditArticleMode ->
+                                                                        Just { g | article = Just data }
+
+                                                                    EditHeaderMode ->
+                                                                        Just { g | header = Just data }
+
+                                                                    _ ->
+                                                                        Just g
+                                                    )
+                                                    model.galleries
+                                            , displayMode = EditGalleryMeta title
+                                        }
+                                            |> reloadGallery title
                             in
                             ( newModel
                             , saveDetailsPage config.logInfo newModel
@@ -368,7 +491,7 @@ update config msg model =
 
         GotGalleryMetas res ->
             case res of
-                Ok galleries ->
+                Ok { mainArticle, galleries } ->
                     let
                         ( controllers, cmds ) =
                             Dict.foldr
@@ -388,6 +511,7 @@ update config msg model =
                     ( { model
                         | galleries = galleries
                         , controllers = controllers
+                        , mainArticle = mainArticle
                       }
                     , Cmd.batch cmds
                     )
@@ -402,7 +526,13 @@ update config msg model =
             ( model, Cmd.none )
 
         SetDisplayMode dm ->
-            ( { model | displayMode = dm }
+            ( { model
+                | displayMode = dm
+                , titleInputEn =
+                    Maybe.map .en (extractTitle model dm)
+                , titleInputFr =
+                    Maybe.map .fr (extractTitle model dm)
+              }
             , Cmd.none
             )
 
@@ -420,6 +550,41 @@ reloadGallery title model =
                             (model.outMsg << GalleryMsg)
                     )
     }
+
+
+extractTitle model dm =
+    let
+        go title =
+            Dict.get title model.galleries
+                |> Maybe.map .title
+    in
+    case dm of
+        DisplayHome ->
+            Nothing
+
+        EditGalleryMeta t ->
+            go t
+
+        EditGalleryImgs t ->
+            go t
+
+        EditMarkdown _ t ->
+            go t
+
+
+extractKey dm =
+    case dm of
+        EditGalleryMeta t ->
+            Just t
+
+        EditGalleryImgs t ->
+            Just t
+
+        EditMarkdown _ t ->
+            Just t
+
+        _ ->
+            Nothing
 
 
 
@@ -456,8 +621,8 @@ view config model =
             EditGalleryImgs title ->
                 galleryImgView config model title
 
-            EditGalleryArticle title ->
-                galleryArticleView config model title
+            EditMarkdown _ title ->
+                MarkdownEditor.view config model.markdownEditor
         )
 
 
@@ -465,14 +630,49 @@ homeView : ViewConfig -> Model msg -> Element Msg
 homeView config model =
     let
         canMakeNewGallery =
-            (model.newGalleryInputEn /= Nothing)
-                && (model.newGalleryInputFr /= Nothing)
+            (model.titleInputEn /= Nothing)
+                && (model.titleInputFr /= Nothing)
+
+        controls id =
+            row
+                [ centerX
+                , spacing 10
+                , padding 10
+                ]
+                [ Input.button
+                    iconsStyle
+                    { onPress = Just <| SwapLeft id
+                    , label =
+                        Icons.arrowLeft
+                            (Icons.defOptions
+                                |> Icons.color black
+                                |> Icons.size 25
+                            )
+                    }
+                , Input.button
+                    iconsStyle
+                    { onPress = Just <| SwapRight id
+                    , label =
+                        Icons.arrowRight
+                            (Icons.defOptions
+                                |> Icons.color black
+                                |> Icons.size 25
+                            )
+                    }
+                ]
+
+        gallerySelectorView gm =
+            column
+                []
+                [ imgBlockView config.lang EditMeta gm
+                , controls gm.ordering
+                ]
     in
     column
         [ spacing 15
         , width fill
         ]
-        [ row
+        [ column
             [ spacing 15
             , centerX
             , padding 15
@@ -488,7 +688,7 @@ homeView config model =
                     textInputStyle
                     { onChange = NewGalleryEnTitle
                     , text =
-                        model.newGalleryInputEn
+                        model.titleInputEn
                             |> Maybe.withDefault ""
                     , placeholder =
                         Just <|
@@ -505,7 +705,7 @@ homeView config model =
                     textInputStyle
                     { onChange = NewGalleryFrTitle
                     , text =
-                        model.newGalleryInputFr
+                        model.titleInputFr
                             |> Maybe.withDefault ""
                     , placeholder =
                         Just <|
@@ -518,43 +718,60 @@ homeView config model =
                     , label =
                         Input.labelHidden ""
                     }
+                , Input.button
+                    (buttonStyle canMakeNewGallery)
+                    { onPress =
+                        if canMakeNewGallery then
+                            Just MakeNewGallery
+                        else
+                            Nothing
+                    , label =
+                        textM config.lang
+                            (MultLangStr "New page" "Nouvelle page")
+                    }
                 ]
             , Input.button
-                (buttonStyle canMakeNewGallery)
+                (buttonStyle True)
                 { onPress =
-                    if canMakeNewGallery then
-                        Just MakeNewGallery
-                    else
-                        Nothing
+                    Just EditMainArticle
                 , label =
                     textM config.lang
-                        (MultLangStr "New page" "Nouvelle page")
+                        (MultLangStr "Edit main article" "Modifier présentation")
                 }
             ]
         , column
             [ centerX ]
-            (chunkedRows
-                (min config.width 1000)
-                (bestFit 200)
-                (Dict.map
-                    (\k v ->
-                        let
-                            defTitleImg =
-                                case v.titleImg of
-                                    Just url ->
-                                        url
+            ([ case model.mainArticle of
+                Just a ->
+                    MarkdownParser.renderMarkdown
+                        (strM config.lang a)
 
-                                    Nothing ->
-                                        List.head v.album
-                                            |> Maybe.map .url
-                                            |> Maybe.withDefault ""
-                        in
-                        ( k, v.title, defTitleImg )
+                Nothing ->
+                    Element.none
+             ]
+                ++ chunkedRows
+                    (min config.width 1000)
+                    (bestFit 200)
+                    (Dict.map
+                        (\k v ->
+                            let
+                                defTitleImg =
+                                    case v.titleImg of
+                                        Just url ->
+                                            url
+
+                                        Nothing ->
+                                            List.head v.album
+                                                |> Maybe.map .url
+                                                |> Maybe.withDefault ""
+                            in
+                            { v | titleImg = Just defTitleImg }
+                        )
+                        model.galleries
+                        |> Dict.values
+                        |> List.sortBy .ordering
+                        |> List.map gallerySelectorView
                     )
-                    model.galleries
-                    |> Dict.values
-                    |> List.map (imgBlockView config.lang EditMeta)
-                )
             )
         ]
 
@@ -578,14 +795,73 @@ galleryMetaView config model title =
                 [ spacing 15
                 , width fill
                 ]
-                [ el
-                    [ centerX ]
-                    (imgBlockView config.lang (\_ -> model.outMsg NoOp) ( title, g.title, defTitleImg ))
+                [ row
+                    [ centerX
+                    , spacing 15
+                    ]
+                    [ el
+                        [ centerX ]
+                        (imgBlockView config.lang (\_ -> model.outMsg NoOp) { g | titleImg = Just defTitleImg })
+                    , column
+                        [ spacing 15
+                        ]
+                        [ Input.text
+                            textInputStyle
+                            { onChange = model.outMsg << NewGalleryEnTitle
+                            , text =
+                                model.titleInputEn
+                                    |> Maybe.withDefault ""
+                            , placeholder =
+                                Just <|
+                                    Input.placeholder []
+                                        (textM config.lang
+                                            (MultLangStr "Page name - (english)"
+                                                "Nom de la page - (Anglais)"
+                                            )
+                                        )
+                            , label =
+                                Input.labelHidden ""
+                            }
+                        , Input.text
+                            textInputStyle
+                            { onChange = model.outMsg << NewGalleryFrTitle
+                            , text =
+                                model.titleInputFr
+                                    |> Maybe.withDefault ""
+                            , placeholder =
+                                Just <|
+                                    Input.placeholder []
+                                        (textM config.lang
+                                            (MultLangStr "Page name - (french)"
+                                                "Nom de la page - (Français)"
+                                            )
+                                        )
+                            , label =
+                                Input.labelHidden ""
+                            }
+                        , Input.button
+                            (buttonStyle True)
+                            { onPress =
+                                Just (model.outMsg <| ConfirmTitleChange title)
+                            , label =
+                                textM config.lang
+                                    (MultLangStr "Change title" "Modifier titre")
+                            }
+                        ]
+                    ]
                 , row
                     [ centerX
                     , spacing 15
                     ]
                     [ Input.button
+                        (buttonStyle True)
+                        { onPress =
+                            Just (model.outMsg <| EditHeader title)
+                        , label =
+                            textM config.lang
+                                (MultLangStr "Edit header" "Modifier en-tête")
+                        }
+                    , Input.button
                         (buttonStyle True)
                         { onPress =
                             Just (model.outMsg <| EditArticle title)
@@ -618,20 +894,35 @@ galleryMetaView config model title =
                                 (MultLangStr "Go back" "Retour")
                         }
                     ]
-                , case model.gallery of
-                    Just gallery ->
-                        column
-                            [ padding 15
-                            , Background.color white
-                            , Border.color grey
-                            , Border.rounded 5
-                            , width (px (min config.width 1000))
-                            , centerX
-                            ]
-                            [ Gallery.view config gallery ]
+                , column
+                    [ padding 15
+                    , Background.color white
+                    , Border.color grey
+                    , Border.rounded 5
+                    , width (px (min config.width 1000))
+                    , centerX
+                    ]
+                    [ case g.header of
+                        Just h ->
+                            MarkdownParser.renderMarkdown
+                                (strM config.lang h)
 
-                    _ ->
-                        Element.none
+                        Nothing ->
+                            Element.none
+                    , case model.gallery of
+                        Just gallery ->
+                            Gallery.view config gallery
+
+                        _ ->
+                            Element.none
+                    , case g.article of
+                        Just a ->
+                            MarkdownParser.renderMarkdown
+                                (strM config.lang a)
+
+                        Nothing ->
+                            Element.none
+                    ]
                 ]
 
         _ ->
@@ -648,11 +939,6 @@ galleryImgView config model title =
             Element.none
 
 
-galleryArticleView : ViewConfig -> Model msg -> String -> Element msg
-galleryArticleView config model title =
-    MarkdownEditor.view config model.markdownEditor
-
-
 
 -------------------------------------------------------------------------------
 -----------------------------------
@@ -666,7 +952,7 @@ saveDetailsPage logInfo model =
         body =
             E.object
                 [ ( "name", E.string "details" )
-                , ( "content", encodeGalleryMetas model.galleries )
+                , ( "content", encodePage model )
                 ]
                 |> Http.jsonBody
     in
@@ -678,6 +964,16 @@ saveDetailsPage logInfo model =
         }
 
 
+encodePage model =
+    E.object
+        [ ( "mainArticle"
+          , Maybe.map encodeMls model.mainArticle
+                |> Maybe.withDefault E.null
+          )
+        , ( "galleries", encodeGalleryMetas model.galleries )
+        ]
+
+
 encodeGalleryMetas : Dict String GalleryMeta -> E.Value
 encodeGalleryMetas galleries =
     Dict.values galleries
@@ -685,11 +981,17 @@ encodeGalleryMetas galleries =
 
 
 encodeGalleryMeta : GalleryMeta -> E.Value
-encodeGalleryMeta { title, titleImg, article, album } =
+encodeGalleryMeta { key, ordering, title, titleImg, header, article, album } =
     E.object
-        [ ( "title", encodeMls title )
+        [ ( "key", E.string key )
+        , ( "ordering", E.int ordering )
+        , ( "title", encodeMls title )
         , ( "titleImg"
           , Maybe.map E.string titleImg
+                |> Maybe.withDefault E.null
+          )
+        , ( "header"
+          , Maybe.map encodeMls header
                 |> Maybe.withDefault E.null
           )
         , ( "article"

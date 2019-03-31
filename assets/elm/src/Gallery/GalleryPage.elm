@@ -15,6 +15,7 @@ import Gallery.Gallery as Gallery exposing (..)
 import Gallery.GalleryShared exposing (..)
 import Http exposing (..)
 import Internals.Helpers exposing (..)
+import Internals.MarkdownParser as MarkdownParser
 import MultLang.MultLang exposing (..)
 import Style.Helpers exposing (..)
 import Url
@@ -22,6 +23,7 @@ import Url
 
 type alias Model msg =
     { galleries : Dict String (Gallery.Model msg)
+    , mainArticle : Maybe MultLangStr
     , outMsg : Msg -> msg
     }
 
@@ -29,7 +31,7 @@ type alias Model msg =
 type Msg
     = GalleryMsg String Gallery.Msg
     | OpenGallery String
-    | GotGalleryMetas (Result Http.Error (Dict String GalleryMeta))
+    | GotGalleryMetas (Result Http.Error DetailsPage)
     | NoOp
 
 
@@ -43,6 +45,7 @@ type alias Config a =
 
 init outMsg =
     ( { galleries = Dict.empty
+      , mainArticle = Nothing
       , outMsg = outMsg
       }
     , Cmd.batch
@@ -59,11 +62,11 @@ subscriptions model =
 
 
 update : Config a -> Msg -> Model msg -> ( Model msg, Cmd msg )
-update config msg ({ galleries } as model) =
+update config msg model =
     case msg of
         GalleryMsg title msg_ ->
             case
-                Dict.get title galleries
+                Dict.get title model.galleries
                     |> Maybe.map
                         (Gallery.update config msg_)
             of
@@ -83,7 +86,7 @@ update config msg ({ galleries } as model) =
 
         GotGalleryMetas res ->
             case res of
-                Ok galleryMetas ->
+                Ok { galleries, mainArticle } ->
                     ( { model
                         | galleries =
                             Dict.map
@@ -91,7 +94,8 @@ update config msg ({ galleries } as model) =
                                     Gallery.init gm
                                         (model.outMsg << GalleryMsg k)
                                 )
-                                galleryMetas
+                                galleries
+                        , mainArticle = mainArticle
                       }
                     , Cmd.none
                     )
@@ -140,27 +144,36 @@ homeView : ViewConfig -> Model msg -> Element msg
 homeView config model =
     column
         [ centerX ]
-        (chunkedRows
-            (min config.width 1000)
-            (bestFit 200)
-            (Dict.map
-                (\k v ->
-                    let
-                        defTitleImg =
-                            case v.titleImg of
-                                Just url ->
-                                    url
+        ([ case model.mainArticle of
+            Just a ->
+                MarkdownParser.renderMarkdown
+                    (strM config.lang a)
 
-                                Nothing ->
-                                    List.head v.imagesSrcs
-                                        |> Maybe.withDefault ""
-                    in
-                    ( k, v.title, defTitleImg )
+            Nothing ->
+                Element.none
+         ]
+            ++ chunkedRows
+                (min config.width 1000)
+                (bestFit 200)
+                (Dict.map
+                    (\k v ->
+                        let
+                            defTitleImg =
+                                case v.titleImg of
+                                    Just url ->
+                                        url
+
+                                    Nothing ->
+                                        List.head v.imagesSrcs
+                                            |> Maybe.withDefault ""
+                        in
+                        { v | titleImg = Just defTitleImg }
+                    )
+                    model.galleries
+                    |> Dict.values
+                    |> List.sortBy .ordering
+                    |> List.map (imgBlockView config.lang (model.outMsg << OpenGallery))
                 )
-                model.galleries
-                |> Dict.values
-                |> List.map (imgBlockView config.lang (model.outMsg << OpenGallery))
-            )
         )
 
 
@@ -168,7 +181,29 @@ galleryView : ViewConfig -> Model msg -> String -> Element msg
 galleryView config model title =
     case Dict.get title model.galleries of
         Just gallery ->
-            Gallery.view config gallery
+            column
+                [ width (maximum 1000 fill)
+                , height (minimum 500 fill)
+                , centerX
+                , padding 15
+                , spacing 15
+                ]
+                [ case gallery.header of
+                    Just h ->
+                        MarkdownParser.renderMarkdown
+                            (strM config.lang h)
+
+                    Nothing ->
+                        Element.none
+                , Gallery.view config gallery
+                , case gallery.article of
+                    Just a ->
+                        MarkdownParser.renderMarkdown
+                            (strM config.lang a)
+
+                    Nothing ->
+                        Element.none
+                ]
 
         Nothing ->
             Element.none

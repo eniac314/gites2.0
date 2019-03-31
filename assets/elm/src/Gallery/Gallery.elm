@@ -46,8 +46,11 @@ import Time exposing (Posix, every, millisToPosix, now, posixToMillis)
 type alias Model msg =
     { loaded : Set String
     , loadedThumbs : Set String
+    , key : String
+    , ordering : Int
     , title : MultLangStr
     , titleImg : Maybe String
+    , header : Maybe MultLangStr
     , article : Maybe MultLangStr
     , imagesStream : BiStream (List ImageMeta)
     , imagesSrcs : List String
@@ -93,7 +96,7 @@ subscriptions model =
 
 
 init : GalleryMeta -> (Msg -> msg) -> Model msg
-init { title, titleImg, article, album } outMsg =
+init { key, ordering, title, titleImg, article, header, album } outMsg =
     let
         images =
             case List.reverse album of
@@ -115,8 +118,11 @@ init { title, titleImg, article, album } outMsg =
     , mbDrag = Nothing
     , mbAnim = Nothing
     , clock = 0
+    , key = key
+    , ordering = ordering
     , title = title
     , titleImg = titleImg
+    , header = header
     , article = article
     , tickSubOn = False
     , displayMode = DisplayImage

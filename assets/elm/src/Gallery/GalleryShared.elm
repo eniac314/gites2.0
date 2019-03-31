@@ -17,7 +17,7 @@ import Html.Events as HtmlEvents
 import Http exposing (..)
 import Internals.Helpers exposing (awsUrl, thumbSrc)
 import Json.Decode as Decode
-import Json.Decode.Pipeline exposing (required)
+import Json.Decode.Pipeline exposing (optional, required)
 import MultLang.MultLang exposing (..)
 import Style.Helpers exposing (..)
 
@@ -82,15 +82,27 @@ decodePosition =
 -----------------------------------
 
 
-getDetailsPage : (Result Error (Dict String GalleryMeta) -> msg) -> Cmd msg
+getDetailsPage : (Result Error DetailsPage -> msg) -> Cmd msg
 getDetailsPage responseHandler =
     Http.get
         { url = "/api/pagesdata/details"
         , expect =
             Http.expectJson
                 responseHandler
-                decodeGalleryMetas
+                decodePage
         }
+
+
+type alias DetailsPage =
+    { mainArticle : Maybe MultLangStr
+    , galleries : Dict String GalleryMeta
+    }
+
+
+decodePage =
+    Decode.map2 DetailsPage
+        (Decode.field "mainArticle" (Decode.nullable decodeMls))
+        (Decode.field "galleries" decodeGalleryMetas)
 
 
 decodeGalleryMetas : Decode.Decoder (Dict String GalleryMeta)
@@ -98,7 +110,7 @@ decodeGalleryMetas =
     Decode.field "data" <|
         Decode.field "content"
             (Decode.list decodeGalleryMeta
-                |> Decode.map (List.map (\g -> ( g.title.en, g )))
+                |> Decode.map (List.map (\g -> ( g.key, g )))
                 |> Decode.map Dict.fromList
             )
 
@@ -107,21 +119,24 @@ decodeGalleryMeta : Decode.Decoder GalleryMeta
 decodeGalleryMeta =
     Decode.succeed GalleryMeta
         |> required "title" decodeMls
+        |> required "key" Decode.string
+        |> required "ordering" Decode.int
         |> required "titleImg" (Decode.nullable Decode.string)
+        |> required "header" (Decode.nullable decodeMls)
         |> required "article" (Decode.nullable decodeMls)
         |> required "album" (Decode.list decodeImageMeta)
 
 
-imgBlockView lang handler ( folder, title, titleImg ) =
+imgBlockView lang handler gm =
     column
         [ width (px 200)
         , height (px 200)
         , mouseOver
             [ alpha 0.7 ]
-        , Events.onClick (handler folder)
+        , Events.onClick (handler gm.key)
         , Background.image <|
             awsUrl
-                ++ thumbSrc titleImg
+                ++ thumbSrc (Maybe.withDefault "" gm.titleImg)
         , pointer
         ]
         [ el
@@ -143,7 +158,7 @@ imgBlockView lang handler ( folder, title, titleImg ) =
                     [ Font.typeface "times"
                     ]
                 ]
-                [ strM lang title
+                [ strM lang gm.title
                     |> String.toUpper
                     |> text
                 ]

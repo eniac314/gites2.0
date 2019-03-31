@@ -194,7 +194,10 @@ textInputStyle =
 
 type alias GalleryMeta =
     { title : MultLangStr
+    , key : String
+    , ordering : Int
     , titleImg : Maybe String
+    , header : Maybe MultLangStr
     , article : Maybe MultLangStr
     , album : List ImageMeta
     }
