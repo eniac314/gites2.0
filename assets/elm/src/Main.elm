@@ -13,8 +13,8 @@ import Element.Font as Font
 import Element.Input as Input
 import Element.Keyed as Keyed
 import Element.Region as Region
-import FrontPage.FrontPage as FrontPage
 import Gallery.GalleryPage as GalleryPage
+import GenericPage.GenericPage as GenericPage
 import Html.Attributes as HtmlAttr
 import Json.Decode as D
 import Json.Encode as E
@@ -47,7 +47,9 @@ type DisplayMode
 
 
 type alias Model =
-    { frontPage : FrontPage.Model Msg
+    { frontPage : GenericPage.Model Msg
+    , accessPage : GenericPage.Model Msg
+    , nearbyPage : GenericPage.Model Msg
     , galleryPage : GalleryPage.Model Msg
     , bookings : Bookings.Model Msg
     , lang : Lang
@@ -64,7 +66,9 @@ type Msg
     = ChangeUrl Url.Url
     | ClickedLink UrlRequest
     | WinResize Int Int
-    | FrontPageMsg FrontPage.Msg
+    | FrontPageMsg GenericPage.Msg
+    | AccessPageMsg GenericPage.Msg
+    | NearbyPageMsg GenericPage.Msg
     | GalleryPageMsg GalleryPage.Msg
     | BookingsMsg Bookings.Msg
     | ChangeLang Lang
@@ -86,7 +90,13 @@ init flags url key =
             Bookings.init BookingsMsg flags.seedInfo
 
         ( newFrontPage, frontPageCmd ) =
-            FrontPage.init FrontPageMsg
+            GenericPage.init FrontPageMsg "frontPage"
+
+        ( newAccessPage, accessPageCmd ) =
+            GenericPage.init AccessPageMsg "access"
+
+        ( newNearbyPage, nearbyPageCmd ) =
+            GenericPage.init NearbyPageMsg "nearby"
 
         ( newGalleryPage, galleryCmd ) =
             GalleryPage.init GalleryPageMsg
@@ -101,6 +111,8 @@ init flags url key =
                 url
     in
     ( { frontPage = newFrontPage
+      , accessPage = newAccessPage
+      , nearbyPage = newNearbyPage
       , galleryPage = newGalleryPage
       , bookings = newBookings
       , lang = French
@@ -122,6 +134,8 @@ init flags url key =
           else
             Cmd.none
         , frontPageCmd
+        , accessPageCmd
+        , nearbyPageCmd
         , galleryCmd
         , bookingsCmd
         ]
@@ -131,6 +145,9 @@ init flags url key =
 subscriptions model =
     Sub.batch
         [ onResize WinResize
+        , GenericPage.subscriptions model.frontPage
+        , GenericPage.subscriptions model.accessPage
+        , GenericPage.subscriptions model.nearbyPage
         , Bookings.subscriptions model.bookings
         , GalleryPage.subscriptions model.galleryPage
         ]
@@ -177,9 +194,27 @@ update msg model =
         FrontPageMsg frontPageMsg ->
             let
                 newFrontPage =
-                    FrontPage.update frontPageMsg model.frontPage
+                    GenericPage.update { width = model.width } frontPageMsg model.frontPage
             in
             ( { model | frontPage = newFrontPage }
+            , Cmd.none
+            )
+
+        AccessPageMsg accessPageMsg ->
+            let
+                newAccessPage =
+                    GenericPage.update { width = model.width } accessPageMsg model.accessPage
+            in
+            ( { model | accessPage = newAccessPage }
+            , Cmd.none
+            )
+
+        NearbyPageMsg nearbyPageMsg ->
+            let
+                newNearbyPage =
+                    GenericPage.update { width = model.width } nearbyPageMsg model.nearbyPage
+            in
+            ( { model | nearbyPage = newNearbyPage }
             , Cmd.none
             )
 
@@ -275,7 +310,7 @@ view model =
                         ]
                         [ case model.displayMode of
                             DisplayFrontPage ->
-                                FrontPage.view
+                                GenericPage.view
                                     { lang = model.lang
                                     , width = model.width
                                     }
@@ -301,10 +336,18 @@ view model =
                                 Element.none
 
                             DisplayNearby ->
-                                Element.none
+                                GenericPage.view
+                                    { lang = model.lang
+                                    , width = model.width
+                                    }
+                                    model.nearbyPage
 
                             DisplayAccess ->
-                                Element.none
+                                GenericPage.view
+                                    { lang = model.lang
+                                    , width = model.width
+                                    }
+                                    model.accessPage
                         ]
                     , footer model
                     ]

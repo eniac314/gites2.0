@@ -1,4 +1,4 @@
-module FrontPage.FrontPageAdmin exposing (..)
+module GenericPage.GenericPageAdmin exposing (..)
 
 import Auth.AuthPlugin exposing (LogInfo, cmdIfLogged, secureGet, securePost)
 import Dict exposing (..)
@@ -11,7 +11,8 @@ import Element.Input as Input
 import Element.Keyed as Keyed
 import Element.Lazy exposing (lazy)
 import Element.Region as Region
-import FrontPage.FrontPageShared exposing (..)
+import Gallery.Carousel as Carousel
+import GenericPage.GenericPageShared exposing (..)
 import Html as Html
 import Html.Attributes as HtmlAttr
 import Http exposing (..)
@@ -22,17 +23,23 @@ import Json.Decode as D
 import Json.Encode as E
 import List.Extra exposing (swapAt)
 import MultLang.MultLang exposing (..)
+import Prng.Uuid as Uuid
+import Random.Pcg.Extended exposing (Seed, initialSeed, step)
 import Style.Helpers exposing (..)
 import Style.Icons as Icons exposing (..)
 import Style.Palette exposing (..)
 
 
 type alias Model msg =
-    { content : Dict Int FrontPageItem
+    { workingDirectory : String
+    , content : Dict Int GenericPageItem
     , markdownEditor : MarkdownEditor.Model msg
     , imageController : ImageController.Model msg
     , displayMode : DisplayMode
     , selectedItem : Maybe Int
+    , currentSeed : Seed
+    , currentUuid : String
+    , carousels : Dict String (Carousel.Model msg)
     , outMsg : Msg -> msg
     }
 
@@ -41,7 +48,7 @@ type DisplayMode
     = Preview
     | EditMarkdown
     | EditPicRow
-    | EditNews
+    | EditCarousel String
 
 
 type Msg
@@ -51,25 +58,27 @@ type Msg
     | SwapDown Int
     | NewMarkdown
     | NewPicRow
-    | AddNewsBlock
+    | NewCarousel
     | MarkdownEditorMsg MarkdownEditor.Msg
     | ImageControllerMsg ImageController.Msg
-    | GotFrontPageContent (Result Http.Error FrontPageContent)
-    | SaveFrontPage
-    | FrontPageSaved (Result Http.Error ())
+    | GotGenericPageContent (Result Http.Error GenericPageContent)
+    | CarouselMsg String Carousel.Msg
+    | SaveGenericPage
+    | GenericPageSaved (Result Http.Error ())
     | NoOp
 
 
-init : (Msg -> msg) -> ( Model msg, Cmd msg )
-init outMsg =
+init : (Msg -> msg) -> String -> ( String, Seed ) -> ( Model msg, Cmd msg )
+init outMsg wd ( uuid, seed ) =
     let
         ( imageController, imgCtrlCmd ) =
             ImageController.init
-                "frontPage"
+                wd
                 ImageController.RowMode
                 (outMsg << ImageControllerMsg)
     in
-    ( { content =
+    ( { workingDirectory = wd
+      , content =
             Dict.empty
       , markdownEditor =
             MarkdownEditor.init
@@ -78,11 +87,14 @@ init outMsg =
       , imageController = imageController
       , displayMode = Preview
       , selectedItem = Nothing
+      , currentSeed = seed
+      , currentUuid = uuid
+      , carousels = Dict.empty
       , outMsg = outMsg
       }
     , Cmd.batch
         [ imgCtrlCmd
-        , getFrontPageContent (outMsg << GotFrontPageContent)
+        , getGenericPageContent (outMsg << GotGenericPageContent) wd
         ]
     )
 
@@ -92,7 +104,7 @@ subscriptions model =
         [ ImageController.subscriptions model.imageController ]
 
 
-update : { a | logInfo : LogInfo } -> Msg -> Model msg -> ( Model msg, Cmd msg )
+update : { a | logInfo : LogInfo, width : Int } -> Msg -> Model msg -> ( Model msg, Cmd msg )
 update config msg model =
     case msg of
         EditItem id ->
@@ -127,12 +139,25 @@ update config msg model =
                             , imgCtrlCmd
                             )
 
-                        NewsBlock ->
+                        GoogleMap s ->
+                            ( { model | selectedItem = Just id }
+                            , Cmd.none
+                            )
+
+                        Carousel cId pics ->
+                            let
+                                ( imgCtrl, imgCtrlCmd ) =
+                                    ImageController.load
+                                        config.logInfo
+                                        model.imageController
+                                        pics
+                            in
                             ( { model
-                                | displayMode = EditNews
+                                | imageController = imgCtrl
+                                , displayMode = EditCarousel cId
                                 , selectedItem = Just id
                               }
-                            , Cmd.none
+                            , imgCtrlCmd
                             )
 
                 Nothing ->
@@ -195,12 +220,25 @@ update config msg model =
             , imgCtrlCmd
             )
 
-        AddNewsBlock ->
+        NewCarousel ->
+            let
+                ( imgCtrl, imgCtrlCmd ) =
+                    ImageController.load
+                        config.logInfo
+                        model.imageController
+                        []
+
+                ( uuid, seed ) =
+                    step Uuid.stringGenerator model.currentSeed
+            in
             ( { model
-                | displayMode = EditNews
+                | imageController = imgCtrl
+                , displayMode = EditCarousel model.currentUuid
+                , currentUuid = uuid
+                , currentSeed = seed
                 , selectedItem = Just (nextId model.content)
               }
-            , Cmd.none
+            , imgCtrlCmd
             )
 
         MarkdownEditorMsg markdownEditorMsg ->
@@ -281,22 +319,44 @@ update config msg model =
                             ( { model
                                 | imageController = newImgCtrl
                                 , content =
-                                    Dict.insert
-                                        id
-                                        (ImageRow data)
-                                        model.content
+                                    case model.displayMode of
+                                        EditCarousel cId ->
+                                            Dict.insert
+                                                id
+                                                (Carousel cId data)
+                                                model.content
+
+                                        _ ->
+                                            Dict.insert
+                                                id
+                                                (ImageRow data)
+                                                model.content
+                                , carousels =
+                                    case model.displayMode of
+                                        EditCarousel cId ->
+                                            Dict.insert cId
+                                                (Carousel.init (List.map (\i -> awsUrl ++ i.url) data)
+                                                    (model.outMsg << CarouselMsg cId)
+                                                )
+                                                model.carousels
+
+                                        _ ->
+                                            model.carousels
                                 , displayMode = Preview
                               }
                             , cmd
                             )
 
-        GotFrontPageContent res ->
+        GotGenericPageContent res ->
             case res of
                 Ok content ->
                     ( { model
                         | content =
                             List.indexedMap Tuple.pair content
                                 |> Dict.fromList
+                        , carousels =
+                            initCarousels content
+                                (\id -> model.outMsg << CarouselMsg id)
                       }
                     , Cmd.none
                     )
@@ -304,10 +364,29 @@ update config msg model =
                 Err e ->
                     ( model, Cmd.none )
 
-        SaveFrontPage ->
-            ( model, saveFrontPage config.logInfo model )
+        CarouselMsg id carMsg ->
+            case Dict.get id model.carousels of
+                Just carousel ->
+                    ( { model
+                        | carousels =
+                            Dict.insert id
+                                (Carousel.update
+                                    { maxWidth = config.width }
+                                    carMsg
+                                    carousel
+                                )
+                                model.carousels
+                      }
+                    , Cmd.none
+                    )
 
-        FrontPageSaved res ->
+                Nothing ->
+                    ( model, Cmd.none )
+
+        SaveGenericPage ->
+            ( model, saveGenericPage config.logInfo model )
+
+        GenericPageSaved res ->
             case res of
                 Ok _ ->
                     ( model, Cmd.none )
@@ -341,8 +420,7 @@ view : ViewConfig -> Model msg -> Element msg
 view config model =
     case model.displayMode of
         Preview ->
-            Element.map model.outMsg <|
-                previewView config model
+            previewView config model
 
         EditMarkdown ->
             MarkdownEditor.view config model.markdownEditor
@@ -350,11 +428,11 @@ view config model =
         EditPicRow ->
             ImageController.view config model.imageController
 
-        EditNews ->
-            Element.none
+        EditCarousel cId ->
+            ImageController.view config model.imageController
 
 
-previewView : ViewConfig -> Model msg -> Element Msg
+previewView : ViewConfig -> Model msg -> Element msg
 previewView config model =
     column
         [ width fill
@@ -372,7 +450,7 @@ previewView config model =
             ]
             [ Input.button
                 (buttonStyle True)
-                { onPress = Just NewMarkdown
+                { onPress = Just (model.outMsg NewMarkdown)
                 , label =
                     textM config.lang
                         { en = "New article"
@@ -381,7 +459,7 @@ previewView config model =
                 }
             , Input.button
                 (buttonStyle True)
-                { onPress = Just NewPicRow
+                { onPress = Just (model.outMsg NewPicRow)
                 , label =
                     textM config.lang
                         { en = "Add images"
@@ -390,16 +468,16 @@ previewView config model =
                 }
             , Input.button
                 (buttonStyle True)
-                { onPress = Just AddNewsBlock
+                { onPress = Just (model.outMsg NewCarousel)
                 , label =
                     textM config.lang
-                        { en = "Add news"
-                        , fr = "Ajouter actualités"
+                        { en = "Add carousel"
+                        , fr = "Ajouter carousel"
                         }
                 }
             , Input.button
                 (buttonStyle True ++ [ alignRight ])
-                { onPress = Just SaveFrontPage
+                { onPress = Just (model.outMsg SaveGenericPage)
                 , label =
                     textM config.lang
                         { en = "Save"
@@ -410,7 +488,7 @@ previewView config model =
         , if model.content == Dict.empty then
             Element.none
           else
-            Dict.map (editableItem config) model.content
+            Dict.map (editableItem config model) model.content
                 |> Dict.values
                 |> column
                     [ Background.color grey
@@ -422,8 +500,8 @@ previewView config model =
         ]
 
 
-editableItem : ViewConfig -> Int -> FrontPageItem -> Element Msg
-editableItem config id item =
+editableItem : ViewConfig -> Model msg -> Int -> GenericPageItem -> Element msg
+editableItem config model id item =
     row
         [ centerX
         , spacing 30
@@ -434,66 +512,72 @@ editableItem config id item =
         , mouseOver
             [ Border.color lightCharcoal ]
         ]
-        [ frontPageItemView config item
-        , itemControlView config id
+        [ genericPageItemView
+            { lang = config.lang
+            , width = config.width
+            , carousels = model.carousels
+            }
+            item
+        , itemControlView config model id
         ]
 
 
-itemControlView : ViewConfig -> Int -> Element Msg
-itemControlView config id =
-    row
-        [ spacing 15
-        , padding 10
-        , Border.width 1
-        , Border.rounded 3
-        ]
-        [ column
-            [ spacing 10 ]
-            [ Input.button
-                iconsStyle
-                { onPress = Just <| SwapUp id
-                , label =
-                    Icons.arrowUp
-                        (Icons.defOptions
-                            |> Icons.color black
-                            |> Icons.size 25
-                        )
-                }
-            , Input.button
-                iconsStyle
-                { onPress = Just <| SwapDown id
-                , label =
-                    Icons.arrowDown
-                        (Icons.defOptions
-                            |> Icons.color black
-                            |> Icons.size 25
-                        )
-                }
+itemControlView : ViewConfig -> Model msg -> Int -> Element msg
+itemControlView config model id =
+    Element.map model.outMsg <|
+        row
+            [ spacing 15
+            , padding 10
+            , Border.width 1
+            , Border.rounded 3
             ]
-        , column
-            [ spacing 10 ]
-            [ Input.button
-                iconsStyle
-                { onPress = Just <| EditItem id
-                , label =
-                    Icons.pencil
-                        (Icons.defOptions
-                            |> Icons.color black
-                            |> Icons.size 25
-                        )
-                }
-            , Input.button
-                iconsStyle
-                { onPress = Just <| DeleteItem id
-                , label =
-                    Icons.x
-                        (Icons.defOptions
-                            |> Icons.color black
-                            |> Icons.size 25
-                        )
-                }
+            [ column
+                [ spacing 10 ]
+                [ Input.button
+                    iconsStyle
+                    { onPress = Just <| SwapUp id
+                    , label =
+                        Icons.arrowUp
+                            (Icons.defOptions
+                                |> Icons.color black
+                                |> Icons.size 25
+                            )
+                    }
+                , Input.button
+                    iconsStyle
+                    { onPress = Just <| SwapDown id
+                    , label =
+                        Icons.arrowDown
+                            (Icons.defOptions
+                                |> Icons.color black
+                                |> Icons.size 25
+                            )
+                    }
+                ]
+            , column
+                [ spacing 10 ]
+                [ Input.button
+                    iconsStyle
+                    { onPress = Just <| EditItem id
+                    , label =
+                        Icons.pencil
+                            (Icons.defOptions
+                                |> Icons.color black
+                                |> Icons.size 25
+                            )
+                    }
+                , Input.button
+                    iconsStyle
+                    { onPress = Just <| DeleteItem id
+                    , label =
+                        Icons.x
+                            (Icons.defOptions
+                                |> Icons.color black
+                                |> Icons.size 25
+                            )
+                    }
+                ]
             ]
-        ]
 
 
 
@@ -504,15 +588,15 @@ itemControlView config id =
 -----------------------------------
 
 
-saveFrontPage : LogInfo -> Model msg -> Cmd msg
-saveFrontPage logInfo model =
+saveGenericPage : LogInfo -> Model msg -> Cmd msg
+saveGenericPage logInfo model =
     let
         body =
             Dict.values model.content
                 |> (\c ->
                         E.object
-                            [ ( "name", E.string "frontPage" )
-                            , ( "content", encodeFrontPage c )
+                            [ ( "name", E.string model.workingDirectory )
+                            , ( "content", encodeGenericPage c )
                             ]
                             |> Http.jsonBody
                    )
@@ -521,13 +605,13 @@ saveFrontPage logInfo model =
         { url = "api/restricted/pagesdata"
         , body = body
         , expect =
-            Http.expectWhatever (model.outMsg << FrontPageSaved)
+            Http.expectWhatever (model.outMsg << GenericPageSaved)
         }
 
 
-encodeFrontPage : FrontPageContent -> E.Value
-encodeFrontPage fpi =
-    E.list encodeFrontPageItem fpi
+encodeGenericPage : GenericPageContent -> E.Value
+encodeGenericPage fpi =
+    E.list encodeGenericPageItem fpi
 
 
 
@@ -535,8 +619,8 @@ encodeFrontPage fpi =
 --|> E.string
 
 
-encodeFrontPageItem : FrontPageItem -> E.Value
-encodeFrontPageItem fpi =
+encodeGenericPageItem : GenericPageItem -> E.Value
+encodeGenericPageItem fpi =
     case fpi of
         MarkdownContent mls ->
             E.object
@@ -546,5 +630,16 @@ encodeFrontPageItem fpi =
             E.object
                 [ ( "ImageRow", E.list encodeImageMeta imgs ) ]
 
-        NewsBlock ->
-            E.string "NewsBlock"
+        GoogleMap s ->
+            E.object
+                [ ( "GoogleMap", E.string s ) ]
+
+        Carousel id imgs ->
+            E.object
+                [ ( "Carousel"
+                  , E.object
+                        [ ( "id", E.string id )
+                        , ( "imgs", E.list encodeImageMeta imgs )
+                        ]
+                  )
+                ]

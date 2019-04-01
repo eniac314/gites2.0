@@ -125,6 +125,7 @@ subscriptions model =
 type Mode
     = RowMode
     | GalleryMode
+    | CarouselMode
 
 
 type DisplayMode
@@ -553,6 +554,9 @@ view config model =
 
                     GalleryMode ->
                         galleryOutPutView config model
+
+                    CarouselMode ->
+                        rowOutputView config model
                 , row
                     [ centerX
                     , spacing 10
@@ -564,8 +568,12 @@ view config model =
                             textM config.lang (MultLangStr "Back" "Retour")
                         }
                     , Input.button
-                        (buttonStyle True)
-                        { onPress = Just SaveAndQuit
+                        (buttonStyle (model.output /= Dict.empty))
+                        { onPress =
+                            if model.output /= Dict.empty then
+                                Just SaveAndQuit
+                            else
+                                Nothing
                         , label =
                             textM config.lang (MultLangStr "Save and quit" "Valider")
                         }

@@ -9,6 +9,7 @@ import Element.Input as Input
 import Element.Keyed as Keyed
 import Element.Lazy exposing (lazy)
 import Http exposing (Error(..))
+import Json.Decode as D
 import Json.Encode as E
 import MultLang.MultLang exposing (..)
 import String.Extra exposing (insertAt)
@@ -242,3 +243,28 @@ encodeSize size =
         [ ( "width", E.int size.width )
         , ( "height", E.int size.height )
         ]
+
+
+decodeMls : D.Decoder MultLangStr
+decodeMls =
+    D.field
+        "MultLangStr"
+    <|
+        D.map2 MultLangStr
+            (D.field "en" D.string)
+            (D.field "fr" D.string)
+
+
+decodeImageMeta : D.Decoder ImageMeta
+decodeImageMeta =
+    D.map3 ImageMeta
+        (D.field "url" D.string)
+        (D.field "caption" (D.nullable decodeMls))
+        (D.field "size" decodeSize)
+
+
+decodeSize : D.Decoder { width : Int, height : Int }
+decodeSize =
+    D.map2 (\w h -> { width = w, height = h })
+        (D.field "width" D.int)
+        (D.field "height" D.int)

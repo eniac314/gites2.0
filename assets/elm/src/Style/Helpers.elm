@@ -310,7 +310,8 @@ sameHeightImgRow baseUrl mbControls images =
                     Element.none
     in
     Keyed.row
-        [ spacing 15 ]
+        [ spacing 15
+        ]
         (List.indexedMap
             (\i im ->
                 ( String.fromInt (i * List.length imgsScaledToMinHeight)

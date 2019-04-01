@@ -4,6 +4,19 @@ import socket from "./socket"
 
 import { Elm } from "../elm/src/Admin.elm"
 
+// Strong seed for random generator //////////////// 
+
+const crypto = window.crypto || window.msCrypto;
+const getRandomInts = (n) => {
+    const randInts = new Uint32Array(n);
+    crypto.getRandomValues(randInts);
+    return Array.from(randInts);
+};
+
+const randInts = getRandomInts(5);
+const seedInfo = [randInts[0], randInts.slice(1)]
+
+
 var currentTime = new Date().getTime();
 var width = window.innerWidth;
 var height = window.innerHeight;
@@ -11,7 +24,8 @@ var app = Elm.Admin.init({
 	flags: {
 		currentTime: currentTime,
 		width: width,
-		height: height
+		height: height,
+        seedInfo: seedInfo
 	}
 });
 

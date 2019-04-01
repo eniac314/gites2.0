@@ -10,12 +10,11 @@ import Element.Input as Input
 import Element.Keyed as Keyed
 import Element.Lazy as Lazy
 import Element.Region as Region
-import FrontPage.FrontPageShared exposing (decodeImageMeta, decodeMls)
 import Html as Html
 import Html.Attributes as HtmlAttr
 import Html.Events as HtmlEvents
 import Http exposing (..)
-import Internals.Helpers exposing (awsUrl, thumbSrc)
+import Internals.Helpers exposing (awsUrl, decodeImageMeta, decodeMls, thumbSrc)
 import Json.Decode as Decode
 import Json.Decode.Pipeline exposing (optional, required)
 import MultLang.MultLang exposing (..)

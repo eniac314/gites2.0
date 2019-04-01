@@ -12,12 +12,14 @@ import Element.Font as Font
 import Element.Input as Input
 import File exposing (..)
 import File.Select as Select
-import FrontPage.FrontPageAdmin as FrontPageAdmin
 import Gallery.GalleryAdmin as GalleryAdmin
+import GenericPage.GenericPageAdmin as GenericPageAdmin
 import Http exposing (expectString)
 import Internals.Helpers exposing (..)
 import Internals.Uploader as Uploader
 import MultLang.MultLang exposing (..)
+import Prng.Uuid as Uuid
+import Random.Pcg.Extended exposing (Seed, initialSeed, step)
 import Style.Helpers exposing (sides, tabView)
 import Task exposing (perform)
 import Time exposing (here)
@@ -37,6 +39,7 @@ type alias Flags =
     { currentTime : Int
     , width : Int
     , height : Int
+    , seedInfo : ( Int, List Int )
     }
 
 
@@ -48,7 +51,9 @@ type alias Model =
     , currentTime : Int
     , zone : Time.Zone
     , authPlugin : Auth.Model Msg
-    , frontPageAdmin : FrontPageAdmin.Model Msg
+    , frontPageAdmin : GenericPageAdmin.Model Msg
+    , accessPageAdmin : GenericPageAdmin.Model Msg
+    , nearbyPageAdmin : GenericPageAdmin.Model Msg
     , galleryAdmin : GalleryAdmin.Model Msg
     , bookingsAdmin : BookingsAdmin.Model Msg
     }
@@ -56,7 +61,9 @@ type alias Model =
 
 type Msg
     = AuthMsg Auth.Msg
-    | FrontPageAdminMsg FrontPageAdmin.Msg
+    | FrontPageAdminMsg GenericPageAdmin.Msg
+    | AccessPageAdminMsg GenericPageAdmin.Msg
+    | NearbyPageAdminMsg GenericPageAdmin.Msg
     | GalleryAdminMsg GalleryAdmin.Msg
     | BookingAdminMsg BookingsAdmin.Msg
     | SetDisplayMode DisplayMode
@@ -71,6 +78,7 @@ type DisplayMode
     | DisplayFrontPageAdmin
     | DisplayGalleryAdmin
     | DisplayBookingsAdmin
+    | DisplayAccessAdmin
     | DisplayNearbyAdmin
     | DisplayRatesAdmin
 
@@ -80,7 +88,9 @@ subscriptions model =
     Sub.batch
         [ onResize WinResize
         , Auth.subscriptions model.authPlugin
-        , FrontPageAdmin.subscriptions model.frontPageAdmin
+        , GenericPageAdmin.subscriptions model.frontPageAdmin
+        , GenericPageAdmin.subscriptions model.accessPageAdmin
+        , GenericPageAdmin.subscriptions model.nearbyPageAdmin
         , GalleryAdmin.subscriptions model.galleryAdmin
         , BookingsAdmin.subscriptions model.bookingsAdmin
         ]
@@ -89,8 +99,26 @@ subscriptions model =
 init : Flags -> ( Model, Cmd Msg )
 init flags =
     let
+        ( seed, seedExtension ) =
+            flags.seedInfo
+
+        ( uuid1, seed1 ) =
+            step Uuid.stringGenerator (initialSeed seed seedExtension)
+
+        ( uuid2, seed2 ) =
+            step Uuid.stringGenerator seed1
+
+        ( uuid3, seed3 ) =
+            step Uuid.stringGenerator seed2
+
         ( newFrontPageAdmin, fpaCmd ) =
-            FrontPageAdmin.init FrontPageAdminMsg
+            GenericPageAdmin.init FrontPageAdminMsg "frontPage" ( uuid1, seed1 )
+
+        ( newAccessPageAdmin, accPgCmd ) =
+            GenericPageAdmin.init AccessPageAdminMsg "access" ( uuid2, seed2 )
+
+        ( newNearbyPageAdmin, neaPgCmd ) =
+            GenericPageAdmin.init NearbyPageAdminMsg "nearby" ( uuid3, seed3 )
 
         ( newGalleryAdmin, gAdCmd ) =
             GalleryAdmin.init GalleryAdminMsg
@@ -112,6 +140,8 @@ init flags =
       , zone = Time.utc
       , authPlugin = newAuthPlugin
       , frontPageAdmin = newFrontPageAdmin
+      , accessPageAdmin = newAccessPageAdmin
+      , nearbyPageAdmin = newNearbyPageAdmin
       , galleryAdmin = newGalleryAdmin
       , bookingsAdmin = newBookingAdmin
       }
@@ -119,6 +149,8 @@ init flags =
         [ Task.perform SetZone Time.here
         , authPluginCmd
         , fpaCmd
+        , accPgCmd
+        , neaPgCmd
         , gAdCmd
         , bkAdCmd
         ]
@@ -151,12 +183,42 @@ update msg model =
         FrontPageAdminMsg fpaMsg ->
             let
                 ( newFrontPageAdmin, cmd ) =
-                    FrontPageAdmin.update
-                        { logInfo = model.authPlugin.logInfo }
+                    GenericPageAdmin.update
+                        { logInfo = model.authPlugin.logInfo
+                        , width = model.width
+                        }
                         fpaMsg
                         model.frontPageAdmin
             in
             ( { model | frontPageAdmin = newFrontPageAdmin }
+            , cmd
+            )
+
+        AccessPageAdminMsg accPgMsg ->
+            let
+                ( newAccessPageAdmin, cmd ) =
+                    GenericPageAdmin.update
+                        { logInfo = model.authPlugin.logInfo
+                        , width = model.width
+                        }
+                        accPgMsg
+                        model.accessPageAdmin
+            in
+            ( { model | accessPageAdmin = newAccessPageAdmin }
+            , cmd
+            )
+
+        NearbyPageAdminMsg neaPgMsg ->
+            let
+                ( newNearbyPageAdmin, cmd ) =
+                    GenericPageAdmin.update
+                        { logInfo = model.authPlugin.logInfo
+                        , width = model.width
+                        }
+                        neaPgMsg
+                        model.nearbyPageAdmin
+            in
+            ( { model | nearbyPageAdmin = newNearbyPageAdmin }
             , cmd
             )
 
@@ -243,7 +305,7 @@ view model =
                         Auth.view { zone = model.zone } model.authPlugin
 
                     DisplayFrontPageAdmin ->
-                        FrontPageAdmin.view
+                        GenericPageAdmin.view
                             { lang = model.lang
                             , width = model.width
                             , logInfo = Auth.getLogInfo model.authPlugin
@@ -265,8 +327,21 @@ view model =
                             }
                             model.bookingsAdmin
 
+                    DisplayAccessAdmin ->
+                        GenericPageAdmin.view
+                            { lang = model.lang
+                            , width = model.width
+                            , logInfo = Auth.getLogInfo model.authPlugin
+                            }
+                            model.accessPageAdmin
+
                     DisplayNearbyAdmin ->
-                        Element.none
+                        GenericPageAdmin.view
+                            { lang = model.lang
+                            , width = model.width
+                            , logInfo = Auth.getLogInfo model.authPlugin
+                            }
+                            model.nearbyPageAdmin
 
                     DisplayRatesAdmin ->
                         Element.none
@@ -313,6 +388,14 @@ tabsView model =
                 )
             )
         , tabView model.displayMode
+            DisplayRatesAdmin
+            SetDisplayMode
+            (strM model.lang
+                (MultLangStr "Rates Admin"
+                    "Editeur tarifs"
+                )
+            )
+        , tabView model.displayMode
             DisplayBookingsAdmin
             SetDisplayMode
             (strM model.lang
@@ -321,19 +404,19 @@ tabsView model =
                 )
             )
         , tabView model.displayMode
+            DisplayAccessAdmin
+            SetDisplayMode
+            (strM model.lang
+                (MultLangStr "Access page Admin"
+                    "Editeur accès"
+                )
+            )
+        , tabView model.displayMode
             DisplayNearbyAdmin
             SetDisplayMode
             (strM model.lang
                 (MultLangStr "Nearby page Admin"
                     "Editeur environs"
-                )
-            )
-        , tabView model.displayMode
-            DisplayRatesAdmin
-            SetDisplayMode
-            (strM model.lang
-                (MultLangStr "Rates Admin"
-                    "Editeur tarifs"
                 )
             )
         , tabView model.displayMode
