@@ -1426,35 +1426,6 @@ formView config model =
                 ]
 
 
-regLabel config mls =
-    (if config.width < 800 then
-        Input.labelAbove
-     else
-        Input.labelLeft
-    )
-        [ centerY
-        , width (px 200)
-        ]
-        (text <| strM config.lang mls)
-
-
-mandatoryLabel config mls =
-    (if config.width < 800 then
-        Input.labelAbove
-     else
-        Input.labelLeft
-    )
-        [ centerY
-        , width (px 200)
-        ]
-        (row
-            [ spacing 2 ]
-            [ text <| strM config.lang mls
-            , redStar
-            ]
-        )
-
-
 
 -------------------------------------------------------------------------------
 

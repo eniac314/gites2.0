@@ -11,6 +11,8 @@ import Element.Keyed as Keyed
 import Element.Lazy exposing (lazy)
 import Element.Region as Region
 import Gallery.Carousel as Carousel
+import Html as Html
+import Html.Attributes as HtmlAttr
 import Http exposing (..)
 import Internals.Helpers exposing (awsUrl, decodeImageMeta, decodeMls)
 import Internals.MarkdownParser as MarkdownParser
@@ -27,8 +29,17 @@ type alias GenericPageContent =
 type GenericPageItem
     = MarkdownContent MultLangStr
     | ImageRow (List ImageMeta)
-    | GoogleMap String
+    | GoogleMap GoogleMapMeta
     | Carousel String (List ImageMeta)
+
+
+type alias GoogleMapMeta =
+    { frameBorder : Bool
+    , pb : String
+    , height : Int
+    , width : Int
+    , url : String
+    }
 
 
 genericPageItemView :
@@ -64,8 +75,8 @@ genericPageItemView config item =
             else
                 sameHeightImgRow awsUrl Nothing images
 
-        GoogleMap s ->
-            Element.none
+        GoogleMap gm ->
+            googleMapIframe gm
 
         Carousel id pics ->
             case Dict.get id config.carousels of
@@ -120,7 +131,7 @@ decodeGenericPageItem =
             |> D.map MarkdownContent
         , D.field "ImageRow" (D.list decodeImageMeta)
             |> D.map ImageRow
-        , D.field "GoogleMap" D.string
+        , D.field "GoogleMap" decodeGoogleMapMeta
             |> D.map GoogleMap
         , D.field "Carousel"
             (D.map2 Carousel
@@ -128,3 +139,104 @@ decodeGenericPageItem =
                 (D.field "imgs" (D.list decodeImageMeta))
             )
         ]
+
+
+decodeGoogleMapMeta : D.Decoder GoogleMapMeta
+decodeGoogleMapMeta =
+    D.map5 GoogleMapMeta
+        (D.field "frameborder" D.bool)
+        (D.field "pb" D.string)
+        (D.field "height" D.int)
+        (D.field "width" D.int)
+        (D.field "url" D.string)
+
+
+
+-------------------------------------------------------------------------------
+----------------------
+-- Google map stuff --
+----------------------
+
+
+parseHtml : String -> Maybe GoogleMapMeta
+parseHtml str =
+    let
+        propDict =
+            String.replace "<iframe " "" str
+                |> String.replace "></iframe>" ""
+                --|> String.dropRight 10
+                |> String.words
+                |> List.concatMap (String.split "?")
+                |> List.map (String.split "=")
+                |> List.filterMap
+                    (\mbPair ->
+                        case mbPair of
+                            property :: [] ->
+                                Just ( property, "True" )
+
+                            property :: value :: [] ->
+                                Just ( property, String.replace "\"" "" value )
+
+                            _ ->
+                                Nothing
+                    )
+                |> Dict.fromList
+    in
+    Just <|
+        { frameBorder =
+            Dict.get "frameborder" propDict
+                |> Maybe.map (\v -> v == "1")
+                |> Maybe.withDefault False
+        , pb =
+            Dict.get "pb" propDict
+                |> Maybe.withDefault ""
+        , width =
+            Dict.get "width" propDict
+                |> Maybe.andThen String.toInt
+                |> Maybe.withDefault 560
+        , height =
+            Dict.get "height" propDict
+                |> Maybe.andThen String.toInt
+                |> Maybe.withDefault 315
+        , url = str
+        }
+
+
+buildGoogleMapUrl mapMeta =
+    let
+        params =
+            [ Just <| "pb=" ++ mapMeta.pb
+            , if not mapMeta.frameBorder then
+                Just "frameborder=0"
+              else
+                Nothing
+            ]
+                |> List.filterMap identity
+                |> String.join "&"
+                |> (\s ->
+                        if s == "" then
+                            s
+                        else
+                            "?" ++ s
+                   )
+    in
+    "https://www.google.com/maps/embed"
+        ++ params
+
+
+googleMapIframe gm =
+    el [ centerX ]
+        (html <|
+            Html.iframe
+                [ HtmlAttr.src <|
+                    buildGoogleMapUrl gm
+                , HtmlAttr.width gm.width
+                , HtmlAttr.height gm.height
+                , if gm.frameBorder then
+                    noHtmlAttr
+                  else
+                    HtmlAttr.attribute "frameborder" "0"
+                , HtmlAttr.attribute "allowfullscreen" "true"
+                ]
+                []
+        )

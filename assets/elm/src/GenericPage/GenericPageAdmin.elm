@@ -16,6 +16,7 @@ import GenericPage.GenericPageShared exposing (..)
 import Html as Html
 import Html.Attributes as HtmlAttr
 import Http exposing (..)
+import Internals.DropdownSelect as Select exposing (..)
 import Internals.Helpers exposing (..)
 import Internals.ImageController as ImageController
 import Internals.MarkdownEditor as MarkdownEditor
@@ -40,6 +41,9 @@ type alias Model msg =
     , currentSeed : Seed
     , currentUuid : String
     , carousels : Dict String (Carousel.Model msg)
+    , googleMapUrl : Maybe String
+    , gmSizeSelector : Select.Model
+    , googleMapMeta : Maybe GoogleMapMeta
     , outMsg : Msg -> msg
     }
 
@@ -49,6 +53,7 @@ type DisplayMode
     | EditMarkdown
     | EditPicRow
     | EditCarousel String
+    | EditGoogleMap
 
 
 type Msg
@@ -59,11 +64,16 @@ type Msg
     | NewMarkdown
     | NewPicRow
     | NewCarousel
+    | NewGoogleMap
     | MarkdownEditorMsg MarkdownEditor.Msg
     | ImageControllerMsg ImageController.Msg
     | GotGenericPageContent (Result Http.Error GenericPageContent)
     | CarouselMsg String Carousel.Msg
-    | SaveGenericPage
+    | GoogleMapUrlInput String
+    | GmSize ( Int, Int )
+    | GmSizeSelectorMsg Select.Msg
+    | GMGoBack
+    | GMSaveAndQuit
     | GenericPageSaved (Result Http.Error ())
     | NoOp
 
@@ -90,6 +100,9 @@ init outMsg wd ( uuid, seed ) =
       , currentSeed = seed
       , currentUuid = uuid
       , carousels = Dict.empty
+      , googleMapUrl = Nothing
+      , gmSizeSelector = Select.init
+      , googleMapMeta = Nothing
       , outMsg = outMsg
       }
     , Cmd.batch
@@ -139,8 +152,13 @@ update config msg model =
                             , imgCtrlCmd
                             )
 
-                        GoogleMap s ->
-                            ( { model | selectedItem = Just id }
+                        GoogleMap gm ->
+                            ( { model
+                                | selectedItem = Just id
+                                , displayMode = EditGoogleMap
+                                , googleMapMeta = Just gm
+                                , googleMapUrl = Just gm.url
+                              }
                             , Cmd.none
                             )
 
@@ -164,8 +182,12 @@ update config msg model =
                     ( model, Cmd.none )
 
         DeleteItem id ->
-            ( { model | content = remove id model.content }
-            , Cmd.none
+            let
+                newModel =
+                    { model | content = remove id model.content }
+            in
+            ( newModel
+            , saveGenericPage config.logInfo newModel
             )
 
         SwapUp id ->
@@ -175,9 +197,12 @@ update config msg model =
                         |> swapAt id (id - 1)
                         |> List.indexedMap Tuple.pair
                         |> Dict.fromList
+
+                newModel =
+                    { model | content = newContent }
             in
-            ( { model | content = newContent }
-            , Cmd.none
+            ( newModel
+            , saveGenericPage config.logInfo newModel
             )
 
         SwapDown id ->
@@ -187,10 +212,30 @@ update config msg model =
                         |> swapAt id (id + 1)
                         |> List.indexedMap Tuple.pair
                         |> Dict.fromList
+
+                newModel =
+                    { model | content = newContent }
             in
-            ( { model | content = newContent }
-            , Cmd.none
+            ( newModel
+            , saveGenericPage config.logInfo newModel
             )
+
+        GotGenericPageContent res ->
+            case res of
+                Ok content ->
+                    ( { model
+                        | content =
+                            List.indexedMap Tuple.pair content
+                                |> Dict.fromList
+                        , carousels =
+                            initCarousels content
+                                (\id -> model.outMsg << CarouselMsg id)
+                      }
+                    , Cmd.none
+                    )
+
+                Err e ->
+                    ( model, Cmd.none )
 
         NewMarkdown ->
             ( { model
@@ -241,6 +286,17 @@ update config msg model =
             , imgCtrlCmd
             )
 
+        NewGoogleMap ->
+            ( { model
+                | displayMode = EditGoogleMap
+                , googleMapUrl = Nothing
+                , gmSizeSelector = Select.init
+                , googleMapMeta = Nothing
+                , selectedItem = Just (nextId model.content)
+              }
+            , Cmd.none
+            )
+
         MarkdownEditorMsg markdownEditorMsg ->
             let
                 ( newEditor, mbPluginRes ) =
@@ -271,16 +327,20 @@ update config msg model =
                             )
 
                         Just id ->
-                            ( { model
-                                | markdownEditor = newEditor
-                                , content =
-                                    Dict.insert
-                                        id
-                                        (MarkdownContent data)
-                                        model.content
-                                , displayMode = Preview
-                              }
-                            , Cmd.none
+                            let
+                                newModel =
+                                    { model
+                                        | markdownEditor = newEditor
+                                        , content =
+                                            Dict.insert
+                                                id
+                                                (MarkdownContent data)
+                                                model.content
+                                        , displayMode = Preview
+                                    }
+                            in
+                            ( newModel
+                            , saveGenericPage config.logInfo newModel
                             )
 
         ImageControllerMsg imageControllerMsg ->
@@ -316,53 +376,40 @@ update config msg model =
                             )
 
                         Just id ->
-                            ( { model
-                                | imageController = newImgCtrl
-                                , content =
-                                    case model.displayMode of
-                                        EditCarousel cId ->
-                                            Dict.insert
-                                                id
-                                                (Carousel cId data)
-                                                model.content
+                            let
+                                newModel =
+                                    { model
+                                        | imageController = newImgCtrl
+                                        , content =
+                                            case model.displayMode of
+                                                EditCarousel cId ->
+                                                    Dict.insert
+                                                        id
+                                                        (Carousel cId data)
+                                                        model.content
 
-                                        _ ->
-                                            Dict.insert
-                                                id
-                                                (ImageRow data)
-                                                model.content
-                                , carousels =
-                                    case model.displayMode of
-                                        EditCarousel cId ->
-                                            Dict.insert cId
-                                                (Carousel.init (List.map (\i -> awsUrl ++ i.url) data)
-                                                    (model.outMsg << CarouselMsg cId)
-                                                )
-                                                model.carousels
+                                                _ ->
+                                                    Dict.insert
+                                                        id
+                                                        (ImageRow data)
+                                                        model.content
+                                        , carousels =
+                                            case model.displayMode of
+                                                EditCarousel cId ->
+                                                    Dict.insert cId
+                                                        (Carousel.init (List.map (\i -> awsUrl ++ i.url) data)
+                                                            (model.outMsg << CarouselMsg cId)
+                                                        )
+                                                        model.carousels
 
-                                        _ ->
-                                            model.carousels
-                                , displayMode = Preview
-                              }
-                            , cmd
+                                                _ ->
+                                                    model.carousels
+                                        , displayMode = Preview
+                                    }
+                            in
+                            ( newModel
+                            , saveGenericPage config.logInfo newModel
                             )
-
-        GotGenericPageContent res ->
-            case res of
-                Ok content ->
-                    ( { model
-                        | content =
-                            List.indexedMap Tuple.pair content
-                                |> Dict.fromList
-                        , carousels =
-                            initCarousels content
-                                (\id -> model.outMsg << CarouselMsg id)
-                      }
-                    , Cmd.none
-                    )
-
-                Err e ->
-                    ( model, Cmd.none )
 
         CarouselMsg id carMsg ->
             case Dict.get id model.carousels of
@@ -383,8 +430,66 @@ update config msg model =
                 Nothing ->
                     ( model, Cmd.none )
 
-        SaveGenericPage ->
-            ( model, saveGenericPage config.logInfo model )
+        GoogleMapUrlInput s ->
+            ( { model
+                | googleMapUrl =
+                    if s == "" then
+                        Nothing
+                    else
+                        Just s
+                , googleMapMeta = parseHtml s
+              }
+            , Cmd.none
+            )
+
+        GmSize ( w, h ) ->
+            case model.googleMapMeta of
+                Just gmm ->
+                    ( { model
+                        | googleMapMeta =
+                            Just { gmm | width = w, height = h }
+                      }
+                    , Cmd.none
+                    )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
+        GmSizeSelectorMsg selMsg ->
+            ( { model
+                | gmSizeSelector =
+                    Select.update selMsg model.gmSizeSelector
+              }
+            , Cmd.none
+            )
+
+        GMGoBack ->
+            ( { model | displayMode = Preview }, Cmd.none )
+
+        GMSaveAndQuit ->
+            case ( model.selectedItem, model.googleMapMeta ) of
+                ( Just id, Just gm ) ->
+                    let
+                        newModel =
+                            { model
+                                | content =
+                                    Dict.insert
+                                        id
+                                        (GoogleMap gm)
+                                        model.content
+                                , displayMode = Preview
+                            }
+                    in
+                    ( newModel
+                    , saveGenericPage config.logInfo newModel
+                    )
+
+                _ ->
+                    ( { model
+                        | displayMode = Preview
+                      }
+                    , Cmd.none
+                    )
 
         GenericPageSaved res ->
             case res of
@@ -431,6 +536,9 @@ view config model =
         EditCarousel cId ->
             ImageController.view config model.imageController
 
+        EditGoogleMap ->
+            googleMapEditorView config model
+
 
 previewView : ViewConfig -> Model msg -> Element msg
 previewView config model =
@@ -476,12 +584,12 @@ previewView config model =
                         }
                 }
             , Input.button
-                (buttonStyle True ++ [ alignRight ])
-                { onPress = Just (model.outMsg SaveGenericPage)
+                (buttonStyle True)
+                { onPress = Just (model.outMsg NewGoogleMap)
                 , label =
                     textM config.lang
-                        { en = "Save"
-                        , fr = "Sauvegarder"
+                        { en = "Add map"
+                        , fr = "Ajouter carte"
                         }
                 }
             ]
@@ -580,8 +688,137 @@ itemControlView config model id =
             ]
 
 
+googleMapEditorView : ViewConfig -> Model msg -> Element msg
+googleMapEditorView config model =
+    let
+        sizesDict =
+            Dict.fromList
+                [ ( ( 400, 300 )
+                  , MultLangStr
+                        "Small"
+                        "Petit"
+                  )
+                , ( ( 600, 450 )
+                  , MultLangStr
+                        "Medium"
+                        "Moyen"
+                  )
+                , ( ( 800, 600 )
+                  , MultLangStr
+                        "Big"
+                        "Grand"
+                  )
+                ]
+    in
+    Element.map model.outMsg <|
+        column
+            [ width fill
+            , height fill
+            , Background.color lightGrey
+            , spacing 15
+            , centerX
+            , padding 40
+            ]
+            [ row
+                [ spacing 15
+                , centerX
+                ]
+                [ Input.text
+                    textInputStyle
+                    { onChange = GoogleMapUrlInput
+                    , text =
+                        model.googleMapUrl
+                            |> Maybe.withDefault ""
+                    , placeholder =
+                        Just <|
+                            Input.placeholder
+                                []
+                                (textM config.lang
+                                    (MultLangStr "GoogleMap embed string"
+                                        "Code Google map"
+                                    )
+                                )
+                    , label = Input.labelHidden ""
+                    }
+                , Select.view
+                    { outMsg = GmSizeSelectorMsg
+                    , items =
+                        [ ( strM config.lang
+                                (MultLangStr
+                                    "Small"
+                                    "Petit"
+                                )
+                          , GmSize ( 400, 300 )
+                          )
+                        , ( strM config.lang
+                                (MultLangStr
+                                    "Medium"
+                                    "Moyen"
+                                )
+                          , GmSize ( 600, 450 )
+                          )
+                        , ( strM config.lang
+                                (MultLangStr
+                                    "Large"
+                                    "Grand"
+                                )
+                          , GmSize ( 800, 600 )
+                          )
+                        ]
+                    , selected =
+                        model.googleMapMeta
+                            |> Maybe.map
+                                (\meta -> ( meta.width, meta.height ))
+                            |> Maybe.andThen (\s -> Dict.get s sizesDict)
+                            |> Maybe.map (strM config.lang)
+                    , placeholder =
+                        Just "-"
+                    , label =
+                        Just <|
+                            Input.labelLeft
+                                [ centerY
+                                , paddingEach { sides | right = 10 }
+                                ]
+                                (textM config.lang
+                                    (MultLangStr
+                                        "Size"
+                                        "Format"
+                                    )
+                                )
+                    }
+                    model.gmSizeSelector
+                ]
+            , case model.googleMapMeta of
+                Just gm ->
+                    googleMapIframe gm
 
---newsBlockView config
+                Nothing ->
+                    Element.none
+            , row
+                [ centerX
+                , spacing 10
+                ]
+                [ Input.button
+                    (buttonStyle True)
+                    { onPress = Just GMGoBack
+                    , label =
+                        textM config.lang (MultLangStr "Back" "Retour")
+                    }
+                , Input.button
+                    (buttonStyle (model.googleMapMeta /= Nothing))
+                    { onPress =
+                        if model.googleMapMeta /= Nothing then
+                            Just GMSaveAndQuit
+                        else
+                            Nothing
+                    , label =
+                        textM config.lang (MultLangStr "Save and quit" "Valider")
+                    }
+                ]
+            ]
+
+
+
 -------------------------------------------------------------------------------
 -----------------------------------
 -- Json handling and server coms --
@@ -614,11 +851,6 @@ encodeGenericPage fpi =
     E.list encodeGenericPageItem fpi
 
 
-
---|> E.encode 0
---|> E.string
-
-
 encodeGenericPageItem : GenericPageItem -> E.Value
 encodeGenericPageItem fpi =
     case fpi of
@@ -630,9 +862,9 @@ encodeGenericPageItem fpi =
             E.object
                 [ ( "ImageRow", E.list encodeImageMeta imgs ) ]
 
-        GoogleMap s ->
+        GoogleMap gm ->
             E.object
-                [ ( "GoogleMap", E.string s ) ]
+                [ ( "GoogleMap", encodeGoogleMapMeta gm ) ]
 
         Carousel id imgs ->
             E.object
@@ -643,3 +875,14 @@ encodeGenericPageItem fpi =
                         ]
                   )
                 ]
+
+
+encodeGoogleMapMeta : GoogleMapMeta -> E.Value
+encodeGoogleMapMeta gm =
+    E.object
+        [ ( "frameborder", E.bool gm.frameBorder )
+        , ( "pb", E.string gm.pb )
+        , ( "height", E.int gm.height )
+        , ( "width", E.int gm.width )
+        , ( "url", E.string gm.url )
+        ]
