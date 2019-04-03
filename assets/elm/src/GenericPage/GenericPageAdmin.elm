@@ -503,17 +503,6 @@ update config msg model =
             ( model, Cmd.none )
 
 
-nextId : Dict Int a -> Int
-nextId dict =
-    1
-        + Dict.foldr
-            (\k v acc ->
-                max k acc
-            )
-            0
-            dict
-
-
 type alias ViewConfig =
     { lang : Lang
     , width : Int

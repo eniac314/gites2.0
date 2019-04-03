@@ -2,6 +2,7 @@ module Bookings.BookingsShared exposing (..)
 
 import Bookings.DatePicker.Date exposing (formatDate)
 import Date exposing (..)
+import Dict exposing (..)
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -12,6 +13,7 @@ import Element.Keyed as Keyed
 import Element.Lazy exposing (lazy)
 import Element.Region as Region
 import Http exposing (..)
+import Internals.Helpers exposing (..)
 import Internals.PhoenixPresence as Presence exposing (..)
 import Json.Decode as Decode
 import Json.Decode.Pipeline exposing (optional, required)
@@ -44,12 +46,14 @@ type alias BookingInfo =
 
 
 type alias BookingOptions =
-    { cleaningFee : Bool
-    }
+    Dict String BookingOption
 
 
-defaultOptions =
-    { cleaningFee = False
+type alias BookingOption =
+    { name : MultLangStr
+    , price : Float
+    , key : String
+    , picked : Bool
     }
 
 
@@ -145,9 +149,29 @@ encodeTitle title =
 
 
 encodeBookingOptions : BookingOptions -> Encode.Value
-encodeBookingOptions { cleaningFee } =
+encodeBookingOptions bos =
+    Dict.toList bos
+        |> List.map (\( k, v ) -> ( k, encodeBookingOption v ))
+        |> Encode.object
+
+
+
+--type alias BookingOption =
+--    { name : MultLangStr
+--    , price : Float
+--    , key : String
+--    , picked : Bool
+--    }
+
+
+encodeBookingOption : BookingOption -> Encode.Value
+encodeBookingOption bo =
     Encode.object
-        [ ( "cleaningFee", Encode.bool cleaningFee ) ]
+        [ ( "name", encodeMls bo.name )
+        , ( "price", Encode.float bo.price )
+        , ( "key", Encode.string bo.key )
+        , ( "picked", Encode.bool bo.picked )
+        ]
 
 
 decodeBookingInfo : Decode.Decoder BookingInfo
@@ -199,10 +223,16 @@ dateDecoder =
 
 decodeBookingOptions =
     Decode.nullable
-        (Decode.succeed BookingOptions
-            |> required "cleaningFee" Decode.bool
-        )
-        |> Decode.map (Maybe.withDefault defaultOptions)
+        (Decode.dict decodeBookingOption)
+        |> Decode.map (Maybe.withDefault Dict.empty)
+
+
+decodeBookingOption =
+    Decode.succeed BookingOption
+        |> required "name" decodeMls
+        |> required "price" Decode.float
+        |> required "key" Decode.string
+        |> required "picked" Decode.bool
 
 
 lockedDaysDecoder =
@@ -413,17 +443,18 @@ recapView config cInDate cOutDate bi =
                     ++ String.fromInt (nc * 50)
                     ++ " €"
             )
-        , if bi.options.cleaningFee then
-            el
-                []
-                (text <|
-                    strM config.lang
-                        (MultLangStr "Cleaning service: 50 €"
-                            "Forfait ménage: 50 €"
-                        )
-                )
-          else
-            Element.none
+
+        --, if bi.options.cleaningFee then
+        --    el
+        --        []
+        --        (text <|
+        --            strM config.lang
+        --                (MultLangStr "Cleaning service: 50 €"
+        --                    "Forfait ménage: 50 €"
+        --                )
+        --        )
+        --  else
+        --    Element.none
         , case bi.comment of
             Just c ->
                 column

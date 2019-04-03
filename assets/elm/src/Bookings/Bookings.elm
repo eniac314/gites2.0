@@ -151,7 +151,7 @@ type Msg
     | SelectNbrChildren Int
     | NbrChildrenSelectorMsg Select.Msg
     | SetComment String
-    | SetCleaningFee Bool
+    | SetOption String Bool
     | LoadCaptcha
     | CaptchaResponse String
     | SendBookingData
@@ -231,7 +231,7 @@ init outMsg ( seed, seedExtension ) =
       , nbrChildren = Nothing
       , nbrChildrenSelector = Select.init
       , comments = Nothing
-      , options = defaultOptions
+      , options = Dict.empty
       , currentSeed = newSeed
       , currentUuid = newUuid
       , presences = Dict.empty
@@ -477,14 +477,22 @@ update msg model =
             , Cmd.none
             )
 
-        SetCleaningFee b ->
+        SetOption key b ->
             let
                 options =
-                    model.options
+                    Dict.update key
+                        (\mbO ->
+                            case mbO of
+                                Nothing ->
+                                    Nothing
+
+                                Just o ->
+                                    Just { o | picked = b }
+                        )
+                        model.options
             in
             ( { model
-                | options =
-                    { options | cleaningFee = b }
+                | options = options
               }
             , Cmd.none
             )
@@ -848,40 +856,10 @@ dateChoiceView config model =
             ]
             [ checkInView config model
             , checkOutView config model
-            ]
-        , column
-            [ spacing 15 ]
-            [ el
-                [ Font.bold
-                , Font.size 18
-                , Font.family
-                    [ Font.typeface "Montserrat"
-                    , Font.sansSerif
-                    ]
-                ]
-                (textM config.lang
-                    (MultLangStr "Options"
-                        "Options"
-                    )
-                )
-            , Input.checkbox
-                []
-                { onChange = SetCleaningFee
-                , icon = Input.defaultCheckbox
-                , checked = model.options.cleaningFee
-                , label =
-                    Input.labelRight
-                        []
-                        (el
-                            []
-                            (textM config.lang
-                                (MultLangStr
-                                    "Cleaning service"
-                                    "Forfait ménage"
-                                )
-                            )
-                        )
-                }
+            , if model.options == Dict.empty then
+                Element.none
+              else
+                optionsView config model
             ]
         , el
             [ alignLeft
@@ -899,6 +877,44 @@ dateChoiceView config model =
                         (MultLangStr "Next" "Suivant")
                 }
             )
+        ]
+
+
+optionsView config model =
+    let
+        optionView { name, key, price, picked } =
+            Input.checkbox
+                []
+                { onChange = SetOption key
+                , icon = Input.defaultCheckbox
+                , checked = picked
+                , label =
+                    Input.labelRight
+                        []
+                        (el
+                            []
+                            (textM config.lang name)
+                        )
+                }
+    in
+    column
+        [ spacing 15 ]
+        [ el
+            [ Font.bold
+            , Font.size 18
+            , Font.family
+                [ Font.typeface "Montserrat"
+                , Font.sansSerif
+                ]
+            ]
+            (textM config.lang
+                (MultLangStr "Options"
+                    "Options"
+                )
+            )
+        , column
+            [ spacing 15 ]
+            (List.map optionView (Dict.values model.options))
         ]
 
 

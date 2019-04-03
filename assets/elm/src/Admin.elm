@@ -2,6 +2,7 @@ module Admin exposing (..)
 
 import Auth.AuthPlugin as Auth
 import Bookings.BookingsAdmin as BookingsAdmin
+import Bookings.OptionsAdmin as OptionsAdmin
 import Browser exposing (Document)
 import Browser.Events exposing (onResize)
 import Element exposing (..)

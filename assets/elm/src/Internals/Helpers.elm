@@ -1,5 +1,6 @@
 module Internals.Helpers exposing (..)
 
+import Dict exposing (..)
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -268,3 +269,14 @@ decodeSize =
     D.map2 (\w h -> { width = w, height = h })
         (D.field "width" D.int)
         (D.field "height" D.int)
+
+
+nextId : Dict Int a -> Int
+nextId dict =
+    1
+        + Dict.foldr
+            (\k v acc ->
+                max k acc
+            )
+            0
+            dict
