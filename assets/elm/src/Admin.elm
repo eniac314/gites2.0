@@ -56,6 +56,7 @@ type alias Model =
     , accessPageAdmin : GenericPageAdmin.Model Msg
     , nearbyPageAdmin : GenericPageAdmin.Model Msg
     , galleryAdmin : GalleryAdmin.Model Msg
+    , optionsAdmin : OptionsAdmin.Model Msg
     , bookingsAdmin : BookingsAdmin.Model Msg
     }
 
@@ -65,6 +66,7 @@ type Msg
     | FrontPageAdminMsg GenericPageAdmin.Msg
     | AccessPageAdminMsg GenericPageAdmin.Msg
     | NearbyPageAdminMsg GenericPageAdmin.Msg
+    | OptionsAdminMsg OptionsAdmin.Msg
     | GalleryAdminMsg GalleryAdmin.Msg
     | BookingAdminMsg BookingsAdmin.Msg
     | SetDisplayMode DisplayMode
@@ -121,6 +123,9 @@ init flags =
         ( newNearbyPageAdmin, neaPgCmd ) =
             GenericPageAdmin.init NearbyPageAdminMsg "nearby" ( uuid3, seed3 )
 
+        ( newOptionsAdmin, opCmd ) =
+            OptionsAdmin.init OptionsAdminMsg
+
         ( newGalleryAdmin, gAdCmd ) =
             GalleryAdmin.init GalleryAdminMsg
 
@@ -143,6 +148,7 @@ init flags =
       , frontPageAdmin = newFrontPageAdmin
       , accessPageAdmin = newAccessPageAdmin
       , nearbyPageAdmin = newNearbyPageAdmin
+      , optionsAdmin = newOptionsAdmin
       , galleryAdmin = newGalleryAdmin
       , bookingsAdmin = newBookingAdmin
       }
@@ -152,6 +158,7 @@ init flags =
         , fpaCmd
         , accPgCmd
         , neaPgCmd
+        , opCmd
         , gAdCmd
         , bkAdCmd
         ]
@@ -220,6 +227,18 @@ update msg model =
                         model.nearbyPageAdmin
             in
             ( { model | nearbyPageAdmin = newNearbyPageAdmin }
+            , cmd
+            )
+
+        OptionsAdminMsg opMsg ->
+            let
+                ( newOptionsAdmin, cmd ) =
+                    OptionsAdmin.update
+                        { logInfo = model.authPlugin.logInfo }
+                        opMsg
+                        model.optionsAdmin
+            in
+            ( { model | optionsAdmin = newOptionsAdmin }
             , cmd
             )
 
@@ -345,7 +364,11 @@ view model =
                             model.nearbyPageAdmin
 
                     DisplayRatesAdmin ->
-                        Element.none
+                        OptionsAdmin.view
+                            { lang = model.lang
+                            , width = model.width
+                            }
+                            model.optionsAdmin
                 ]
             )
         ]

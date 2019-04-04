@@ -80,8 +80,7 @@ type alias Model msg =
     , checkInDate : Maybe Date
     , checkOutPicker : DP.Model Msg
     , checkOutDate : Maybe Date
-    , slots :
-        Slots
+    , slots : Slots
 
     --
     , selectedTitle : Maybe Title
@@ -103,7 +102,7 @@ type alias Model msg =
     , nbrChildren : Maybe Int
     , nbrChildrenSelector : Select.Model
     , comments : Maybe String
-    , options : BookingOptions
+    , options : Maybe BookingOptions
 
     --
     , currentSeed : Seed
@@ -163,6 +162,7 @@ type Msg
     | ReceivePresenceState Decode.Value
     | ReceivePresenceDiff Decode.Value
     | Delay Float Msg
+    | GotBookingOptions (Result Http.Error BookingOptions)
     | NoOp
 
 
@@ -231,7 +231,7 @@ init outMsg ( seed, seedExtension ) =
       , nbrChildren = Nothing
       , nbrChildrenSelector = Select.init
       , comments = Nothing
-      , options = Dict.empty
+      , options = Nothing
       , currentSeed = newSeed
       , currentUuid = newUuid
       , presences = Dict.empty
@@ -478,24 +478,29 @@ update msg model =
             )
 
         SetOption key b ->
-            let
-                options =
-                    Dict.update key
-                        (\mbO ->
-                            case mbO of
-                                Nothing ->
-                                    Nothing
+            case model.options of
+                Just options ->
+                    let
+                        newOptions =
+                            Dict.update key
+                                (\mbO ->
+                                    case mbO of
+                                        Nothing ->
+                                            Nothing
 
-                                Just o ->
-                                    Just { o | picked = b }
-                        )
-                        model.options
-            in
-            ( { model
-                | options = options
-              }
-            , Cmd.none
-            )
+                                        Just o ->
+                                            Just { o | picked = b }
+                                )
+                                options.options
+                    in
+                    ( { model
+                        | options = Just { options | options = newOptions }
+                      }
+                    , Cmd.none
+                    )
+
+                Nothing ->
+                    ( model, Cmd.none )
 
         LoadCaptcha ->
             ( model
@@ -655,6 +660,14 @@ update msg model =
             , Delay.after n Delay.Millisecond msg_
                 |> Cmd.map model.outMsg
             )
+
+        GotBookingOptions res ->
+            case res of
+                Ok options ->
+                    ( { model | options = Just options }, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
 
         NoOp ->
             ( model, Cmd.none )
@@ -856,10 +869,15 @@ dateChoiceView config model =
             ]
             [ checkInView config model
             , checkOutView config model
-            , if model.options == Dict.empty then
-                Element.none
-              else
-                optionsView config model
+            , case Maybe.map .options model.options of
+                Just d ->
+                    if d == Dict.empty then
+                        Element.none
+                    else
+                        optionsView config model
+
+                Nothing ->
+                    Element.none
             ]
         , el
             [ alignLeft
@@ -881,41 +899,46 @@ dateChoiceView config model =
 
 
 optionsView config model =
-    let
-        optionView { name, key, price, picked } =
-            Input.checkbox
-                []
-                { onChange = SetOption key
-                , icon = Input.defaultCheckbox
-                , checked = picked
-                , label =
-                    Input.labelRight
+    case model.options of
+        Just bOptions ->
+            let
+                optionView { name, key, price, picked } =
+                    Input.checkbox
                         []
-                        (el
-                            []
-                            (textM config.lang name)
+                        { onChange = SetOption key
+                        , icon = Input.defaultCheckbox
+                        , checked = picked
+                        , label =
+                            Input.labelRight
+                                []
+                                (el
+                                    []
+                                    (textM config.lang name)
+                                )
+                        }
+            in
+            column
+                [ spacing 15 ]
+                [ el
+                    [ Font.bold
+                    , Font.size 18
+                    , Font.family
+                        [ Font.typeface "Montserrat"
+                        , Font.sansSerif
+                        ]
+                    ]
+                    (textM config.lang
+                        (MultLangStr "Options"
+                            "Options"
                         )
-                }
-    in
-    column
-        [ spacing 15 ]
-        [ el
-            [ Font.bold
-            , Font.size 18
-            , Font.family
-                [ Font.typeface "Montserrat"
-                , Font.sansSerif
+                    )
+                , column
+                    [ spacing 15 ]
+                    (List.map optionView (Dict.values bOptions.options))
                 ]
-            ]
-            (textM config.lang
-                (MultLangStr "Options"
-                    "Options"
-                )
-            )
-        , column
-            [ spacing 15 ]
-            (List.map optionView (Dict.values model.options))
-        ]
+
+        Nothing ->
+            Element.none
 
 
 canShowForm model =
@@ -1662,8 +1685,8 @@ encodeBookingData model =
           , strEncode model.comments
           )
         , ( "options"
-          , encodeBookingOptions
-                model.options
+          , Maybe.withDefault dummyOptions model.options
+                |> encodeBookingOptions
           )
         , ( "days_booked"
           , model.slots.booked

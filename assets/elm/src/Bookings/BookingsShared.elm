@@ -46,7 +46,21 @@ type alias BookingInfo =
 
 
 type alias BookingOptions =
-    Dict String BookingOption
+    { oneDayPrice : Maybe Float
+    , discountPrice : Maybe Float
+    , oneWeekPrice : Maybe Float
+    , touristTax : Maybe Float
+    , options : Dict String BookingOption
+    }
+
+
+dummyOptions =
+    { oneDayPrice = Nothing
+    , discountPrice = Nothing
+    , oneWeekPrice = Nothing
+    , touristTax = Nothing
+    , options = Dict.empty
+    }
 
 
 type alias BookingOption =
@@ -150,18 +164,33 @@ encodeTitle title =
 
 encodeBookingOptions : BookingOptions -> Encode.Value
 encodeBookingOptions bos =
-    Dict.toList bos
-        |> List.map (\( k, v ) -> ( k, encodeBookingOption v ))
-        |> Encode.object
-
-
-
---type alias BookingOption =
---    { name : MultLangStr
---    , price : Float
---    , key : String
---    , picked : Bool
---    }
+    Encode.object
+        [ ( "oneDayPrice"
+          , bos.oneDayPrice
+                |> Maybe.map Encode.float
+                |> Maybe.withDefault Encode.null
+          )
+        , ( "discountPrice"
+          , bos.discountPrice
+                |> Maybe.map Encode.float
+                |> Maybe.withDefault Encode.null
+          )
+        , ( "oneWeekPrice"
+          , bos.oneWeekPrice
+                |> Maybe.map Encode.float
+                |> Maybe.withDefault Encode.null
+          )
+        , ( "touristTax"
+          , bos.touristTax
+                |> Maybe.map Encode.float
+                |> Maybe.withDefault Encode.null
+          )
+        , ( "options"
+          , Dict.toList bos.options
+                |> List.map (\( k, v ) -> ( k, encodeBookingOption v ))
+                |> Encode.object
+          )
+        ]
 
 
 encodeBookingOption : BookingOption -> Encode.Value
@@ -221,10 +250,28 @@ dateDecoder =
         |> Decode.map Date.fromRataDie
 
 
+getBookingOptions : (Result Error BookingOptions -> msg) -> Cmd msg
+getBookingOptions responseHandler =
+    Http.get
+        { url = "/api/pagesdata/bookingOptions"
+        , expect =
+            Http.expectJson
+                responseHandler
+                decodeBookingOptions
+        }
+
+
 decodeBookingOptions =
-    Decode.nullable
-        (Decode.dict decodeBookingOption)
-        |> Decode.map (Maybe.withDefault Dict.empty)
+    Decode.field "data" <|
+        Decode.field "content"
+            (Decode.succeed
+                BookingOptions
+                |> required "oneDayPrice" (Decode.nullable Decode.float)
+                |> required "discountPrice" (Decode.nullable Decode.float)
+                |> required "oneWeekPrice" (Decode.nullable Decode.float)
+                |> required "touristTax" (Decode.nullable Decode.float)
+                |> required "options" (Decode.dict decodeBookingOption)
+            )
 
 
 decodeBookingOption =

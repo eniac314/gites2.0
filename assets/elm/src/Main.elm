@@ -16,6 +16,9 @@ import Element.Region as Region
 import Gallery.GalleryPage as GalleryPage
 import GenericPage.GenericPage as GenericPage
 import Html.Attributes as HtmlAttr
+import Http exposing (..)
+import Internals.Helpers exposing (decodeMls)
+import Internals.MarkdownParser as MarkdownParser
 import Json.Decode as D
 import Json.Encode as E
 import MultLang.MultLang exposing (..)
@@ -52,6 +55,7 @@ type alias Model =
     , nearbyPage : GenericPage.Model Msg
     , galleryPage : GalleryPage.Model Msg
     , bookings : Bookings.Model Msg
+    , ratePage : Maybe MultLangStr
     , lang : Lang
     , displayMode : DisplayMode
     , key : Nav.Key
@@ -72,6 +76,7 @@ type Msg
     | GalleryPageMsg GalleryPage.Msg
     | BookingsMsg Bookings.Msg
     | ChangeLang Lang
+    | GotRateArticle (Result Http.Error MultLangStr)
     | NoOp
 
 
@@ -115,6 +120,7 @@ init flags url key =
       , nearbyPage = newNearbyPage
       , galleryPage = newGalleryPage
       , bookings = newBookings
+      , ratePage = Nothing
       , lang = French
       , displayMode =
             urlToDisplayMode url_
@@ -138,6 +144,16 @@ init flags url key =
         , nearbyPageCmd
         , galleryCmd
         , bookingsCmd
+        , Http.get
+            { url = "/api/pagesdata/rateArticle"
+            , expect =
+                Http.expectJson
+                    GotRateArticle
+                    (D.field "data" <|
+                        D.field "content"
+                            decodeMls
+                    )
+            }
         ]
     )
 
@@ -245,6 +261,14 @@ update msg model =
         ChangeLang l ->
             ( { model | lang = l }, Cmd.none )
 
+        GotRateArticle res ->
+            case res of
+                Ok a ->
+                    ( { model | ratePage = Just a }, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
         NoOp ->
             ( model, Cmd.none )
 
@@ -333,7 +357,13 @@ view model =
                                     model.bookings
 
                             DisplayRates ->
-                                Element.none
+                                case model.ratePage of
+                                    Nothing ->
+                                        Element.none
+
+                                    Just page ->
+                                        MarkdownParser.renderMarkdown
+                                            (strM model.lang page)
 
                             DisplayNearby ->
                                 GenericPage.view

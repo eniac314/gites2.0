@@ -84,7 +84,7 @@ blockToElement offset block =
                     else
                         "‣"
 
-                liView bs =
+                liView ( i, bs ) =
                     case bs of
                         [] ->
                             []
@@ -97,16 +97,21 @@ blockToElement offset block =
                                 [ width fill
                                 , spacing 5
                                 ]
-                                [ el [ alignTop ] (text <| bullet offset)
+                                [ case listblock.type_ of
+                                    Unordered ->
+                                        el [ alignTop ] (text <| bullet offset)
+
+                                    Ordered start ->
+                                        el [ alignTop ] (text <| String.fromInt (start + i) ++ ". ")
                                 , paragraph [] (List.map (blockToElement (offset + 1)) bs)
                                 ]
                             ]
             in
-                column
-                    [ spacing 10
-                    , paddingXY 0 10
-                    ]
-                    (List.concatMap liView llistBlocks)
+            column
+                [ spacing 10
+                , paddingXY 0 10
+                ]
+                (List.concatMap liView (List.indexedMap Tuple.pair llistBlocks))
 
         PlainInlines inlines ->
             paragraph
@@ -141,19 +146,19 @@ headings raw level inlines =
                   )
                 ]
     in
-        paragraph
-            ([ Region.heading level
-             , Font.color black
-             , Font.family
-                [ Font.typeface "Crimson Text"
-                , Font.serif
-                ]
-             ]
-                ++ (Dict.get level headingStyles
-                        |> Maybe.withDefault []
-                   )
-            )
-            (List.concatMap (inlinesToElements []) inlines)
+    paragraph
+        ([ Region.heading level
+         , Font.color black
+         , Font.family
+            [ Font.typeface "Crimson Text"
+            , Font.serif
+            ]
+         ]
+            ++ (Dict.get level headingStyles
+                    |> Maybe.withDefault []
+               )
+        )
+        (List.concatMap (inlinesToElements []) inlines)
 
 
 inlinesToElements : List (Attribute msg) -> Inline i -> List (Element msg)
@@ -207,7 +212,7 @@ inlinesToElements attrs inline =
                                 []
                            )
             in
-                List.concatMap (inlinesToElements attrs_) inlines
+            List.concatMap (inlinesToElements attrs_) inlines
 
         Inline.Custom i inlines ->
             []
