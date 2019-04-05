@@ -20,6 +20,7 @@ defmodule Gites.MixProject do
   def application do
     [
       mod: {Gites.Application, []},
+      
       extra_applications: [:logger, :runtime_tools]
     ]
   end
@@ -53,6 +54,7 @@ defmodule Gites.MixProject do
       {:hackney, "~> 1.9"},
       {:sweet_xml, "~> 0.6"},
       {:bamboo, "~> 1.2"},
+      {:bamboo_smtp, "~> 1.6.0"},
     ]
   end
 

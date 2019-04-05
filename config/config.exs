@@ -27,12 +27,20 @@ config :gites, Gites.Guardian,
   serializer: Gites.Guardian
 
 #configures Mailer 
-config :gites, Gites.Mailer, 
-  adapter: Bamboo.MailgunAdapter,
-  api_key: System.get_env("MAILGUN_API_KEY"),
-  domain: "levieuxlilas.fr"
+config :gites, Gites.Mailer,
+  adapter: Bamboo.SMTPAdapter,
+  server: "smtp.ionos.fr",
+  hostname: "levieuxlilas.fr",
+  port: 465,
+  username: System.get_env("SMTP_USERNAME"),
+  password: System.get_env("SMTP_PASSWORD"),
+  tls: :if_available, # can be `:always` or `:never`
+  allowed_tls_versions: [:"tlsv1", :"tlsv1.1", :"tlsv1.2"], # or {:system, "ALLOWED_TLS_VERSIONS"} w/ comma seprated values (e.g. "tlsv1.1,tlsv1.2")
+  ssl: true, # can be `true`
+  retries: 1,
+  no_mx_lookups: false, # can be `true`
+  auth: :always # can be `always`. If your smtp relay requires authentication set it to `always`.
 
-config :bamboo, :mailgun_base_uri, "https://api.eu.mailgun.net/v3"
 
 # Configures Elixir's Logger
 config :logger, :console,
