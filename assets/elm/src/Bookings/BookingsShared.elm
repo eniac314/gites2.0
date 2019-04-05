@@ -257,21 +257,24 @@ getBookingOptions responseHandler =
         , expect =
             Http.expectJson
                 responseHandler
-                decodeBookingOptions
+                decodeBookingOptionServer
         }
 
 
-decodeBookingOptions =
+decodeBookingOptionServer =
     Decode.field "data" <|
         Decode.field "content"
-            (Decode.succeed
-                BookingOptions
-                |> required "oneDayPrice" (Decode.nullable Decode.float)
-                |> required "discountPrice" (Decode.nullable Decode.float)
-                |> required "oneWeekPrice" (Decode.nullable Decode.float)
-                |> required "touristTax" (Decode.nullable Decode.float)
-                |> required "options" (Decode.dict decodeBookingOption)
-            )
+            decodeBookingOptions
+
+
+decodeBookingOptions =
+    Decode.succeed
+        BookingOptions
+        |> required "oneDayPrice" (Decode.nullable Decode.float)
+        |> required "discountPrice" (Decode.nullable Decode.float)
+        |> required "oneWeekPrice" (Decode.nullable Decode.float)
+        |> required "touristTax" (Decode.nullable Decode.float)
+        |> required "options" (Decode.dict decodeBookingOption)
 
 
 decodeBookingOption =

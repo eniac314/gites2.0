@@ -244,6 +244,7 @@ init outMsg ( seed, seedExtension ) =
             [ checkInPickerCmd
             , checkOutPickerCmd
             , getAvailabilities slots
+            , getBookingOptions GotBookingOptions
             , joinChannel (Uuid.encode newUuid)
             ]
     )
@@ -869,16 +870,16 @@ dateChoiceView config model =
             ]
             [ checkInView config model
             , checkOutView config model
-            , case Maybe.map .options model.options of
-                Just d ->
-                    if d == Dict.empty then
-                        Element.none
-                    else
-                        optionsView config model
-
-                Nothing ->
-                    Element.none
             ]
+        , case Maybe.map .options model.options of
+            Just d ->
+                if d == Dict.empty then
+                    Element.none
+                else
+                    optionsView config model
+
+            Nothing ->
+                Element.none
         , el
             [ alignLeft
             , alignBottom
@@ -913,7 +914,12 @@ optionsView config model =
                                 []
                                 (el
                                     []
-                                    (textM config.lang name)
+                                    (text <|
+                                        strM config.lang name
+                                            ++ " - "
+                                            ++ String.fromFloat price
+                                            ++ "€"
+                                    )
                                 )
                         }
             in
@@ -1806,16 +1812,8 @@ toBookingInfo model =
 
 
 validateForm : Model msg -> Bool
-validateForm { selectedTitle, firstName, lastName, address, postcode, city, country, phone1, email, confEmail, nbrAdults } =
+validateForm { firstName, lastName, address, postcode, city, country, phone1, email, confEmail, nbrAdults } =
     let
-        validTitle =
-            case selectedTitle of
-                Nothing ->
-                    False
-
-                Just _ ->
-                    True
-
         validFstName =
             firstName /= Nothing
 
@@ -1849,8 +1847,7 @@ validateForm { selectedTitle, firstName, lastName, address, postcode, city, coun
                 Just _ ->
                     True
     in
-    validTitle
-        && validFstName
+    validFstName
         && validLstName
         && validAddr
         && validPostcode
