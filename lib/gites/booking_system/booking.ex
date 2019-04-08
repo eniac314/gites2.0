@@ -20,8 +20,9 @@ defmodule Gites.BookingSystem.Booking do
     field :phone1, :string
     field :phone2, :string
     field :postcode, :integer
-    field :title, :string
+    field :pets, :string, default: nil
     field :options, :string, default: nil
+    field :language, :string, default: "french"
 
     timestamps()
   end
@@ -29,7 +30,7 @@ defmodule Gites.BookingSystem.Booking do
   @doc false
   def changeset(booking, attrs) do
     booking
-    |> cast(attrs, [:check_in, :check_out, :title, :first_name, :last_name, :address, :add_address, :postcode, :city, :country, :phone1, :phone2, :email, :nbr_adults, :nbr_children, :comments, :options, :confirmed])
-    |> validate_required([:check_in, :check_out, :title, :first_name, :last_name, :address, :postcode, :city, :country, :phone1, :email, :nbr_adults])
+    |> cast(attrs, [:check_in, :check_out, :pets, :first_name, :last_name, :address, :add_address, :postcode, :city, :country, :phone1, :phone2, :email, :nbr_adults, :nbr_children, :comments, :options, :confirmed, :language])
+    |> validate_required([:check_in, :check_out, :first_name, :last_name, :address, :postcode, :city, :country, :phone1, :email, :nbr_adults])
   end
 end

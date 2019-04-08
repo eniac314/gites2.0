@@ -26,7 +26,6 @@ type alias BookingInfo =
     { bookingId : Int
     , checkIn : Date
     , checkOut : Date
-    , title : Title
     , firstName : String
     , lastName : String
     , address : String
@@ -40,7 +39,9 @@ type alias BookingInfo =
     , nbrAdults : Int
     , nbrKids : Maybe Int
     , comment : Maybe String
+    , pets : Maybe String
     , options : BookingOptions
+    , language : Lang
     , confirmed : Bool
     }
 
@@ -86,10 +87,6 @@ encodeBookingInfo bookingInfo =
           , bookingInfo.checkOut
                 |> Date.toRataDie
                 |> Encode.int
-          )
-        , ( "title"
-          , bookingInfo.title
-                |> encodeTitle
           )
         , ( "first_name"
           , Encode.string bookingInfo.firstName
@@ -140,26 +137,26 @@ encodeBookingInfo bookingInfo =
                 |> Maybe.map Encode.string
                 |> Maybe.withDefault Encode.null
           )
+        , ( "pets"
+          , bookingInfo.pets
+                |> Maybe.map Encode.string
+                |> Maybe.withDefault Encode.null
+          )
         , ( "options"
           , encodeBookingOptions bookingInfo.options
+          )
+        , ( "language"
+          , case bookingInfo.language of
+                French ->
+                    Encode.string "french"
+
+                English ->
+                    Encode.string "english"
           )
         , ( "confirmed"
           , Encode.bool bookingInfo.confirmed
           )
         ]
-
-
-encodeTitle : Title -> Encode.Value
-encodeTitle title =
-    case title of
-        Mr ->
-            Encode.string "Mr"
-
-        Ms ->
-            Encode.string "Ms"
-
-        Other ->
-            Encode.string "Other"
 
 
 encodeBookingOptions : BookingOptions -> Encode.Value
@@ -209,7 +206,6 @@ decodeBookingInfo =
         |> required "id" Decode.int
         |> required "check_in" dateDecoder
         |> required "check_out" dateDecoder
-        |> required "title" decodeTitle
         |> required "first_name" Decode.string
         |> required "last_name" Decode.string
         |> required "address" Decode.string
@@ -223,25 +219,14 @@ decodeBookingInfo =
         |> required "nbr_adults" Decode.int
         |> optional "nbr_children" (dJust Decode.int) Nothing
         |> optional "comments" (dJust Decode.string) Nothing
+        |> optional "pets" (dJust Decode.string) Nothing
         |> required "options" decodeBookingOptions
+        |> required "language" decodeLanguage
         |> required "confirmed" Decode.bool
 
 
 dJust =
     Decode.map Just
-
-
-strToTitle s =
-    if s == "Mr" then
-        Mr
-    else if s == "Ms" then
-        Ms
-    else
-        Other
-
-
-decodeTitle =
-    Decode.map strToTitle Decode.string
 
 
 dateDecoder : Decode.Decoder Date
@@ -265,6 +250,22 @@ decodeBookingOptionServer =
     Decode.field "data" <|
         Decode.field "content"
             decodeBookingOptions
+
+
+decodeLanguage =
+    Decode.string
+        |> Decode.andThen
+            (\str ->
+                case str of
+                    "french" ->
+                        Decode.succeed French
+
+                    "english" ->
+                        Decode.succeed English
+
+                    _ ->
+                        Decode.succeed French
+            )
 
 
 decodeBookingOptions =
@@ -308,24 +309,6 @@ userDecoder =
     Decode.field "uuid" Decode.string
 
 
-type Title
-    = Mr
-    | Ms
-    | Other
-
-
-titleMLS t =
-    case t of
-        Mr ->
-            MultLangStr "Mr" "M."
-
-        Ms ->
-            MultLangStr "Ms" "Mme"
-
-        Other ->
-            MultLangStr "Other" "Autre"
-
-
 nightsCount : Date -> Date -> Int
 nightsCount d1 d2 =
     Date.diff Date.Days d1 d2
@@ -350,20 +333,7 @@ customerDetailView config bi =
             )
         , row
             [ spacing 5 ]
-            [ textM config.lang <|
-                case bi.title of
-                    Mr ->
-                        MultLangStr "Mr"
-                            "M."
-
-                    Ms ->
-                        MultLangStr "Ms"
-                            "Mme"
-
-                    Other ->
-                        MultLangStr "Other"
-                            "Autre"
-            , el [] (text bi.firstName)
+            [ el [] (text bi.firstName)
             , el [] (text bi.lastName)
             ]
         , paragraph [] [ text bi.address ]
@@ -493,18 +463,14 @@ recapView config cInDate cOutDate bi =
                     ++ String.fromInt (nc * 50)
                     ++ " €"
             )
+        , case bi.pets of
+            Just s ->
+                paragraph
+                    []
+                    [ text <| (strM config.lang (MultLangStr "Pets: " "Animaux: ") ++ s) ]
 
-        --, if bi.options.cleaningFee then
-        --    el
-        --        []
-        --        (text <|
-        --            strM config.lang
-        --                (MultLangStr "Cleaning service: 50 €"
-        --                    "Forfait ménage: 50 €"
-        --                )
-        --        )
-        --  else
-        --    Element.none
+            Nothing ->
+                Element.none
         , case bi.comment of
             Just c ->
                 column
@@ -523,3 +489,7 @@ recapView config cInDate cOutDate bi =
             _ ->
                 Element.none
         ]
+
+
+
+-------------------------------------------------------------------------

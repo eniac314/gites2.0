@@ -69,6 +69,9 @@ app.ports.broadcastLockedDays.subscribe(function(lDays){
   channel.push("days_locked", {cIn: lDays.cIn, cOut: lDays.cOut});
 });
 
+app.ports.requestRefresh.subscribe(function(){
+  channel.push("request_refresh");
+});
 
 // Captcha code ///////////////////
 

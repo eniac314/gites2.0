@@ -92,7 +92,7 @@ init : Flags -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
     let
         ( newBookings, bookingsCmd ) =
-            Bookings.init BookingsMsg flags.seedInfo
+            Bookings.init BookingsMsg flags.seedInfo False
 
         ( newFrontPage, frontPageCmd ) =
             GenericPage.init FrontPageMsg "frontPage"
@@ -252,7 +252,7 @@ update msg model =
         BookingsMsg bookingsMsg ->
             let
                 ( newBookings, bookingsCmd ) =
-                    Bookings.update bookingsMsg model.bookings
+                    Bookings.update { key = model.key } bookingsMsg model.bookings
             in
             ( { model | bookings = newBookings }
             , bookingsCmd

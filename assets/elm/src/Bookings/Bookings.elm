@@ -3,6 +3,7 @@ port module Bookings.Bookings exposing (..)
 import Bookings.BookingsShared exposing (..)
 import Bookings.DatePicker.Date exposing (formatDate)
 import Bookings.DatePicker.DatePicker as DP
+import Browser.Navigation as Nav exposing (Key, pushUrl)
 import Date exposing (..)
 import Delay
 import Dict exposing (..)
@@ -44,6 +45,9 @@ port captcha_port : (String -> msg) -> Sub msg
 port joinChannel : Encode.Value -> Cmd msg
 
 
+port requestRefresh : () -> Cmd msg
+
+
 port broadcastLockedDays : Encode.Value -> Cmd msg
 
 
@@ -83,8 +87,6 @@ type alias Model msg =
     , slots : Slots
 
     --
-    , selectedTitle : Maybe Title
-    , titleSelector : Select.Model
     , firstName : Maybe String
     , lastName : Maybe String
     , address : Maybe String
@@ -101,6 +103,8 @@ type alias Model msg =
     , nbrAdultSelector : Select.Model
     , nbrChildren : Maybe Int
     , nbrChildrenSelector : Select.Model
+    , pets : Bool
+    , petsType : Maybe String
     , comments : Maybe String
     , options : Maybe BookingOptions
 
@@ -132,8 +136,6 @@ type alias Slots =
 type Msg
     = CheckInPickerMsg DP.Msg
     | CheckOutPickerMsg DP.Msg
-    | SelectTitle Title
-    | TitleSelectorMsg Select.Msg
     | SetFirstName String
     | SetLastName String
     | SetAddress String
@@ -149,11 +151,13 @@ type Msg
     | NbrAdultSelectorMsg Select.Msg
     | SelectNbrChildren Int
     | NbrChildrenSelectorMsg Select.Msg
+    | SetPets Bool
+    | SetPetsType String
     | SetComment String
     | SetOption String Bool
     | LoadCaptcha
     | CaptchaResponse String
-    | SendBookingData
+    | SendBookingData Lang
     | BookingProcessed (Result Http.Error Bool)
     | GetAvailabilities
     | ReceiveAvailabilities (Result Http.Error Slots)
@@ -163,10 +167,11 @@ type Msg
     | ReceivePresenceDiff Decode.Value
     | Delay Float Msg
     | GotBookingOptions (Result Http.Error BookingOptions)
+    | NewBooking
     | NoOp
 
 
-init outMsg ( seed, seedExtension ) =
+init outMsg ( seed, seedExtension ) reset =
     let
         ( checkInPicker, checkInPickerCmd ) =
             DP.init Nothing False CheckInPickerMsg
@@ -212,8 +217,6 @@ init outMsg ( seed, seedExtension ) =
       --, nbrChildren = Nothing
       --, nbrChildrenSelector = Select.init
       --, comments = Nothing
-      , selectedTitle = Just Mr
-      , titleSelector = Select.init
       , firstName = Just "Florian"
       , lastName = Just "Gillard"
       , address = Just "5 place de l'église"
@@ -230,6 +233,8 @@ init outMsg ( seed, seedExtension ) =
       , nbrAdultSelector = Select.init
       , nbrChildren = Nothing
       , nbrChildrenSelector = Select.init
+      , pets = False
+      , petsType = Nothing
       , comments = Nothing
       , options = Nothing
       , currentSeed = newSeed
@@ -245,13 +250,16 @@ init outMsg ( seed, seedExtension ) =
             , checkOutPickerCmd
             , getAvailabilities slots
             , getBookingOptions GotBookingOptions
-            , joinChannel (Uuid.encode newUuid)
+            , if reset then
+                requestRefresh ()
+              else
+                joinChannel (Uuid.encode newUuid)
             ]
     )
 
 
-update : Msg -> Model msg -> ( Model msg, Cmd msg )
-update msg model =
+update : { a | key : Nav.Key } -> Msg -> Model msg -> ( Model msg, Cmd msg )
+update config msg model =
     case msg of
         CheckInPickerMsg pickerMsg ->
             let
@@ -306,19 +314,6 @@ update msg model =
                         , broadcastLockedDaysCmd model.checkInDate (Just checkOut)
                         ]
                     )
-
-        TitleSelectorMsg selMsg ->
-            ( { model
-                | titleSelector =
-                    Select.update selMsg model.titleSelector
-              }
-            , Cmd.none
-            )
-
-        SelectTitle t ->
-            ( { model | selectedTitle = Just t }
-            , Cmd.none
-            )
 
         SetFirstName s ->
             ( { model
@@ -467,6 +462,20 @@ update msg model =
             , Cmd.none
             )
 
+        SetPets b ->
+            ( { model | pets = b }, Cmd.none )
+
+        SetPetsType s ->
+            ( { model
+                | petsType =
+                    if s == "" then
+                        Nothing
+                    else
+                        Just s
+              }
+            , Cmd.none
+            )
+
         SetComment s ->
             ( { model
                 | comments =
@@ -511,9 +520,9 @@ update msg model =
         CaptchaResponse s ->
             ( { model | captchaResp = s }, Cmd.none )
 
-        SendBookingData ->
+        SendBookingData lang ->
             ( { model | bookingProcessed = Waiting }
-            , sendBookingData model
+            , sendBookingData lang model
                 |> Cmd.map model.outMsg
             )
 
@@ -669,6 +678,21 @@ update msg model =
 
                 _ ->
                     ( model, Cmd.none )
+
+        NewBooking ->
+            let
+                ( newModel, cmd ) =
+                    init model.outMsg ( 0, [] ) True
+            in
+            ( { newModel
+                | currentSeed = model.currentSeed
+                , currentUuid = model.currentUuid
+              }
+            , Cmd.batch
+                [ cmd
+                , pushUrl config.key "/bookings"
+                ]
+            )
 
         NoOp ->
             ( model, Cmd.none )
@@ -1188,46 +1212,6 @@ formView config model =
                                 ++ formatDate config.lang cOutDate
                         )
                     ]
-                , Select.view
-                    { outMsg = TitleSelectorMsg
-                    , items =
-                        [ ( strM config.lang
-                                (MultLangStr
-                                    "Mr"
-                                    "M."
-                                )
-                          , SelectTitle Mr
-                          )
-                        , ( strM config.lang
-                                (MultLangStr
-                                    "Ms"
-                                    "Mme"
-                                )
-                          , SelectTitle Ms
-                          )
-                        , ( strM config.lang
-                                (MultLangStr
-                                    "Other"
-                                    "Autre"
-                                )
-                          , SelectTitle Other
-                          )
-                        ]
-                    , selected =
-                        model.selectedTitle
-                            |> Maybe.map
-                                (\t -> strM config.lang (titleMLS t))
-                    , placeholder =
-                        Just "-"
-                    , label =
-                        Just <|
-                            mandatoryLabel config
-                                (MultLangStr
-                                    "Title"
-                                    "Civilité"
-                                )
-                    }
-                    model.titleSelector
                 , Input.text
                     textInputStyle_
                     { onChange = SetFirstName
@@ -1420,6 +1404,47 @@ formView config model =
                                 )
                     }
                     model.nbrChildrenSelector
+                , column
+                    [ spacing 15 ]
+                    [ Input.checkbox
+                        []
+                        { onChange = SetPets
+                        , icon = Input.defaultCheckbox
+                        , checked = model.pets
+                        , label =
+                            Input.labelRight
+                                [ paddingXY 10 0 ]
+                                (textM config.lang
+                                    (MultLangStr "Pets"
+                                        "Animaux de compagnie"
+                                    )
+                                )
+                        }
+                    , if model.pets then
+                        Input.multiline
+                            [ height (px 100)
+                            , width (px 400)
+                            ]
+                            { onChange = SetPetsType
+                            , text =
+                                model.petsType
+                                    |> Maybe.withDefault ""
+                            , placeholder =
+                                Just <|
+                                    Input.placeholder
+                                        []
+                                        (textM config.lang
+                                            (MultLangStr "Please specify the species and number of pets"
+                                                "Précisez l'espèce et le nombre des animaux SVP"
+                                            )
+                                        )
+                            , spellcheck = False
+                            , label =
+                                Input.labelHidden ""
+                            }
+                      else
+                        Element.none
+                    ]
                 , Input.multiline
                     [ height (px 100)
                     , width (px 400)
@@ -1477,7 +1502,7 @@ formView config model =
 
 confirmView : ViewConfig -> Model msg -> Element Msg
 confirmView config model =
-    case ( ( model.checkInDate, model.checkOutDate ), ( validateForm model, toBookingInfo model ) ) of
+    case ( ( model.checkInDate, model.checkOutDate ), ( validateForm model, toBookingInfo config.lang model ) ) of
         ( ( Just cInDate, Just cOutDate ), ( True, Ok bookingInfo ) ) ->
             let
                 textS mbStr =
@@ -1527,22 +1552,22 @@ confirmView config model =
                         { sides | top = 10 }
                     ]
                     Element.none
-                , row
-                    [ spacing 15 ]
-                    [ link
-                        (buttonStyle2 True)
-                        { url = "/bookings/form"
-                        , label =
-                            textM config.lang
-                                (MultLangStr "Go back" "Retour")
-                        }
-                    , case model.bookingProcessed of
-                        Initial ->
-                            Input.button
+                , case model.bookingProcessed of
+                    Initial ->
+                        row
+                            [ spacing 15 ]
+                            [ link
+                                (buttonStyle2 True)
+                                { url = "/bookings/form"
+                                , label =
+                                    textM config.lang
+                                        (MultLangStr "Go back" "Retour")
+                                }
+                            , Input.button
                                 (buttonStyle_ (model.captchaResp /= ""))
                                 { onPress =
                                     if model.captchaResp /= "" then
-                                        Just SendBookingData
+                                        Just (SendBookingData config.lang)
                                     else
                                         Nothing
                                 , label =
@@ -1551,30 +1576,43 @@ confirmView config model =
                                             "Envoyer"
                                         )
                                 }
+                            ]
 
-                        Waiting ->
-                            el
-                                []
-                                (textM config.lang
-                                    (MultLangStr "Your request is being processed, please wait... "
-                                        "Votre demande est en cours de traitement, veuillez patienter... "
-                                    )
+                    Waiting ->
+                        el
+                            []
+                            (textM config.lang
+                                (MultLangStr "Your request is being processed, please wait... "
+                                    "Votre demande est en cours de traitement, veuillez patienter... "
                                 )
+                            )
 
-                        Success ->
-                            el
+                    Success ->
+                        column
+                            [ spacing 15 ]
+                            [ el
                                 []
                                 (textM config.lang
                                     (MultLangStr "Your request has been processed, you will receive a confirmation email in the next 24H."
                                         "Votre demande à été prise en compte, vous allez recevoir un email de confirmation dans les prochaines 24H."
                                     )
                                 )
+                            , Input.button
+                                (buttonStyle_ True)
+                                { onPress =
+                                    Just NewBooking
+                                , label =
+                                    textM config.lang
+                                        (MultLangStr "New booking"
+                                            "Nouvelle reservation"
+                                        )
+                                }
+                            ]
 
-                        Failure ->
-                            el
-                                []
-                                (text <| "Failure")
-                    ]
+                    Failure ->
+                        el
+                            []
+                            (text <| "Failure")
                 ]
 
         _ ->
@@ -1597,13 +1635,13 @@ confirmView config model =
 ------------------
 
 
-sendBookingData : Model msg -> Cmd Msg
-sendBookingData model =
+sendBookingData : Lang -> Model msg -> Cmd Msg
+sendBookingData lang model =
     let
         body =
             Encode.object
                 [ ( "booking"
-                  , encodeBookingData model
+                  , encodeBookingData lang model
                   )
                 ]
                 |> Http.jsonBody
@@ -1620,8 +1658,8 @@ decodeBookingResult =
         |> Decode.map (\s -> s == "success")
 
 
-encodeBookingData : Model msg -> Encode.Value
-encodeBookingData model =
+encodeBookingData : Lang -> Model msg -> Encode.Value
+encodeBookingData lang model =
     let
         strEncode s =
             Maybe.map Encode.string s
@@ -1638,11 +1676,6 @@ encodeBookingData model =
           , model.checkOutDate
                 |> Maybe.map Date.toRataDie
                 |> Maybe.map Encode.int
-                |> Maybe.withDefault Encode.null
-          )
-        , ( "title"
-          , model.selectedTitle
-                |> Maybe.map encodeTitle
                 |> Maybe.withDefault Encode.null
           )
         , ( "first_name"
@@ -1687,12 +1720,25 @@ encodeBookingData model =
                 |> Maybe.map Encode.int
                 |> Maybe.withDefault Encode.null
           )
+        , ( "pets"
+          , model.petsType
+                |> Maybe.map Encode.string
+                |> Maybe.withDefault Encode.null
+          )
         , ( "comments"
           , strEncode model.comments
           )
         , ( "options"
           , Maybe.withDefault dummyOptions model.options
                 |> encodeBookingOptions
+          )
+        , ( "language"
+          , case lang of
+                French ->
+                    Encode.string "french"
+
+                English ->
+                    Encode.string "English"
           )
         , ( "days_booked"
           , model.slots.booked
@@ -1706,6 +1752,26 @@ encodeBookingData model =
                     )
           )
         , ( "captcha_response", Encode.string model.captchaResp )
+        , ( "notification_mail"
+          , let
+                ( subject, body ) =
+                    notificationMail lang model
+            in
+            Encode.object
+                [ ( "subject", Encode.string subject )
+                , ( "body", Encode.string body )
+                ]
+          )
+        , ( "notification_mail_admin"
+          , let
+                ( subject, body ) =
+                    notificationMailAdmin model
+            in
+            Encode.object
+                [ ( "subject", Encode.string subject )
+                , ( "body", Encode.string body )
+                ]
+          )
         ]
 
 
@@ -1800,8 +1866,8 @@ decodeAvailability =
 -------------------------------------------------------------------------------
 
 
-toBookingInfo model =
-    encodeBookingData model
+toBookingInfo lang model =
+    encodeBookingData lang model
         |> JsonValue.decodeValue
         |> JsonValue.setIn [ "confirmed" ] (JsonValue.BoolValue False)
         |> Result.withDefault JsonValue.NullValue
@@ -1856,3 +1922,62 @@ validateForm { firstName, lastName, address, postcode, city, country, phone1, em
         && validPhone1
         && validEmail
         && validNbrAdults
+
+
+
+-------------------------------------------------------------------------------
+------------
+-- Emails --
+------------
+
+
+notificationMail lang model =
+    case
+        ( ( model.firstName, model.lastName )
+        , ( Maybe.map (formatDate lang) model.checkInDate
+          , Maybe.map (formatDate lang) model.checkOutDate
+          )
+        )
+    of
+        ( ( Just firstName, Just lastName ), ( Just checkIn, Just checkOut ) ) ->
+            case lang of
+                English ->
+                    ( "", "" )
+
+                French ->
+                    ( "Notification réservation gite Vieux lilas"
+                    , "Bonjour "
+                        ++ firstName
+                        ++ " "
+                        ++ lastName
+                        ++ "\n\n"
+                        ++ "Nous avons bien reçu votre réservation du "
+                        ++ checkIn
+                        ++ " au "
+                        ++ checkOut
+                        ++ ".\n\n"
+                        ++ "Un email de confirmation vous sera envoyé dans les 24 heures.\n\n"
+                        ++ "Cordialement, "
+                    )
+
+        _ ->
+            ( "", "" )
+
+
+notificationMailAdmin model =
+    case
+        ( Maybe.map (formatDate French) model.checkInDate
+        , Maybe.map (formatDate French) model.checkOutDate
+        )
+    of
+        ( Just checkIn, Just checkOut ) ->
+            ( "Notification réservation gite Vieux lilas"
+            , "Une demande de réservation du "
+                ++ checkIn
+                ++ " au "
+                ++ checkOut
+                ++ " est en attente de confirmation."
+            )
+
+        _ ->
+            ( "", "" )

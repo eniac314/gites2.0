@@ -20,6 +20,16 @@ defmodule GitesWeb.BookingsChannel do
 
     {:noreply, socket} 
   end 
+
+  def handle_in("request_refresh", socket) do 
+    
+    push(socket, "presence_state", Presence.list(socket))
+
+    push(socket, "broadcast_initial_locked_days", %{payload: LockedAvailabilitiesServer.list_locked})
+
+    {:noreply, socket} 
+  end 
+  
   
   def handle_info({:after_join, "days_locked"}, socket) do 
     

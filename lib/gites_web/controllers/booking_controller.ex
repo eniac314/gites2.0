@@ -39,7 +39,11 @@ defmodule GitesWeb.BookingController do
       
       GitesWeb.Endpoint.broadcast!("bookings:locked_days", "new_booking", %{})
       
-      Email.confirm_email(booking_params["email"]) |> Mailer.deliver_later
+      Email.notif_email(booking_params["email"], booking_params["notification_mail"]["subject"], booking_params["notification_mail"]["body"])
+         |> Mailer.deliver_later
+
+      Email.notif_admin_email(booking_params["notification_mail_admin"]["subject"], booking_params["notification_mail_admin"]["body"])
+         |> Mailer.deliver_later
 
       conn
       |> put_status(:created)

@@ -19,8 +19,7 @@ defmodule Gites.MixProject do
   # Type `mix help compile.app` for more information.
   def application do
     [
-      mod: {Gites.Application, []},
-      
+      mod: {Gites.Application, []},      
       extra_applications: [:logger, :runtime_tools]
     ]
   end

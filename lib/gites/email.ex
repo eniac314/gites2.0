@@ -2,12 +2,18 @@ defmodule Gites.Email do
   import Bamboo.Email
   import Bamboo.Phoenix
 
-  def confirm_email(dest) do
+  def notif_admin_email(subject, body) do
+    base_email
+    |> to(["florian.gillard@tutanota.com"])
+    |> subject(subject)
+    |> text_body(body)
+  end
+  
+  def notif_email(dest, subject, body) do
     base_email
     |> to(dest)
-    |> subject("Welcome!!!")
-    # |> put_header("Reply-To", "florian.gillard@tutanota.com")
-    |> text_body("Welcome")
+    |> subject(subject)
+    |> text_body(body)
   end
 
   defp base_email do

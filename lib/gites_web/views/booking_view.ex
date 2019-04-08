@@ -18,7 +18,7 @@ defmodule GitesWeb.BookingView do
     %{id: booking.id,
       check_in: booking.check_in,
       check_out: booking.check_out,
-      title: booking.title,
+      pets: booking.pets,
       first_name: booking.first_name,
       last_name: booking.last_name,
       address: booking.address,
@@ -33,6 +33,7 @@ defmodule GitesWeb.BookingView do
       nbr_children: booking.nbr_children,
       comments: booking.comments,
       options: booking.options,
+      language: booking.language,
       confirmed: booking.confirmed}
   end
 end
