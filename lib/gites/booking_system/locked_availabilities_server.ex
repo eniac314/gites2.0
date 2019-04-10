@@ -57,7 +57,7 @@ defmodule Gites.LockedAvailabilitiesServer do
   end
 
   def handle_info(unhandled, state) do 
-  	IO.puts("Unhandled event: #{inspect(unhandled)}")
+  	IO.puts("LockedAvailabilitiesServer - Unhandled event: #{inspect(unhandled)}")
   	{:noreply, state}
   end  
 

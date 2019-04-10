@@ -69,11 +69,17 @@ defmodule GitesWeb.BookingController do
     render(conn, "show.json", booking: booking)
   end
 
-  def update(conn, %{"booking" => booking_params}) do
-    booking = BookingSystem.get_booking!(booking_params["bookingId"])
+  def update(conn, %{"booking" => booking_params, "reply_address" => dest, "confirmation_email" => mail}) do
+    serialized_options = Poison.encode!(booking_params["options"]) 
+    booking_params = Map.put(booking_params, "options", serialized_options)
 
-    with {:ok, %Booking{} = booking} <- BookingSystem.update_booking(booking, booking_params) do
-      render(conn, "show.json", booking: booking)
+    booking = 
+      BookingSystem.get_booking!(booking_params["bookingId"])
+
+    with {:ok, %Booking{} = _booking} <- BookingSystem.update_booking(booking, booking_params) do
+      Email.notif_email(dest, mail["subject"], mail["body"])
+         |> Mailer.deliver_later
+      send_resp(conn, :no_content, "")
     end
   end
 

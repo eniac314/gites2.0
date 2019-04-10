@@ -70,7 +70,7 @@ app.ports.broadcastLockedDays.subscribe(function(lDays){
 });
 
 app.ports.requestRefresh.subscribe(function(){
-  channel.push("request_refresh");
+  channel.push("request_refresh", {});
 });
 
 // Captcha code ///////////////////

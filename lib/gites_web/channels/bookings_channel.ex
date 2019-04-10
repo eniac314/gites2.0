@@ -21,7 +21,7 @@ defmodule GitesWeb.BookingsChannel do
     {:noreply, socket} 
   end 
 
-  def handle_in("request_refresh", socket) do 
+  def handle_in("request_refresh", %{}, socket) do 
     
     push(socket, "presence_state", Presence.list(socket))
 

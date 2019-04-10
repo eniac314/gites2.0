@@ -731,7 +731,7 @@ checkInAvailability { booked, notAvailable, noCheckIn, noCheckOut, lockedDays } 
                     False
 
                 Just cOut ->
-                    notAvailable
+                    (notAvailable ++ locked)
                         |> List.any (\d_ -> Date.compare d_ cOut == LT && Date.compare d_ d == GT)
     in
     \d ->
@@ -771,7 +771,7 @@ checkOutAvailability { booked, notAvailable, noCheckIn, noCheckOut, lockedDays }
                     False
 
                 Just cIn ->
-                    notAvailable
+                    (notAvailable ++ locked)
                         |> List.any (\d_ -> Date.compare d_ cIn == GT && Date.compare d_ d == LT)
     in
     \d ->

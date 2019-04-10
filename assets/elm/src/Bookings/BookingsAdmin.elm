@@ -66,6 +66,7 @@ type alias Model msg =
     , avLoadingStatus : Status
     , bookingLoadingStatus : Status
     , loadingStatus : Status
+    , commentReply : Maybe String
     , outMsg : Msg -> msg
     }
 
@@ -78,6 +79,7 @@ type Msg
     | ReceiveAvailabilities (Result Http.Error (Dict Int DP.Availability))
     | Refresh
     | ConfirmBooking BookingInfo
+    | CommentReplyInput String
     | BookingConfirmed Int (Result Http.Error ())
     | DeleteBooking Int
     | BookingDeleted Int (Result Http.Error ())
@@ -108,6 +110,7 @@ init outMsg =
       , bookingLoadingStatus = Initial
       , avLoadingStatus = Initial
       , loadingStatus = Initial
+      , commentReply = Nothing
       , outMsg = outMsg
       }
     , Cmd.map outMsg <|
@@ -264,7 +267,12 @@ update config msg model =
         ConfirmBooking bookingInfo ->
             ( model
             , Cmd.map model.outMsg <|
-                confirmBooking config.logInfo bookingInfo
+                confirmBooking config.logInfo model.commentReply bookingInfo
+            )
+
+        CommentReplyInput s ->
+            ( { model | commentReply = Just s }
+            , Cmd.none
             )
 
         BookingConfirmed id res ->
@@ -803,6 +811,27 @@ bookingView config bookingInfo model =
         [ customerDetailView config bookingInfo
         , contactView config bookingInfo
         , recapView config bookingInfo.checkIn bookingInfo.checkOut bookingInfo
+        , Input.multiline
+            [ height (px 100)
+            , width (px 400)
+            ]
+            { onChange = CommentReplyInput
+            , text =
+                model.commentReply
+                    |> Maybe.withDefault ""
+            , placeholder =
+                Just <|
+                    Input.placeholder
+                        []
+                        (textM config.lang
+                            (MultLangStr "Remarks"
+                                "Remarques"
+                            )
+                        )
+            , spellcheck = False
+            , label =
+                Input.labelHidden ""
+            }
         , row
             [ spacing 15
             , padding 15
@@ -1018,10 +1047,13 @@ deleteBooking logInfo id =
         }
 
 
-confirmBooking logInfo bookingInfo =
+confirmBooking logInfo commentReply bookingInfo =
     let
         bookingVal =
             encodeBookingInfo { bookingInfo | confirmed = True }
+
+        ( subject, body ) =
+            confirmationMail bookingInfo commentReply
     in
     secureRequest logInfo
         { method = "PUT"
@@ -1030,7 +1062,18 @@ confirmBooking logInfo bookingInfo =
             "api/restricted/bookings/"
         , body =
             Encode.object
-                [ ( "booking", bookingVal ) ]
+                [ ( "booking", bookingVal )
+                , ( "reply_address"
+                  , bookingInfo.email
+                        |> Encode.string
+                  )
+                , ( "confirmation_email"
+                  , Encode.object
+                        [ ( "subject", Encode.string subject )
+                        , ( "body", Encode.string body )
+                        ]
+                  )
+                ]
                 |> Http.jsonBody
         , expect =
             Http.expectWhatever (BookingConfirmed bookingInfo.bookingId)
@@ -1105,6 +1148,35 @@ encodeAvailability d av =
 
 
 -------------------------------------------------------------------------------
----------------------------
--- Misc Helper functions --
----------------------------
+------------
+-- Emails --
+------------
+
+
+confirmationMail bookingInfo commentReply =
+    case bookingInfo.language of
+        English ->
+            ( "", "" )
+
+        French ->
+            ( "Confirmation réservation gite Vieux lilas"
+            , "Bonjour "
+                ++ bookingInfo.firstName
+                ++ " "
+                ++ bookingInfo.lastName
+                ++ "\n\n"
+                ++ "Votre réservation du "
+                ++ formatDate bookingInfo.language bookingInfo.checkIn
+                ++ " au "
+                ++ formatDate bookingInfo.language bookingInfo.checkOut
+                ++ " est confirmée.\n\n"
+                ++ (case commentReply of
+                        Just comment ->
+                            comment ++ "\n\n"
+
+                        Nothing ->
+                            ""
+                   )
+                ++ "N'hésitez pas à nous contacter pour toute question.\n\n"
+                ++ "Merci de votre confiance et à bientôt!"
+            )
