@@ -47,18 +47,18 @@ type alias BookingInfo =
 
 
 type alias BookingOptions =
-    { oneDayPrice : Maybe Float
-    , discountPrice : Maybe Float
-    , oneWeekPrice : Maybe Float
+    { twoNightsPrice : Maybe Float
+    , threeNightsPrice : Maybe Float
+    , moreThan3NightsPrice : Maybe Float
     , touristTax : Maybe Float
     , options : Dict String BookingOption
     }
 
 
 dummyOptions =
-    { oneDayPrice = Nothing
-    , discountPrice = Nothing
-    , oneWeekPrice = Nothing
+    { twoNightsPrice = Nothing
+    , threeNightsPrice = Nothing
+    , moreThan3NightsPrice = Nothing
     , touristTax = Nothing
     , options = Dict.empty
     }
@@ -162,18 +162,18 @@ encodeBookingInfo bookingInfo =
 encodeBookingOptions : BookingOptions -> Encode.Value
 encodeBookingOptions bos =
     Encode.object
-        [ ( "oneDayPrice"
-          , bos.oneDayPrice
+        [ ( "twoNightsPrice"
+          , bos.twoNightsPrice
                 |> Maybe.map Encode.float
                 |> Maybe.withDefault Encode.null
           )
-        , ( "discountPrice"
-          , bos.discountPrice
+        , ( "threeNightsPrice"
+          , bos.threeNightsPrice
                 |> Maybe.map Encode.float
                 |> Maybe.withDefault Encode.null
           )
-        , ( "oneWeekPrice"
-          , bos.oneWeekPrice
+        , ( "moreThan3NightsPrice"
+          , bos.moreThan3NightsPrice
                 |> Maybe.map Encode.float
                 |> Maybe.withDefault Encode.null
           )
@@ -271,9 +271,9 @@ decodeLanguage =
 decodeBookingOptions =
     Decode.succeed
         BookingOptions
-        |> required "oneDayPrice" (Decode.nullable Decode.float)
-        |> required "discountPrice" (Decode.nullable Decode.float)
-        |> required "oneWeekPrice" (Decode.nullable Decode.float)
+        |> required "twoNightsPrice" (Decode.nullable Decode.float)
+        |> required "threeNightsPrice" (Decode.nullable Decode.float)
+        |> required "moreThan3NightsPrice" (Decode.nullable Decode.float)
         |> required "touristTax" (Decode.nullable Decode.float)
         |> required "options" (Decode.dict decodeBookingOption)
 
@@ -368,127 +368,165 @@ contactView config bi =
         ]
 
 
-recapView : { a | lang : Lang } -> Date -> Date -> BookingInfo -> Element msg
-recapView config cInDate cOutDate bi =
+recapView : { a | lang : Lang } -> Date -> Date -> BookingInfo -> BookingOptions -> Element msg
+recapView config cInDate cOutDate bi opt =
     let
         nc =
             nightsCount cInDate cOutDate
     in
-    column
-        [ spacing 15 ]
-        [ el
-            [ Font.bold
-            ]
-            (textM config.lang
-                (MultLangStr "Your booking"
-                    "Votre réservation"
-                )
-            )
-        , row
-            [ spacing 20 ]
+        column
+            [ spacing 15 ]
             [ el
-                []
-                (text <|
-                    strM config.lang
-                        (MultLangStr
-                            "Check-In"
-                            "Date d'arrivée"
-                        )
-                        ++ " : "
-                        ++ formatDate config.lang cInDate
+                [ Font.bold
+                ]
+                (textM config.lang
+                    (MultLangStr "Your booking"
+                        "Votre réservation"
+                    )
                 )
+            , row
+                [ spacing 20 ]
+                [ el
+                    []
+                    (text <|
+                        strM config.lang
+                            (MultLangStr
+                                "Check-In"
+                                "Date d'arrivée"
+                            )
+                            ++ " : "
+                            ++ formatDate config.lang cInDate
+                    )
+                , el
+                    []
+                    (text <|
+                        strM config.lang
+                            (MultLangStr
+                                "Check-out"
+                                "Date de départ"
+                            )
+                            ++ " : "
+                            ++ formatDate config.lang cOutDate
+                    )
+                ]
             , el
                 []
                 (text <|
                     strM config.lang
                         (MultLangStr
-                            "Check-out"
-                            "Date de départ"
+                            "Number of adults"
+                            "Nombre d'adultes"
                         )
                         ++ " : "
-                        ++ formatDate config.lang cOutDate
+                        ++ String.fromInt bi.nbrAdults
                 )
-            ]
-        , el
-            []
-            (text <|
-                strM config.lang
-                    (MultLangStr
-                        "Number of adults"
-                        "Nombre d'adultes"
-                    )
-                    ++ " : "
-                    ++ String.fromInt bi.nbrAdults
-            )
-        , case bi.nbrKids of
-            Just n ->
-                el
-                    []
-                    (text <|
-                        strM config.lang
-                            (MultLangStr
-                                "Number of children"
-                                "Nombre d'enfants"
-                            )
-                            ++ " : "
-                            ++ String.fromInt n
-                    )
+            , case bi.nbrKids of
+                Just n ->
+                    el
+                        []
+                        (text <|
+                            strM config.lang
+                                (MultLangStr
+                                    "Number of children"
+                                    "Nombre d'enfants"
+                                )
+                                ++ " : "
+                                ++ String.fromInt n
+                        )
 
-            Nothing ->
-                Element.none
-        , el
-            []
-            (text <|
-                strM config.lang
-                    (MultLangStr "Your stay: "
-                        "Réservation pour "
-                    )
-                    ++ String.fromInt nc
-                    ++ (if nc > 1 then
-                            strM config.lang
-                                (MultLangStr " nights"
-                                    " nuits"
+                Nothing ->
+                    Element.none
+            , el
+                []
+                (text <|
+                    strM config.lang
+                        (MultLangStr "Your stay: "
+                            "Réservation pour "
+                        )
+                        ++ String.fromInt nc
+                        ++ (if nc > 1 then
+                                strM config.lang
+                                    (MultLangStr " nights"
+                                        " nuits"
+                                    )
+                            else
+                                strM config.lang
+                                    (MultLangStr " night"
+                                        " nuit"
+                                    )
+                           )
+                )
+            , priceView config.lang nc bi.nbrAdults opt
+            , case bi.pets of
+                Just s ->
+                    paragraph
+                        []
+                        [ text <| (strM config.lang (MultLangStr "Pets: " "Animaux: ") ++ s) ]
+
+                Nothing ->
+                    Element.none
+            , case bi.comment of
+                Just c ->
+                    column
+                        [ spacing 15 ]
+                        [ el
+                            [ Font.size 20
+                            ]
+                            (textM config.lang
+                                (MultLangStr "Remarks / Requests"
+                                    "Remarques / Demandes particulières"
                                 )
-                        else
-                            strM config.lang
-                                (MultLangStr " night"
-                                    " nuit"
-                                )
-                       )
-            )
-        , el
+                            )
+                        , paragraph [] [ text c ]
+                        ]
+
+                _ ->
+                    Element.none
+            ]
+
+
+priceView lang nc na bo =
+    let
+        p1 =
+            bo.twoNightsPrice
+                |> Maybe.withDefault 0
+
+        p2 =
+            bo.threeNightsPrice
+                |> Maybe.withDefault 0
+
+        p3 =
+            bo.moreThan3NightsPrice
+                |> Maybe.withDefault 0
+
+        basePrice =
+            if nc == 2 then
+                p1
+            else if nc == 3 then
+                p2
+            else
+                (toFloat nc) * p3
+
+        opts =
+            bo.options
+                |> Dict.values
+                |> List.filter .picked
+                |> List.foldr
+                    (\o acc -> o.price + acc)
+                    0
+
+        tax =
+            bo.touristTax
+                |> Maybe.map (\t -> t * (toFloat na))
+                |> Maybe.withDefault 0
+    in
+        el
             []
             (text <|
                 "Total: "
-                    ++ String.fromInt (nc * 50)
+                    ++ String.fromFloat (basePrice + opts + tax)
                     ++ " €"
             )
-        , case bi.pets of
-            Just s ->
-                paragraph
-                    []
-                    [ text <| (strM config.lang (MultLangStr "Pets: " "Animaux: ") ++ s) ]
-
-            Nothing ->
-                Element.none
-        , case bi.comment of
-            Just c ->
-                column
-                    [ spacing 15 ]
-                    [ el
-                        [ Font.size 20
-                        ]
-                        (textM config.lang
-                            (MultLangStr "Remarks / Requests"
-                                "Remarques / Demandes particulières"
-                            )
-                        )
-                    , paragraph [] [ text c ]
-                    ]
-
-            _ ->
-                Element.none
-        ]
 
 
 

@@ -32,15 +32,29 @@ type alias Model msg =
     , optionNameFr : Maybe String
     , optionNameEn : Maybe String
     , optionPrice : Maybe Float
-    , oneDayPrice : Maybe Float
-    , discountPrice : Maybe Float
-    , oneWeekPrice : Maybe Float
+    , twoNightsPrice : Maybe Float
+    , threeNightsPrice : Maybe Float
+    , moreThan3NightsPrice : Maybe Float
     , touristTax : Maybe Float
     , article : Maybe MultLangStr
     , markdownEditor : MarkdownEditor.Model msg
     , displayMode : DisplayMode
     , needToSave : Bool
     , outMsg : Msg -> msg
+    }
+
+
+currentBookingOptions : Model msg -> BookingOptions
+currentBookingOptions model =
+    { twoNightsPrice = model.twoNightsPrice
+    , threeNightsPrice = model.threeNightsPrice
+    , moreThan3NightsPrice = model.moreThan3NightsPrice
+    , touristTax = model.touristTax
+    , options =
+        Dict.foldr
+            (\k v acc -> Dict.insert v.key v acc)
+            Dict.empty
+            model.options
     }
 
 
@@ -80,9 +94,9 @@ init outMsg =
       , optionNameFr = Nothing
       , optionNameEn = Nothing
       , optionPrice = Nothing
-      , oneDayPrice = Nothing
-      , discountPrice = Nothing
-      , oneWeekPrice = Nothing
+      , twoNightsPrice = Nothing
+      , threeNightsPrice = Nothing
+      , moreThan3NightsPrice = Nothing
       , touristTax = Nothing
       , article = Nothing
       , markdownEditor =
@@ -136,9 +150,9 @@ update config msg model =
                                 , optionPrice = Nothing
                             }
                     in
-                    ( newModel
-                    , saveOptions config.logInfo newModel
-                    )
+                        ( newModel
+                        , saveOptions config.logInfo newModel
+                        )
 
                 _ ->
                     ( model, Cmd.none )
@@ -148,7 +162,7 @@ update config msg model =
                 newModel =
                     { model | options = Dict.remove n model.options }
             in
-            ( newModel, saveOptions config.logInfo newModel )
+                ( newModel, saveOptions config.logInfo newModel )
 
         EditArticle ->
             ( { model
@@ -172,9 +186,9 @@ update config msg model =
                 newModel =
                     { model | options = newOptions }
             in
-            ( newModel
-            , saveOptions config.logInfo newModel
-            )
+                ( newModel
+                , saveOptions config.logInfo newModel
+                )
 
         SwapDown id ->
             let
@@ -187,9 +201,9 @@ update config msg model =
                 newModel =
                     { model | options = newOptions }
             in
-            ( newModel
-            , saveOptions config.logInfo newModel
-            )
+                ( newModel
+                , saveOptions config.logInfo newModel
+                )
 
         NameInputFr name ->
             ( { model
@@ -223,7 +237,7 @@ update config msg model =
 
         SetOneDayPrice price ->
             ( { model
-                | oneDayPrice = String.toFloat price
+                | twoNightsPrice = String.toFloat price
                 , needToSave = True
               }
             , Cmd.none
@@ -231,7 +245,7 @@ update config msg model =
 
         SetDiscountPrice price ->
             ( { model
-                | discountPrice = String.toFloat price
+                | threeNightsPrice = String.toFloat price
                 , needToSave = True
               }
             , Cmd.none
@@ -239,7 +253,7 @@ update config msg model =
 
         SetOneWeekPrice price ->
             ( { model
-                | oneWeekPrice = String.toFloat price
+                | moreThan3NightsPrice = String.toFloat price
                 , needToSave = True
               }
             , Cmd.none
@@ -299,7 +313,7 @@ update config msg model =
                                 , optionPrice = Nothing
                             }
                     in
-                    ( newModel, saveOptions config.logInfo newModel )
+                        ( newModel, saveOptions config.logInfo newModel )
 
                 _ ->
                     ( model, Cmd.none )
@@ -327,33 +341,33 @@ update config msg model =
                 ( newEditor, mbPluginRes ) =
                     MarkdownEditor.update markdownEditorMsg model.markdownEditor
             in
-            case mbPluginRes of
-                Nothing ->
-                    ( { model | markdownEditor = newEditor }
-                    , Cmd.none
-                    )
+                case mbPluginRes of
+                    Nothing ->
+                        ( { model | markdownEditor = newEditor }
+                        , Cmd.none
+                        )
 
-                Just PluginQuit ->
-                    ( { model
-                        | markdownEditor = newEditor
-                        , displayMode = Preview
-                      }
-                    , Cmd.none
-                    )
+                    Just PluginQuit ->
+                        ( { model
+                            | markdownEditor = newEditor
+                            , displayMode = Preview
+                          }
+                        , Cmd.none
+                        )
 
-                Just (PluginData data) ->
-                    let
-                        newModel =
-                            { model
-                                | markdownEditor = newEditor
-                                , article =
-                                    Just data
-                                , displayMode = Preview
-                            }
-                    in
-                    ( newModel
-                    , saveRateArticle config.logInfo newModel
-                    )
+                    Just (PluginData data) ->
+                        let
+                            newModel =
+                                { model
+                                    | markdownEditor = newEditor
+                                    , article =
+                                        Just data
+                                    , displayMode = Preview
+                                }
+                        in
+                            ( newModel
+                            , saveRateArticle config.logInfo newModel
+                            )
 
         GotRateArticle res ->
             case res of
@@ -367,9 +381,9 @@ update config msg model =
             case res of
                 Ok o ->
                     ( { model
-                        | oneDayPrice = o.oneDayPrice
-                        , discountPrice = o.discountPrice
-                        , oneWeekPrice = o.oneWeekPrice
+                        | twoNightsPrice = o.twoNightsPrice
+                        , threeNightsPrice = o.threeNightsPrice
+                        , moreThan3NightsPrice = o.moreThan3NightsPrice
                         , touristTax = o.touristTax
                         , options =
                             Dict.values o.options
@@ -441,7 +455,7 @@ view config model =
                                 (textInputStyle ++ [ width (px 100) ])
                                 { onChange = SetOneDayPrice
                                 , text =
-                                    Maybe.map String.fromFloat model.oneDayPrice
+                                    Maybe.map String.fromFloat model.twoNightsPrice
                                         |> Maybe.withDefault ""
                                 , placeholder =
                                     Nothing
@@ -452,8 +466,8 @@ view config model =
                                         ]
                                         (textM config.lang
                                             (MultLangStr
-                                                "One night price:"
-                                                "Prix nuit:"
+                                                "Price for two nights:"
+                                                "Tarif deux nuits:"
                                             )
                                         )
                                 }
@@ -461,7 +475,7 @@ view config model =
                                 (textInputStyle ++ [ width (px 100) ])
                                 { onChange = SetDiscountPrice
                                 , text =
-                                    Maybe.map String.fromFloat model.discountPrice
+                                    Maybe.map String.fromFloat model.threeNightsPrice
                                         |> Maybe.withDefault ""
                                 , placeholder =
                                     Nothing
@@ -472,8 +486,8 @@ view config model =
                                         ]
                                         (textM config.lang
                                             (MultLangStr
-                                                "Discount price:"
-                                                "Prix promo:"
+                                                "Price for three nights:"
+                                                "Tarif trois nuits:"
                                             )
                                         )
                                 }
@@ -481,7 +495,7 @@ view config model =
                                 (textInputStyle ++ [ width (px 100) ])
                                 { onChange = SetOneWeekPrice
                                 , text =
-                                    Maybe.map String.fromFloat model.oneWeekPrice
+                                    Maybe.map String.fromFloat model.moreThan3NightsPrice
                                         |> Maybe.withDefault ""
                                 , placeholder =
                                     Nothing
@@ -492,8 +506,8 @@ view config model =
                                         ]
                                         (textM config.lang
                                             (MultLangStr
-                                                "One week price:"
-                                                "Prix semaine:"
+                                                "Price for n > 3 nights:"
+                                                "Base tarif n > 3 nuits:"
                                             )
                                         )
                                 }
@@ -686,66 +700,66 @@ optionsView config model =
                 defAttr =
                     [ Events.onClick (SelectOption n) ]
             in
-            row
-                ([ spacing 15
-                 , pointer
-                 ]
-                    ++ (case model.selected of
-                            Just s ->
-                                if s == n then
-                                    [ Events.onClick Cancel ]
-                                else
-                                    defAttr
+                row
+                    ([ spacing 15
+                     , pointer
+                     ]
+                        ++ (case model.selected of
+                                Just s ->
+                                    if s == n then
+                                        [ Events.onClick Cancel ]
+                                    else
+                                        defAttr
 
-                            Nothing ->
-                                defAttr
-                       )
-                )
-                [ el [ width (px 200) ]
-                    (textM config.lang o.name)
-                , el [ width (px 200) ]
-                    (text <| String.fromFloat o.price ++ "€")
-                , row [ spacing 7 ]
-                    [ Input.button
-                        iconsStyle
-                        { onPress = Just <| SwapUp n
-                        , label =
-                            Icons.arrowUp
-                                (Icons.defOptions
-                                    |> Icons.color black
-                                    |> Icons.size 20
-                                )
-                        }
-                    , Input.button
-                        iconsStyle
-                        { onPress = Just <| SwapDown n
-                        , label =
-                            Icons.arrowDown
-                                (Icons.defOptions
-                                    |> Icons.color black
-                                    |> Icons.size 20
-                                )
-                        }
-                    , Input.button
-                        iconsStyle
-                        { onPress = Just <| DeleteOption n
-                        , label =
-                            Icons.x
-                                (Icons.defOptions
-                                    |> Icons.color black
-                                    |> Icons.size 20
-                                )
-                        }
+                                Nothing ->
+                                    defAttr
+                           )
+                    )
+                    [ el [ width (px 200) ]
+                        (textM config.lang o.name)
+                    , el [ width (px 200) ]
+                        (text <| String.fromFloat o.price ++ "€")
+                    , row [ spacing 7 ]
+                        [ Input.button
+                            iconsStyle
+                            { onPress = Just <| SwapUp n
+                            , label =
+                                Icons.arrowUp
+                                    (Icons.defOptions
+                                        |> Icons.color black
+                                        |> Icons.size 20
+                                    )
+                            }
+                        , Input.button
+                            iconsStyle
+                            { onPress = Just <| SwapDown n
+                            , label =
+                                Icons.arrowDown
+                                    (Icons.defOptions
+                                        |> Icons.color black
+                                        |> Icons.size 20
+                                    )
+                            }
+                        , Input.button
+                            iconsStyle
+                            { onPress = Just <| DeleteOption n
+                            , label =
+                                Icons.x
+                                    (Icons.defOptions
+                                        |> Icons.color black
+                                        |> Icons.size 20
+                                    )
+                            }
+                        ]
                     ]
-                ]
     in
-    column
-        [ centerX
-        , spacing 15
-        ]
-        (Dict.toList model.options
-            |> List.map optionView
-        )
+        column
+            [ centerX
+            , spacing 15
+            ]
+            (Dict.toList model.options
+                |> List.map optionView
+            )
 
 
 
@@ -763,9 +777,9 @@ saveOptions logInfo model =
                 [ ( "name", E.string "bookingOptions" )
                 , ( "content"
                   , encodeBookingOptions
-                        { oneDayPrice = model.oneDayPrice
-                        , discountPrice = model.discountPrice
-                        , oneWeekPrice = model.oneWeekPrice
+                        { twoNightsPrice = model.twoNightsPrice
+                        , threeNightsPrice = model.threeNightsPrice
+                        , moreThan3NightsPrice = model.moreThan3NightsPrice
                         , touristTax = model.touristTax
                         , options =
                             Dict.toList model.options
@@ -776,12 +790,12 @@ saveOptions logInfo model =
                 ]
                 |> Http.jsonBody
     in
-    securePost logInfo
-        { url = "api/restricted/pagesdata"
-        , body = body
-        , expect =
-            Http.expectWhatever (model.outMsg << Saved)
-        }
+        securePost logInfo
+            { url = "api/restricted/pagesdata"
+            , body = body
+            , expect =
+                Http.expectWhatever (model.outMsg << Saved)
+            }
 
 
 saveRateArticle : LogInfo -> Model msg -> Cmd msg
@@ -797,9 +811,9 @@ saveRateArticle logInfo model =
                 ]
                 |> Http.jsonBody
     in
-    securePost logInfo
-        { url = "api/restricted/pagesdata"
-        , body = body
-        , expect =
-            Http.expectWhatever (model.outMsg << (\_ -> NoOp))
-        }
+        securePost logInfo
+            { url = "api/restricted/pagesdata"
+            , body = body
+            , expect =
+                Http.expectWhatever (model.outMsg << (\_ -> NoOp))
+            }

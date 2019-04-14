@@ -135,34 +135,34 @@ init flags =
         ( newAuthPlugin, authPluginCmd ) =
             Auth.init AuthMsg
     in
-    ( { displayMode = DisplayAuth
-      , lang = French
-      , width =
-            flags.width
-      , height =
-            flags.height
-      , currentTime =
-            flags.currentTime
-      , zone = Time.utc
-      , authPlugin = newAuthPlugin
-      , frontPageAdmin = newFrontPageAdmin
-      , accessPageAdmin = newAccessPageAdmin
-      , nearbyPageAdmin = newNearbyPageAdmin
-      , optionsAdmin = newOptionsAdmin
-      , galleryAdmin = newGalleryAdmin
-      , bookingsAdmin = newBookingAdmin
-      }
-    , Cmd.batch
-        [ Task.perform SetZone Time.here
-        , authPluginCmd
-        , fpaCmd
-        , accPgCmd
-        , neaPgCmd
-        , opCmd
-        , gAdCmd
-        , bkAdCmd
-        ]
-    )
+        ( { displayMode = DisplayAuth
+          , lang = French
+          , width =
+                flags.width
+          , height =
+                flags.height
+          , currentTime =
+                flags.currentTime
+          , zone = Time.utc
+          , authPlugin = newAuthPlugin
+          , frontPageAdmin = newFrontPageAdmin
+          , accessPageAdmin = newAccessPageAdmin
+          , nearbyPageAdmin = newNearbyPageAdmin
+          , optionsAdmin = newOptionsAdmin
+          , galleryAdmin = newGalleryAdmin
+          , bookingsAdmin = newBookingAdmin
+          }
+        , Cmd.batch
+            [ Task.perform SetZone Time.here
+            , authPluginCmd
+            , fpaCmd
+            , accPgCmd
+            , neaPgCmd
+            , opCmd
+            , gAdCmd
+            , bkAdCmd
+            ]
+        )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -176,17 +176,17 @@ update msg model =
                 ( newAuthPlugin, authToolCmds, mbPluginResult ) =
                     Auth.update authPluginMsg model.authPlugin
             in
-            ( { model
-                | authPlugin = newAuthPlugin
-                , displayMode =
-                    if mbPluginResult == Just PluginQuit then
-                        DisplayFrontPageAdmin
-                    else
-                        model.displayMode
-              }
-            , Cmd.batch <|
-                [ authToolCmds ]
-            )
+                ( { model
+                    | authPlugin = newAuthPlugin
+                    , displayMode =
+                        if mbPluginResult == Just PluginQuit then
+                            DisplayFrontPageAdmin
+                        else
+                            model.displayMode
+                  }
+                , Cmd.batch <|
+                    [ authToolCmds ]
+                )
 
         FrontPageAdminMsg fpaMsg ->
             let
@@ -198,9 +198,9 @@ update msg model =
                         fpaMsg
                         model.frontPageAdmin
             in
-            ( { model | frontPageAdmin = newFrontPageAdmin }
-            , cmd
-            )
+                ( { model | frontPageAdmin = newFrontPageAdmin }
+                , cmd
+                )
 
         AccessPageAdminMsg accPgMsg ->
             let
@@ -212,9 +212,9 @@ update msg model =
                         accPgMsg
                         model.accessPageAdmin
             in
-            ( { model | accessPageAdmin = newAccessPageAdmin }
-            , cmd
-            )
+                ( { model | accessPageAdmin = newAccessPageAdmin }
+                , cmd
+                )
 
         NearbyPageAdminMsg neaPgMsg ->
             let
@@ -226,9 +226,9 @@ update msg model =
                         neaPgMsg
                         model.nearbyPageAdmin
             in
-            ( { model | nearbyPageAdmin = newNearbyPageAdmin }
-            , cmd
-            )
+                ( { model | nearbyPageAdmin = newNearbyPageAdmin }
+                , cmd
+                )
 
         OptionsAdminMsg opMsg ->
             let
@@ -238,9 +238,9 @@ update msg model =
                         opMsg
                         model.optionsAdmin
             in
-            ( { model | optionsAdmin = newOptionsAdmin }
-            , cmd
-            )
+                ( { model | optionsAdmin = newOptionsAdmin }
+                , cmd
+                )
 
         GalleryAdminMsg gAdMsg ->
             let
@@ -252,9 +252,9 @@ update msg model =
                         gAdMsg
                         model.galleryAdmin
             in
-            ( { model | galleryAdmin = newGalleryAdmin }
-            , cmd
-            )
+                ( { model | galleryAdmin = newGalleryAdmin }
+                , cmd
+                )
 
         BookingAdminMsg bkAdMsg ->
             let
@@ -264,9 +264,9 @@ update msg model =
                         bkAdMsg
                         model.bookingsAdmin
             in
-            ( { model | bookingsAdmin = newBookingAdmin }
-            , cmd
-            )
+                ( { model | bookingsAdmin = newBookingAdmin }
+                , cmd
+                )
 
         SetDisplayMode dm ->
             if Auth.isLogged model.authPlugin.logInfo then
@@ -276,13 +276,13 @@ update msg model =
                             { logInfo = model.authPlugin.logInfo }
                             model.bookingsAdmin
                 in
-                ( { model
-                    | displayMode = dm
-                    , bookingsAdmin = newBookingAdmin
-                  }
-                , Cmd.batch
-                    [ cmd ]
-                )
+                    ( { model
+                        | displayMode = dm
+                        , bookingsAdmin = newBookingAdmin
+                      }
+                    , Cmd.batch
+                        [ cmd ]
+                    )
             else
                 ( model, Cmd.none )
 
@@ -344,6 +344,9 @@ view model =
                         BookingsAdmin.view
                             { lang = model.lang
                             , width = model.width
+                            , options =
+                                OptionsAdmin.currentBookingOptions
+                                    model.optionsAdmin
                             }
                             model.bookingsAdmin
 
