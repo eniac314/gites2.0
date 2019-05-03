@@ -18,6 +18,7 @@ import Internals.Helpers exposing (..)
 import Internals.MarkdownParser as MarkdownParser
 import MultLang.MultLang exposing (..)
 import Style.Helpers exposing (..)
+import Style.Palette exposing (..)
 import Url
 
 
@@ -143,16 +144,19 @@ view config model =
 homeView : ViewConfig -> Model msg -> Element msg
 homeView config model =
     column
-        [ centerX ]
-        ([ case model.mainArticle of
+        [ centerX
+        , spacing 15
+        ]
+        [ case model.mainArticle of
             Just a ->
                 MarkdownParser.renderMarkdown
                     (strM config.lang a)
 
             Nothing ->
                 Element.none
-         ]
-            ++ chunkedRows
+        , column
+            [ spacing 10 ]
+            (chunkedRows
                 (min config.width 1000)
                 (bestFit 200)
                 (Dict.map
@@ -174,7 +178,8 @@ homeView config model =
                     |> List.sortBy .ordering
                     |> List.map (imgBlockView config.lang (model.outMsg << OpenGallery))
                 )
-        )
+            )
+        ]
 
 
 galleryView : ViewConfig -> Model msg -> String -> Element msg
@@ -203,6 +208,21 @@ galleryView config model title =
 
                     Nothing ->
                         Element.none
+                , link
+                    [ centerX
+                    , padding 10
+                    , Background.color white
+                    , Font.family
+                        [ Font.typeface "Montserrat"
+                        , Font.sansSerif
+                        ]
+                    , Border.width 1
+                    , Border.rounded 2
+                    , focused [ Border.glow (rgb 1 1 1) 0 ]
+                    ]
+                    { url = "/details"
+                    , label = textM config.lang (MultLangStr "Go back" "Retour")
+                    }
                 ]
 
         Nothing ->
