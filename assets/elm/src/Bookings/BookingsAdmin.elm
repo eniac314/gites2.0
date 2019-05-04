@@ -4,6 +4,7 @@ import Auth.AuthPlugin exposing (LogInfo, cmdIfLogged, secureGet, securePost, se
 import Bookings.BookingsShared exposing (..)
 import Bookings.DatePicker.Date exposing (formatDate)
 import Bookings.DatePicker.DatePicker as DP
+import Browser.Events exposing (Visibility(..), onKeyDown, onKeyUp, onVisibilityChange)
 import Date exposing (..)
 import Dict exposing (..)
 import Element exposing (..)
@@ -15,6 +16,7 @@ import Element.Input as Input
 import Element.Keyed as Keyed
 import Element.Lazy exposing (lazy)
 import Element.Region as Region
+import Html.Events exposing (keyCode)
 import Http exposing (..)
 import Internals.Helpers exposing (..)
 import Internals.PhoenixPresence as Presence exposing (..)
@@ -51,6 +53,8 @@ subscriptions model =
             , broadcastRefresh (\_ -> Refresh)
             , presenceState ReceivePresenceState
             , presenceDiff ReceivePresenceDiff
+            , onKeyDown (Decode.map KeyDown keyCode)
+            , onKeyUp (Decode.map KeyUp keyCode)
             ]
 
 
@@ -67,6 +71,8 @@ type alias Model msg =
     , bookingLoadingStatus : Status
     , loadingStatus : Status
     , commentReply : Maybe String
+    , ctrlDown : Bool
+    , rangeStart : Maybe Date
     , outMsg : Msg -> msg
     }
 
@@ -85,11 +91,15 @@ type Msg
     | BookingDeleted Int (Result Http.Error ())
     | ReceiveBookingInfo (Result Http.Error (List BookingInfo))
     | SetAvailability Date DP.Availability
+    | SetRangeAvailability DP.Availability
     | AvailabilitySet Date (Result Http.Error ())
     | ReceiveInitialLockedDays Encode.Value
     | ReceiveLockedDays Encode.Value
     | ReceivePresenceState Decode.Value
     | ReceivePresenceDiff Decode.Value
+    | KeyDown Int
+    | KeyUp Int
+    | VisibilityChange Visibility
     | NoOp
 
 
@@ -99,25 +109,27 @@ init outMsg =
         ( datePicker, datePickerCmd ) =
             DP.init Nothing True DatePickerMsg
     in
-        ( { datePicker = datePicker
-          , pickedDate = Nothing
-          , pickedBooking = Nothing
-          , pickedAvailability = Nothing
-          , rowHovered = Nothing
-          , presences = Dict.empty
-          , availabilities = Dict.empty
-          , bookings = Dict.empty
-          , bookingLoadingStatus = Initial
-          , avLoadingStatus = Initial
-          , loadingStatus = Initial
-          , commentReply = Nothing
-          , outMsg = outMsg
-          }
-        , Cmd.map outMsg <|
-            Cmd.batch
-                [ datePickerCmd
-                ]
-        )
+    ( { datePicker = datePicker
+      , pickedDate = Nothing
+      , pickedBooking = Nothing
+      , pickedAvailability = Nothing
+      , rowHovered = Nothing
+      , presences = Dict.empty
+      , availabilities = Dict.empty
+      , bookings = Dict.empty
+      , bookingLoadingStatus = Initial
+      , avLoadingStatus = Initial
+      , loadingStatus = Initial
+      , commentReply = Nothing
+      , ctrlDown = False
+      , outMsg = outMsg
+      , rangeStart = Nothing
+      }
+    , Cmd.map outMsg <|
+        Cmd.batch
+            [ datePickerCmd
+            ]
+    )
 
 
 load : { a | logInfo : LogInfo } -> Model msg -> ( Model msg, Cmd msg )
@@ -160,41 +172,46 @@ update config msg model =
                 ( datePicker, cmd, mbDate ) =
                     DP.update dpMsg model.datePicker
             in
-                case mbDate of
-                    Nothing ->
-                        ( { model | datePicker = datePicker }
-                        , Cmd.map model.outMsg cmd
-                        )
+            case mbDate of
+                Nothing ->
+                    ( { model | datePicker = datePicker }
+                    , Cmd.map model.outMsg cmd
+                    )
 
-                    Just pickedDate ->
-                        let
-                            currentAv =
-                                Dict.get (Date.toRataDie pickedDate) model.availabilities
-                        in
-                            ( { model
-                                | pickedDate = Just pickedDate
-                                , datePicker = datePicker
-                                , pickedBooking =
+                Just pickedDate ->
+                    let
+                        currentAv =
+                            Dict.get (Date.toRataDie pickedDate) model.availabilities
+                    in
+                    ( { model
+                        | pickedDate = Just pickedDate
+                        , rangeStart =
+                            if model.ctrlDown then
+                                model.pickedDate
+                            else
+                                Nothing
+                        , datePicker = datePicker
+                        , pickedBooking =
+                            currentAv
+                                |> Maybe.andThen
+                                    (\av ->
+                                        case av of
+                                            DP.BookedAdmin id ->
+                                                Dict.get id model.bookings
+
+                                            _ ->
+                                                Nothing
+                                    )
+                        , pickedAvailability =
+                            case currentAv of
+                                Just ac ->
                                     currentAv
-                                        |> Maybe.andThen
-                                            (\av ->
-                                                case av of
-                                                    DP.BookedAdmin id ->
-                                                        Dict.get id model.bookings
 
-                                                    _ ->
-                                                        Nothing
-                                            )
-                                , pickedAvailability =
-                                    case currentAv of
-                                        Just ac ->
-                                            currentAv
-
-                                        _ ->
-                                            Just DP.Available
-                              }
-                            , Cmd.map model.outMsg cmd
-                            )
+                                _ ->
+                                    Just DP.Available
+                      }
+                    , Cmd.map model.outMsg cmd
+                    )
 
         PickBooking id ->
             ( { model | pickedBooking = Dict.get id model.bookings }
@@ -221,7 +238,7 @@ update config msg model =
                                 (\{ cIn, cOut, uuid } acc ->
                                     List.foldr
                                         (\d acc_ ->
-                                            Dict.insert (Date.toRataDie d) DP.Locked acc_
+                                            Dict.insert (Date.toRataDie d) (DP.Locked uuid) acc_
                                         )
                                         acc
                                         (daysBooked cIn cOut)
@@ -229,9 +246,9 @@ update config msg model =
                                 model.availabilities
                                 lDays
                     in
-                        ( { model | availabilities = availabilities }
-                        , Cmd.none
-                        )
+                    ( { model | availabilities = availabilities }
+                    , Cmd.none
+                    )
 
                 _ ->
                     ( model, Cmd.none )
@@ -243,14 +260,14 @@ update config msg model =
                         availabilities =
                             List.foldr
                                 (\d acc ->
-                                    Dict.insert (Date.toRataDie d) DP.Locked acc
+                                    Dict.insert (Date.toRataDie d) (DP.Locked uuid) acc
                                 )
                                 model.availabilities
                                 (daysBooked cIn cOut)
                     in
-                        ( { model | availabilities = availabilities }
-                        , Cmd.none
-                        )
+                    ( { model | availabilities = availabilities }
+                    , Cmd.none
+                    )
 
                 _ ->
                     ( model, Cmd.none )
@@ -334,7 +351,17 @@ update config msg model =
                         | availabilities =
                             Dict.union
                                 avs
-                                (Dict.filter (\k v -> v == DP.Locked) model.availabilities)
+                                (Dict.filter
+                                    (\k v ->
+                                        case v of
+                                            DP.Locked _ ->
+                                                True
+
+                                            _ ->
+                                                False
+                                    )
+                                    model.availabilities
+                                )
                         , avLoadingStatus = Success
                         , loadingStatus = loadingStatus model.bookingLoadingStatus Success
                       }
@@ -355,6 +382,34 @@ update config msg model =
                 setAvailability config.logInfo d av
             )
 
+        SetRangeAvailability av ->
+            case ( model.rangeStart, model.pickedDate ) of
+                ( Just start, Just end ) ->
+                    let
+                        daysToSet =
+                            daysBooked start (Date.add Date.Days 1 end)
+                                |> List.filter
+                                    (\d ->
+                                        case Dict.get (toRataDie d) model.availabilities of
+                                            Just (DP.BookedAdmin _) ->
+                                                False
+
+                                            Just (DP.Locked _) ->
+                                                False
+
+                                            _ ->
+                                                True
+                                    )
+                    in
+                    ( { model | pickedAvailability = Just av }
+                    , List.map (\d -> setAvailability config.logInfo d av) daysToSet
+                        |> Cmd.batch
+                        |> Cmd.map model.outMsg
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
+
         AvailabilitySet d res ->
             ( model
             , Cmd.map model.outMsg <|
@@ -369,16 +424,16 @@ update config msg model =
                     decodePresenceState jsonVal
                         |> Result.map (\state -> Presence.syncState state model.presences)
             in
-                case presences of
-                    Ok ps ->
-                        ( { model
-                            | presences = ps
-                          }
-                        , Cmd.none
-                        )
+            case presences of
+                Ok ps ->
+                    ( { model
+                        | presences = ps
+                      }
+                    , Cmd.none
+                    )
 
-                    Err e ->
-                        ( model, Cmd.none )
+                Err e ->
+                    ( model, Cmd.none )
 
         ReceivePresenceDiff jsonVal ->
             let
@@ -386,16 +441,62 @@ update config msg model =
                     decodePresenceDiff jsonVal
                         |> Result.map (\diff -> Presence.syncDiff diff model.presences)
             in
-                case presences of
-                    Ok ps ->
-                        ( { model
-                            | presences = ps
-                          }
-                        , Cmd.none
-                        )
+            case presences of
+                Ok ps ->
+                    ( { model
+                        | presences = ps
+                        , availabilities =
+                            Dict.filter
+                                (\k v ->
+                                    case v of
+                                        DP.Locked uuid ->
+                                            List.member uuid (Dict.keys ps)
 
-                    Err e ->
-                        ( model, Cmd.none )
+                                        _ ->
+                                            True
+                                )
+                                model.availabilities
+                      }
+                    , Cmd.none
+                    )
+
+                Err e ->
+                    ( model, Cmd.none )
+
+        KeyDown kc ->
+            ( { model | ctrlDown = kc == 17 }, Cmd.none )
+
+        KeyUp kc ->
+            ( { model
+                | ctrlDown =
+                    if kc == 17 then
+                        False
+                    else
+                        model.ctrlDown
+                , rangeStart =
+                    if kc == 17 then
+                        Nothing
+                    else
+                        model.rangeStart
+              }
+            , Cmd.none
+            )
+
+        VisibilityChange v ->
+            ( { model
+                | ctrlDown =
+                    if v == Hidden then
+                        False
+                    else
+                        model.ctrlDown
+                , rangeStart =
+                    if v == Hidden then
+                        Nothing
+                    else
+                        model.rangeStart
+              }
+            , Cmd.none
+            )
 
         NoOp ->
             ( model, Cmd.none )
@@ -543,7 +644,7 @@ datePickerView config model =
                     , height (px 15)
                     , Border.color grey
                     , Border.width 1
-                    , Background.color blue
+                    , Background.color lightBlue
                     ]
                     Element.none
                 , el []
@@ -571,12 +672,55 @@ datePickerView config model =
                     )
                 ]
             ]
-        , DP.view
-            { lang = config.lang
-            , availability = checkAvailability model
-            , pickedDate = model.pickedDate
-            }
-            model.datePicker
+        , row
+            [ spacing 10 ]
+            [ DP.view
+                { lang = config.lang
+                , availability = checkAvailability model
+                , pickedDate = model.pickedDate
+                }
+                model.datePicker
+            , case model.pickedDate of
+                Just pd ->
+                    if model.ctrlDown then
+                        case model.rangeStart of
+                            Just start ->
+                                row
+                                    [ spacing 10 ]
+                                    [ el [ Font.bold ]
+                                        (textM config.lang
+                                            (MultLangStr "Date range:"
+                                                "Intervalle:"
+                                            )
+                                        )
+                                    , text <| formatDate config.lang start
+                                    , text "-"
+                                    , text <| formatDate config.lang pd
+                                    ]
+
+                            Nothing ->
+                                row
+                                    [ spacing 10 ]
+                                    [ el [ Font.bold ]
+                                        (textM config.lang
+                                            (MultLangStr "Range start:"
+                                                "Début intervalle:"
+                                            )
+                                        )
+                                    , text <| formatDate config.lang pd
+                                    ]
+                    else
+                        el
+                            [ Font.italic ]
+                            (textM config.lang
+                                (MultLangStr "Hold Ctrl to pick a date range"
+                                    "Maintenir Ctrl pour choisir un intervalle"
+                                )
+                            )
+
+                Nothing ->
+                    Element.none
+            ]
         ]
 
 
@@ -620,100 +764,149 @@ bookingListView config model =
         bookings =
             Dict.values model.bookings
     in
-        column
-            [ Background.color white
-            , padding 15
-            , Border.rounded 5
-            , Border.color grey
-            , Border.width 1
-            , height (maximum 400 fill)
-            , scrollbarY
-            , spacing 15
-            ]
-            [ el [ Font.bold ]
-                (textM config.lang
-                    (MultLangStr "Booking list"
-                        "Liste des réservations"
-                    )
+    column
+        [ Background.color white
+        , padding 15
+        , Border.rounded 5
+        , Border.color grey
+        , Border.width 1
+        , height (maximum 400 fill)
+        , scrollbarY
+        , spacing 15
+        ]
+        [ el [ Font.bold ]
+            (textM config.lang
+                (MultLangStr "Booking list"
+                    "Liste des réservations"
                 )
-            , indexedTable
-                [ Border.color grey
-                , Border.widthEach
-                    { sides
-                        | top = 1
-                        , left = 1
-                    }
-                , width (px 600)
-                ]
-                { data = bookings
-                , columns =
-                    [ { header =
-                            el
-                                headerStyle
-                                (textM config.lang
-                                    (MultLangStr "Check-in" "Date d'arrivée")
-                                )
-                      , width = fill
-                      , view =
-                            \i bi ->
-                                el (cellStyle bi.bookingId i) (text <| formatDate config.lang bi.checkIn)
-                      }
-                    , { header =
-                            el
-                                headerStyle
-                                (textM config.lang
-                                    (MultLangStr "Check-out" "Date de départ")
-                                )
-                      , width = fill
-                      , view =
-                            \i bi ->
-                                el (cellStyle bi.bookingId i) (text <| formatDate config.lang bi.checkOut)
-                      }
-                    , { header =
-                            el
-                                headerStyle
-                                (textM config.lang
-                                    (MultLangStr "Customer name" "Nom client")
-                                )
-                      , width = fill
-                      , view =
-                            \i bi ->
-                                el (cellStyle bi.bookingId i) (text <| bi.firstName ++ " " ++ bi.lastName)
-                      }
-                    , { header =
-                            el
-                                headerStyle
-                                (textM config.lang
-                                    (MultLangStr "Confirmed" "Confirmée")
-                                )
-                      , width = fill
-                      , view =
-                            \i bi ->
-                                el (cellStyle bi.bookingId i)
-                                    (if bi.confirmed then
-                                        el
-                                            [ Font.color green
-                                            , centerX
-                                            ]
-                                            (textM config.lang (MultLangStr "yes" "oui"))
-                                     else
-                                        el
-                                            [ Font.color red
-                                            , centerX
-                                            ]
-                                            (textM config.lang (MultLangStr "no" "non"))
-                                    )
-                      }
-                    ]
+            )
+        , indexedTable
+            [ Border.color grey
+            , Border.widthEach
+                { sides
+                    | top = 1
+                    , left = 1
                 }
+            , width (px 600)
             ]
+            { data = bookings
+            , columns =
+                [ { header =
+                        el
+                            headerStyle
+                            (textM config.lang
+                                (MultLangStr "Check-in" "Date d'arrivée")
+                            )
+                  , width = fill
+                  , view =
+                        \i bi ->
+                            el (cellStyle bi.bookingId i) (text <| formatDate config.lang bi.checkIn)
+                  }
+                , { header =
+                        el
+                            headerStyle
+                            (textM config.lang
+                                (MultLangStr "Check-out" "Date de départ")
+                            )
+                  , width = fill
+                  , view =
+                        \i bi ->
+                            el (cellStyle bi.bookingId i) (text <| formatDate config.lang bi.checkOut)
+                  }
+                , { header =
+                        el
+                            headerStyle
+                            (textM config.lang
+                                (MultLangStr "Customer name" "Nom client")
+                            )
+                  , width = fill
+                  , view =
+                        \i bi ->
+                            el (cellStyle bi.bookingId i) (text <| bi.firstName ++ " " ++ bi.lastName)
+                  }
+                , { header =
+                        el
+                            headerStyle
+                            (textM config.lang
+                                (MultLangStr "Confirmed" "Confirmée")
+                            )
+                  , width = fill
+                  , view =
+                        \i bi ->
+                            el (cellStyle bi.bookingId i)
+                                (if bi.confirmed then
+                                    el
+                                        [ Font.color green
+                                        , centerX
+                                        ]
+                                        (textM config.lang (MultLangStr "yes" "oui"))
+                                 else
+                                    el
+                                        [ Font.color red
+                                        , centerX
+                                        ]
+                                        (textM config.lang (MultLangStr "no" "non"))
+                                )
+                  }
+                ]
+            }
+        ]
 
 
 checkAvailability : Model msg -> (Date -> DP.Availability)
-checkAvailability { availabilities } =
-    \d ->
-        Dict.get (Date.toRataDie d) availabilities
-            |> Maybe.withDefault DP.Available
+checkAvailability { availabilities, ctrlDown, rangeStart, pickedDate } =
+    if ctrlDown then
+        rangeAvailability availabilities rangeStart pickedDate
+    else
+        \d ->
+            Dict.get (Date.toRataDie d) availabilities
+                |> Maybe.withDefault DP.Available
+
+
+rangeAvailability : Dict Int DP.Availability -> Maybe Date -> Maybe Date -> (Date -> DP.Availability)
+rangeAvailability availabilities rangeStart pickedDate =
+    case ( rangeStart, pickedDate ) of
+        ( Just start, Just end ) ->
+            let
+                newAvailabilities =
+                    List.foldr
+                        (\d acc -> Dict.insert (Date.toRataDie d) DP.Booked acc)
+                        availabilities
+                        (daysBooked start end)
+            in
+            \d ->
+                Dict.get (Date.toRataDie d) newAvailabilities
+                    |> Maybe.withDefault DP.Available
+
+        ( Nothing, Just pd ) ->
+            let
+                newAvailabilities =
+                    Dict.map
+                        (\k av ->
+                            case av of
+                                DP.BookedAdmin _ ->
+                                    DP.NotAvailableAdmin
+
+                                DP.Locked _ ->
+                                    DP.NotAvailableAdmin
+
+                                otherwise ->
+                                    otherwise
+                        )
+                        availabilities
+            in
+            \d ->
+                if
+                    (Date.compare d (Date.add Days -1 pd) == LT)
+                        || (Date.compare d (Date.add Days -1 pd) == EQ)
+                then
+                    DP.NotAvailable
+                else
+                    Dict.get (Date.toRataDie d) newAvailabilities
+                        |> Maybe.withDefault DP.Available
+
+        _ ->
+            always DP.NotAvailable
 
 
 presenceStateView config model =
@@ -744,42 +937,42 @@ presenceStateView config model =
                     )
                 )
     in
-        column
-            [ Background.color white
-            , padding 15
-            , Border.rounded 5
-            , Border.color grey
-            , Border.width 1
-            , spacing 15
-            , width fill
-            ]
-            [ el [ Font.bold ]
-                (textM config.lang
-                    (MultLangStr "Real-time application usage"
-                        "Utilisation temps réel"
+    column
+        [ Background.color white
+        , padding 15
+        , Border.rounded 5
+        , Border.color grey
+        , Border.width 1
+        , spacing 15
+        , width fill
+        ]
+        [ el [ Font.bold ]
+            (textM config.lang
+                (MultLangStr "Real-time application usage"
+                    "Utilisation temps réel"
+                )
+            )
+        , paragraph
+            []
+            [ textM config.lang
+                (MultLangStr
+                    ("There "
+                        ++ (if isPlural then
+                                "are"
+                            else
+                                "is"
+                           )
+                        ++ " currently "
+                        ++ nbrUsers config.lang
+                        ++ " online."
+                    )
+                    ("Il y a actuellement "
+                        ++ nbrUsers config.lang
+                        ++ " en ligne."
                     )
                 )
-            , paragraph
-                []
-                [ textM config.lang
-                    (MultLangStr
-                        ("There "
-                            ++ (if isPlural then
-                                    "are"
-                                else
-                                    "is"
-                               )
-                            ++ " currently "
-                            ++ nbrUsers config.lang
-                            ++ " online."
-                        )
-                        ("Il y a actuellement "
-                            ++ nbrUsers config.lang
-                            ++ " en ligne."
-                        )
-                    )
-                ]
             ]
+        ]
 
 
 bookingEditorView config model =
@@ -886,23 +1079,38 @@ editAvailabilityView config model =
             model.pickedDate
                 |> Maybe.withDefault (Date.fromRataDie 0)
                 |> formatDate config.lang
+
+        rangeEdit =
+            case ( model.rangeStart, model.pickedDate ) of
+                ( Just _, Just _ ) ->
+                    True
+
+                _ ->
+                    False
     in
-        column
-            [ Background.color white
-            , padding 15
-            , Border.rounded 5
-            , Border.color grey
-            , Border.width 1
-            , spacing 15
-            , width fill
-            ]
-            [ el [ Font.bold ]
-                (textM config.lang
-                    (MultLangStr "Change availability"
+    column
+        [ Background.color white
+        , padding 15
+        , Border.rounded 5
+        , Border.color grey
+        , Border.width 1
+        , spacing 15
+        , width fill
+        ]
+        [ el [ Font.bold ]
+            (textM config.lang
+                (if rangeEdit then
+                    MultLangStr "Change availability - Range"
+                        "Modification de la disponibilité - Intervalle"
+                 else
+                    MultLangStr "Change availability"
                         "Modification de la disponibilité"
-                    )
                 )
-            , column
+            )
+        , if rangeEdit then
+            Element.none
+          else
+            column
                 [ spacing 10 ]
                 [ textM config.lang
                     (MultLangStr "Current availability:"
@@ -912,30 +1120,38 @@ editAvailabilityView config model =
                     [ Font.bold ]
                     (text <| strM config.lang (avStr availability))
                 ]
-            , textM config.lang
+        , if rangeEdit then
+            Element.none
+          else
+            textM config.lang
                 (MultLangStr
                     ("New availability on: "
                         ++ pDateStr
                     )
-                    ("Nouvelle disponibilité pour le:"
+                    ("Nouvelle disponibilité pour le: "
                         ++ pDateStr
                     )
                 )
-            , Input.radio
-                [ spacing 10 ]
-                { onChange =
-                    Maybe.map SetAvailability model.pickedDate
+        , Input.radio
+            [ spacing 10 ]
+            { onChange =
+                if rangeEdit then
+                    SetRangeAvailability
+                else
+                    Maybe.map
+                        SetAvailability
+                        model.pickedDate
                         |> Maybe.withDefault (\_ -> NoOp)
-                , selected = model.pickedAvailability
-                , label = Input.labelHidden ""
-                , options =
-                    [ Input.option DP.Available (textM config.lang <| avStr DP.Available)
-                    , Input.option DP.NotAvailableAdmin (textM config.lang <| avStr DP.NotAvailableAdmin)
-                    , Input.option DP.NoCheckInAdmin (textM config.lang <| avStr DP.NoCheckInAdmin)
-                    , Input.option DP.NoCheckOutAdmin (textM config.lang <| avStr DP.NoCheckOutAdmin)
-                    ]
-                }
-            ]
+            , selected = model.pickedAvailability
+            , label = Input.labelHidden ""
+            , options =
+                [ Input.option DP.Available (textM config.lang <| avStr DP.Available)
+                , Input.option DP.NotAvailableAdmin (textM config.lang <| avStr DP.NotAvailableAdmin)
+                , Input.option DP.NoCheckInAdmin (textM config.lang <| avStr DP.NoCheckInAdmin)
+                , Input.option DP.NoCheckOutAdmin (textM config.lang <| avStr DP.NoCheckOutAdmin)
+                ]
+            }
+        ]
 
 
 avStr av =
@@ -1056,31 +1272,31 @@ confirmBooking logInfo commentReply bookingInfo =
         ( subject, body ) =
             confirmationMail bookingInfo commentReply
     in
-        secureRequest logInfo
-            { method = "PUT"
-            , headers = []
-            , url =
-                "api/restricted/bookings/"
-            , body =
-                Encode.object
-                    [ ( "booking", bookingVal )
-                    , ( "reply_address"
-                      , bookingInfo.email
-                            |> Encode.string
-                      )
-                    , ( "confirmation_email"
-                      , Encode.object
-                            [ ( "subject", Encode.string subject )
-                            , ( "body", Encode.string body )
-                            ]
-                      )
-                    ]
-                    |> Http.jsonBody
-            , expect =
-                Http.expectWhatever (BookingConfirmed bookingInfo.bookingId)
-            , timeout = Nothing
-            , tracker = Nothing
-            }
+    secureRequest logInfo
+        { method = "PUT"
+        , headers = []
+        , url =
+            "api/restricted/bookings/"
+        , body =
+            Encode.object
+                [ ( "booking", bookingVal )
+                , ( "reply_address"
+                  , bookingInfo.email
+                        |> Encode.string
+                  )
+                , ( "confirmation_email"
+                  , Encode.object
+                        [ ( "subject", Encode.string subject )
+                        , ( "body", Encode.string body )
+                        ]
+                  )
+                ]
+                |> Http.jsonBody
+        , expect =
+            Http.expectWhatever (BookingConfirmed bookingInfo.bookingId)
+        , timeout = Nothing
+        , tracker = Nothing
+        }
 
 
 setAvailability logInfo d av =
@@ -1094,19 +1310,19 @@ setAvailability logInfo d av =
             else
                 ( "PUT", "api/restricted/availabilities/" )
     in
-        secureRequest logInfo
-            { method = method
-            , headers = []
-            , url = url
-            , body =
-                Encode.object
-                    [ ( "availability", encodeAvailability d av ) ]
-                    |> Http.jsonBody
-            , expect =
-                Http.expectWhatever (AvailabilitySet d)
-            , timeout = Nothing
-            , tracker = Nothing
-            }
+    secureRequest logInfo
+        { method = method
+        , headers = []
+        , url = url
+        , body =
+            Encode.object
+                [ ( "availability", encodeAvailability d av ) ]
+                |> Http.jsonBody
+        , expect =
+            Http.expectWhatever (AvailabilitySet d)
+        , timeout = Nothing
+        , tracker = Nothing
+        }
 
 
 encodeAvailability d av =
@@ -1141,7 +1357,7 @@ encodeAvailability d av =
                 DP.BookedAdmin _ ->
                     Encode.string "Booked"
 
-                DP.Locked ->
+                DP.Locked _ ->
                     Encode.string "Locked"
           )
         ]

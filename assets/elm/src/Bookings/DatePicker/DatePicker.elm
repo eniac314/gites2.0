@@ -52,7 +52,7 @@ type Availability
     | NoCheckOutAdmin
     | Booked
     | BookedAdmin Int
-    | Locked
+    | Locked String
 
 
 defaultAvailability =
@@ -429,7 +429,7 @@ dayGrid config model =
                     ( white, calRed, grey )
 
                 NoCheckInAdmin ->
-                    ( white, blue, grey )
+                    ( white, lightBlue, grey )
 
                 NoCheckOutAdmin ->
                     ( white, purple, grey )
@@ -440,7 +440,7 @@ dayGrid config model =
                 BookedAdmin s ->
                     ( white, calOrange, grey )
 
-                Locked ->
+                Locked _ ->
                     ( white, darkGreen, grey )
 
         handler d =
