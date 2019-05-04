@@ -201,7 +201,7 @@ httpErrorToString e =
 
 
 awsUrl =
-    "https://s3.eu-west-3.amazonaws.com/gite-vieux-lilas/"
+    "https://gite-vieux-lilas.s3.eu-west-3.amazonaws.com/"
 
 
 thumbSrc : String -> String
