@@ -111,7 +111,7 @@ filename toUpload =
             name
 
         FileHandler f ->
-            File.name f
+            "Documents/" ++ File.name f
 
 
 type Msg
@@ -292,8 +292,9 @@ view config model =
                     model.progress
                         |> Maybe.map
                             (\{ sent, size } ->
-                                (sent // size) * 100
+                                (toFloat sent / toFloat size) * 100
                             )
+                        |> Maybe.map floor
                         |> Maybe.withDefault 0
                         |> progressBar
 

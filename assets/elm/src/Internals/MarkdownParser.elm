@@ -66,7 +66,6 @@ blockToElement offset block =
         Paragraph raw inlines ->
             paragraph
                 []
-                --paddingEach { sides | left = 15 } ]
                 (List.concatMap (inlinesToElements []) inlines)
 
         BlockQuote blocks ->

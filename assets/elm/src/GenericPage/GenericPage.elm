@@ -10,6 +10,7 @@ import Element.Input as Input
 import Element.Keyed as Keyed
 import Element.Lazy exposing (lazy)
 import Element.Region as Region
+import File.Download as Download
 import Gallery.Carousel as Carousel
 import GenericPage.GenericPageShared exposing (..)
 import Http exposing (..)
@@ -27,6 +28,7 @@ type alias Model msg =
 type Msg
     = GotGenericPageContent (Result Http.Error GenericPageContent)
     | CarouselMsg String Carousel.Msg
+    | DownloadDoc String
     | NoOp
 
 
@@ -82,6 +84,9 @@ update config msg model =
 
                 Nothing ->
                     model
+
+        DownloadDoc url ->
+            ( model, Download.url url )
 
         NoOp ->
             model

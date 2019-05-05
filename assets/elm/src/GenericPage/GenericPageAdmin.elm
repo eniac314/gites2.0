@@ -11,6 +11,7 @@ import Element.Input as Input
 import Element.Keyed as Keyed
 import Element.Lazy exposing (lazy)
 import Element.Region as Region
+import File.Download as Download
 import Gallery.Carousel as Carousel
 import GenericPage.GenericPageShared exposing (..)
 import Html as Html
@@ -75,6 +76,7 @@ type Msg
     | GMGoBack
     | GMSaveAndQuit
     | GenericPageSaved (Result Http.Error ())
+    | DownloadDoc String
     | NoOp
 
 
@@ -498,6 +500,9 @@ update config msg model =
 
                 _ ->
                     ( model, Cmd.none )
+
+        DownloadDoc url ->
+            ( model, Download.url url )
 
         NoOp ->
             ( model, Cmd.none )

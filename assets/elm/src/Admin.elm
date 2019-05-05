@@ -16,6 +16,7 @@ import File.Select as Select
 import Gallery.GalleryAdmin as GalleryAdmin
 import GenericPage.GenericPageAdmin as GenericPageAdmin
 import Http exposing (expectString)
+import Internals.DocController as DocController
 import Internals.Helpers exposing (..)
 import Internals.Uploader as Uploader
 import MultLang.MultLang exposing (..)
@@ -58,6 +59,7 @@ type alias Model =
     , galleryAdmin : GalleryAdmin.Model Msg
     , optionsAdmin : OptionsAdmin.Model Msg
     , bookingsAdmin : BookingsAdmin.Model Msg
+    , docController : DocController.Model Msg
     }
 
 
@@ -69,6 +71,7 @@ type Msg
     | OptionsAdminMsg OptionsAdmin.Msg
     | GalleryAdminMsg GalleryAdmin.Msg
     | BookingAdminMsg BookingsAdmin.Msg
+    | DocControllerMsg DocController.Msg
     | SetDisplayMode DisplayMode
     | WinResize Int Int
     | SetZone Time.Zone
@@ -84,6 +87,7 @@ type DisplayMode
     | DisplayAccessAdmin
     | DisplayNearbyAdmin
     | DisplayRatesAdmin
+    | DisplayDocController
 
 
 subscriptions : Model -> Sub Msg
@@ -96,6 +100,7 @@ subscriptions model =
         , GenericPageAdmin.subscriptions model.nearbyPageAdmin
         , GalleryAdmin.subscriptions model.galleryAdmin
         , BookingsAdmin.subscriptions model.bookingsAdmin
+        , DocController.subscriptions model.docController
         ]
 
 
@@ -134,35 +139,41 @@ init flags =
 
         ( newAuthPlugin, authPluginCmd ) =
             Auth.init AuthMsg
+
+        ( newDocController, docCtrlCmd ) =
+            DocController.init
+                DocControllerMsg
     in
-        ( { displayMode = DisplayAuth
-          , lang = French
-          , width =
-                flags.width
-          , height =
-                flags.height
-          , currentTime =
-                flags.currentTime
-          , zone = Time.utc
-          , authPlugin = newAuthPlugin
-          , frontPageAdmin = newFrontPageAdmin
-          , accessPageAdmin = newAccessPageAdmin
-          , nearbyPageAdmin = newNearbyPageAdmin
-          , optionsAdmin = newOptionsAdmin
-          , galleryAdmin = newGalleryAdmin
-          , bookingsAdmin = newBookingAdmin
-          }
-        , Cmd.batch
-            [ Task.perform SetZone Time.here
-            , authPluginCmd
-            , fpaCmd
-            , accPgCmd
-            , neaPgCmd
-            , opCmd
-            , gAdCmd
-            , bkAdCmd
-            ]
-        )
+    ( { displayMode = DisplayAuth
+      , lang = French
+      , width =
+            flags.width
+      , height =
+            flags.height
+      , currentTime =
+            flags.currentTime
+      , zone = Time.utc
+      , authPlugin = newAuthPlugin
+      , frontPageAdmin = newFrontPageAdmin
+      , accessPageAdmin = newAccessPageAdmin
+      , nearbyPageAdmin = newNearbyPageAdmin
+      , optionsAdmin = newOptionsAdmin
+      , galleryAdmin = newGalleryAdmin
+      , bookingsAdmin = newBookingAdmin
+      , docController = newDocController
+      }
+    , Cmd.batch
+        [ Task.perform SetZone Time.here
+        , authPluginCmd
+        , fpaCmd
+        , accPgCmd
+        , neaPgCmd
+        , opCmd
+        , gAdCmd
+        , bkAdCmd
+        , docCtrlCmd
+        ]
+    )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -176,17 +187,17 @@ update msg model =
                 ( newAuthPlugin, authToolCmds, mbPluginResult ) =
                     Auth.update authPluginMsg model.authPlugin
             in
-                ( { model
-                    | authPlugin = newAuthPlugin
-                    , displayMode =
-                        if mbPluginResult == Just PluginQuit then
-                            DisplayFrontPageAdmin
-                        else
-                            model.displayMode
-                  }
-                , Cmd.batch <|
-                    [ authToolCmds ]
-                )
+            ( { model
+                | authPlugin = newAuthPlugin
+                , displayMode =
+                    if mbPluginResult == Just PluginQuit then
+                        DisplayFrontPageAdmin
+                    else
+                        model.displayMode
+              }
+            , Cmd.batch <|
+                [ authToolCmds ]
+            )
 
         FrontPageAdminMsg fpaMsg ->
             let
@@ -198,9 +209,9 @@ update msg model =
                         fpaMsg
                         model.frontPageAdmin
             in
-                ( { model | frontPageAdmin = newFrontPageAdmin }
-                , cmd
-                )
+            ( { model | frontPageAdmin = newFrontPageAdmin }
+            , cmd
+            )
 
         AccessPageAdminMsg accPgMsg ->
             let
@@ -212,9 +223,9 @@ update msg model =
                         accPgMsg
                         model.accessPageAdmin
             in
-                ( { model | accessPageAdmin = newAccessPageAdmin }
-                , cmd
-                )
+            ( { model | accessPageAdmin = newAccessPageAdmin }
+            , cmd
+            )
 
         NearbyPageAdminMsg neaPgMsg ->
             let
@@ -226,9 +237,9 @@ update msg model =
                         neaPgMsg
                         model.nearbyPageAdmin
             in
-                ( { model | nearbyPageAdmin = newNearbyPageAdmin }
-                , cmd
-                )
+            ( { model | nearbyPageAdmin = newNearbyPageAdmin }
+            , cmd
+            )
 
         OptionsAdminMsg opMsg ->
             let
@@ -238,9 +249,9 @@ update msg model =
                         opMsg
                         model.optionsAdmin
             in
-                ( { model | optionsAdmin = newOptionsAdmin }
-                , cmd
-                )
+            ( { model | optionsAdmin = newOptionsAdmin }
+            , cmd
+            )
 
         GalleryAdminMsg gAdMsg ->
             let
@@ -252,9 +263,9 @@ update msg model =
                         gAdMsg
                         model.galleryAdmin
             in
-                ( { model | galleryAdmin = newGalleryAdmin }
-                , cmd
-                )
+            ( { model | galleryAdmin = newGalleryAdmin }
+            , cmd
+            )
 
         BookingAdminMsg bkAdMsg ->
             let
@@ -264,25 +275,45 @@ update msg model =
                         bkAdMsg
                         model.bookingsAdmin
             in
-                ( { model | bookingsAdmin = newBookingAdmin }
-                , cmd
-                )
+            ( { model | bookingsAdmin = newBookingAdmin }
+            , cmd
+            )
+
+        DocControllerMsg docCtMsg ->
+            let
+                ( docController, cmd ) =
+                    DocController.update
+                        { logInfo = model.authPlugin.logInfo }
+                        docCtMsg
+                        model.docController
+            in
+            ( { model | docController = docController }
+            , cmd
+            )
 
         SetDisplayMode dm ->
             if Auth.isLogged model.authPlugin.logInfo then
                 let
-                    ( newBookingAdmin, cmd ) =
+                    ( newBookingAdmin, baCmd ) =
                         BookingsAdmin.load
                             { logInfo = model.authPlugin.logInfo }
                             model.bookingsAdmin
+
+                    ( newDocController, dcCmd ) =
+                        DocController.load
+                            model.authPlugin.logInfo
+                            model.docController
                 in
-                    ( { model
-                        | displayMode = dm
-                        , bookingsAdmin = newBookingAdmin
-                      }
-                    , Cmd.batch
-                        [ cmd ]
-                    )
+                ( { model
+                    | displayMode = dm
+                    , bookingsAdmin = newBookingAdmin
+                    , docController = newDocController
+                  }
+                , Cmd.batch
+                    [ baCmd
+                    , dcCmd
+                    ]
+                )
             else
                 ( model, Cmd.none )
 
@@ -372,6 +403,13 @@ view model =
                             , width = model.width
                             }
                             model.optionsAdmin
+
+                    DisplayDocController ->
+                        DocController.view
+                            { lang = model.lang
+                            , width = model.width
+                            }
+                            model.docController
                 ]
             )
         ]
@@ -444,6 +482,14 @@ tabsView model =
             (strM model.lang
                 (MultLangStr "Nearby page Admin"
                     "Editeur environs"
+                )
+            )
+        , tabView model.displayMode
+            DisplayDocController
+            SetDisplayMode
+            (strM model.lang
+                (MultLangStr "Documents"
+                    "Documents"
                 )
             )
         , tabView model.displayMode
