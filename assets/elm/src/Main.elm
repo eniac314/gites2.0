@@ -362,8 +362,16 @@ view model =
                                         Element.none
 
                                     Just page ->
-                                        MarkdownParser.renderMarkdown
-                                            (strM model.lang page)
+                                        el
+                                            [ width (maximum 1000 fill)
+                                            , height (minimum 500 fill)
+                                            , centerX
+                                            , padding 15
+                                            , spacing 15
+                                            ]
+                                            (MarkdownParser.renderMarkdown
+                                                (strM model.lang page)
+                                            )
 
                             DisplayNearby ->
                                 GenericPage.view

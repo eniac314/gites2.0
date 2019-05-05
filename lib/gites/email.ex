@@ -4,7 +4,7 @@ defmodule Gites.Email do
 
   def notif_admin_email(subject, body) do
     base_email
-    |> to(["florian.gillard@tutanota.com"])
+    |> to(["florian.gillard@tutanota.com","sylvie.gillard@laposte.net","mael.gillard@gmail.com"])
     |> subject(subject)
     |> text_body(body)
   end

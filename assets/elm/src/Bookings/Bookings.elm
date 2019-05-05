@@ -86,7 +86,8 @@ type alias Model msg =
     , checkOutDate : Maybe Date
     , slots :
         Slots
-        --
+
+    --
     , firstName : Maybe String
     , lastName : Maybe String
     , address : Maybe String
@@ -108,7 +109,8 @@ type alias Model msg =
     , comments : Maybe String
     , options :
         Maybe BookingOptions
-        --
+
+    --
     , currentSeed : Seed
     , currentUuid : Uuid.Uuid
     , presences : Presence.PresenceState String
@@ -185,75 +187,76 @@ init outMsg ( seed, seedExtension ) reset =
         slots =
             Slots [] [] [] [] Dict.empty
     in
-        ( { checkInPicker = checkInPicker
-          , checkInDate =
-                Nothing
-                --Just <| Date.fromCalendarDate 2020 Time.Jan 2
-          , checkOutPicker = checkOutPicker
-          , checkOutDate =
-                Nothing
-                --Just <| Date.fromCalendarDate 2020 Time.Jan 12
-          , slots =
-                slots
-                --
-                --, selectedTitle = Nothing
-                --, titleSelector = Select.init
-                --, firstName = Nothing
-                --, lastName = Nothing
-                --, address = Nothing
-                --, addAddress = Nothing
-                --, postcode = Nothing
-                --, city = Nothing
-                --, country = Nothing
-                --, phone1 = Nothing
-                --, phone2 = Nothing
-                --, email = Nothing
-                --, confEmail = Nothing
-                --, confEmailFocused = False
-                --, nbrAdults = Nothing
-                --, nbrAdultSelector = Select.init
-                --, nbrChildren = Nothing
-                --, nbrChildrenSelector = Select.init
-                --, comments = Nothing
-          , firstName = Just "Florian"
-          , lastName = Just "Gillard"
-          , address = Just "5 place de l'église"
-          , addAddress = Nothing
-          , postcode = Just 89520
-          , city = Just "Lainsecq"
-          , country = Just "France"
-          , phone1 = Just "0652110572"
-          , phone2 = Nothing
-          , email = Just "florian.gillard@tutanota.com"
-          , confEmail = Just "florian.gillard@tutanota.com"
-          , confEmailFocused = False
-          , nbrAdults = Just 1
-          , nbrAdultSelector = Select.init
-          , nbrChildren = Nothing
-          , nbrChildrenSelector = Select.init
-          , pets = False
-          , petsType = Nothing
-          , comments = Nothing
-          , options = Nothing
-          , currentSeed = newSeed
-          , currentUuid = newUuid
-          , presences = Dict.empty
-          , captchaResp = ""
-          , bookingProcessed = Initial
-          , outMsg = outMsg
-          }
-        , Cmd.map outMsg <|
-            Cmd.batch
-                [ checkInPickerCmd
-                , checkOutPickerCmd
-                , getAvailabilities slots
-                , getBookingOptions GotBookingOptions
-                , if reset then
-                    requestRefresh ()
-                  else
-                    joinChannel (Uuid.encode newUuid)
-                ]
-        )
+    ( { checkInPicker = checkInPicker
+      , checkInDate =
+            Nothing
+
+      --Just <| Date.fromCalendarDate 2020 Time.Jan 2
+      , checkOutPicker = checkOutPicker
+      , checkOutDate =
+            Nothing
+
+      --Just <| Date.fromCalendarDate 2020 Time.Jan 12
+      , slots = slots
+      , firstName = Nothing
+      , lastName = Nothing
+      , address = Nothing
+      , addAddress = Nothing
+      , postcode = Nothing
+      , city = Nothing
+      , country = Nothing
+      , phone1 = Nothing
+      , phone2 = Nothing
+      , email = Nothing
+      , confEmail = Nothing
+      , confEmailFocused = False
+      , nbrAdults = Nothing
+      , nbrAdultSelector = Select.init
+      , nbrChildren = Nothing
+      , nbrChildrenSelector = Select.init
+      , pets = False
+      , petsType = Nothing
+      , comments = Nothing
+
+      --, firstName = Just "Florian"
+      --, lastName = Just "Gillard"
+      --, address = Just "5 place de l'église"
+      --, addAddress = Nothing
+      --, postcode = Just 89520
+      --, city = Just "Lainsecq"
+      --, country = Just "France"
+      --, phone1 = Just "0652110572"
+      --, phone2 = Nothing
+      --, email = Just "florian.gillard@tutanota.com"
+      --, confEmail = Just "florian.gillard@tutanota.com"
+      --, confEmailFocused = False
+      --, nbrAdults = Just 1
+      --, nbrAdultSelector = Select.init
+      --, nbrChildren = Nothing
+      --, nbrChildrenSelector = Select.init
+      --, pets = False
+      --, petsType = Nothing
+      --, comments = Nothing
+      , options = Nothing
+      , currentSeed = newSeed
+      , currentUuid = newUuid
+      , presences = Dict.empty
+      , captchaResp = ""
+      , bookingProcessed = Initial
+      , outMsg = outMsg
+      }
+    , Cmd.map outMsg <|
+        Cmd.batch
+            [ checkInPickerCmd
+            , checkOutPickerCmd
+            , getAvailabilities slots
+            , getBookingOptions GotBookingOptions
+            , if reset then
+                requestRefresh ()
+              else
+                joinChannel (Uuid.encode newUuid)
+            ]
+    )
 
 
 update : { a | key : Nav.Key } -> Msg -> Model msg -> ( Model msg, Cmd msg )
@@ -264,54 +267,54 @@ update config msg model =
                 ( newCheckInPicker, cmd, mbDate ) =
                     DP.update pickerMsg model.checkInPicker
             in
-                case mbDate of
-                    Nothing ->
-                        ( { model
-                            | checkInPicker = newCheckInPicker
-                          }
-                        , Cmd.map model.outMsg cmd
-                        )
+            case mbDate of
+                Nothing ->
+                    ( { model
+                        | checkInPicker = newCheckInPicker
+                      }
+                    , Cmd.map model.outMsg cmd
+                    )
 
-                    Just checkIn ->
-                        ( { model
-                            | checkInPicker = newCheckInPicker
-                            , checkInDate = mbDate
-                            , checkOutPicker =
-                                DP.setCurrentDate checkIn model.checkOutPicker
-                            , slots = computeBooked model.slots (Just checkIn) model.checkOutDate
-                          }
-                        , Cmd.batch
-                            [ Cmd.map model.outMsg cmd
-                            , broadcastLockedDaysCmd (Just checkIn) model.checkOutDate
-                            ]
-                        )
+                Just checkIn ->
+                    ( { model
+                        | checkInPicker = newCheckInPicker
+                        , checkInDate = mbDate
+                        , checkOutPicker =
+                            DP.setCurrentDate checkIn model.checkOutPicker
+                        , slots = computeBooked model.slots (Just checkIn) model.checkOutDate
+                      }
+                    , Cmd.batch
+                        [ Cmd.map model.outMsg cmd
+                        , broadcastLockedDaysCmd (Just checkIn) model.checkOutDate
+                        ]
+                    )
 
         CheckOutPickerMsg pickerMsg ->
             let
                 ( newCheckOutPicker, cmd, mbDate ) =
                     DP.update pickerMsg model.checkOutPicker
             in
-                case mbDate of
-                    Nothing ->
-                        ( { model
-                            | checkOutPicker = newCheckOutPicker
-                          }
-                        , Cmd.map model.outMsg cmd
-                        )
+            case mbDate of
+                Nothing ->
+                    ( { model
+                        | checkOutPicker = newCheckOutPicker
+                      }
+                    , Cmd.map model.outMsg cmd
+                    )
 
-                    Just checkOut ->
-                        ( { model
-                            | checkOutPicker = newCheckOutPicker
-                            , checkOutDate = mbDate
-                            , checkInPicker =
-                                DP.setCurrentDate checkOut model.checkInPicker
-                            , slots = computeBooked model.slots model.checkInDate (Just checkOut)
-                          }
-                        , Cmd.batch
-                            [ Cmd.map model.outMsg cmd
-                            , broadcastLockedDaysCmd model.checkInDate (Just checkOut)
-                            ]
-                        )
+                Just checkOut ->
+                    ( { model
+                        | checkOutPicker = newCheckOutPicker
+                        , checkOutDate = mbDate
+                        , checkInPicker =
+                            DP.setCurrentDate checkOut model.checkInPicker
+                        , slots = computeBooked model.slots model.checkInDate (Just checkOut)
+                      }
+                    , Cmd.batch
+                        [ Cmd.map model.outMsg cmd
+                        , broadcastLockedDaysCmd model.checkInDate (Just checkOut)
+                        ]
+                    )
 
         SetFirstName s ->
             ( { model
@@ -501,11 +504,11 @@ update config msg model =
                                 )
                                 options.options
                     in
-                        ( { model
-                            | options = Just { options | options = newOptions }
-                          }
-                        , Cmd.none
-                        )
+                    ( { model
+                        | options = Just { options | options = newOptions }
+                      }
+                    , Cmd.none
+                    )
 
                 Nothing ->
                     ( model, Cmd.none )
@@ -571,7 +574,7 @@ update config msg model =
                                         |> Dict.remove (Uuid.toString model.currentUuid)
                             }
                     in
-                        ( { model | slots = newSlots }, Cmd.none )
+                    ( { model | slots = newSlots }, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
@@ -616,13 +619,13 @@ update config msg model =
                                 else
                                     model.checkOutDate
                         in
-                            ( { model
-                                | slots = newSlots
-                                , checkInDate = checkIn
-                                , checkOutDate = checkOut
-                              }
-                            , Cmd.none
-                            )
+                        ( { model
+                            | slots = newSlots
+                            , checkInDate = checkIn
+                            , checkOutDate = checkOut
+                          }
+                        , Cmd.none
+                        )
 
                 _ ->
                     ( model, Cmd.none )
@@ -633,17 +636,17 @@ update config msg model =
                     decodePresenceState jsonVal
                         |> Result.map (\state -> Presence.syncState state model.presences)
             in
-                case presences of
-                    Ok ps ->
-                        ( { model
-                            | presences = ps
-                            , slots = filterSlots ps model.slots
-                          }
-                        , Cmd.none
-                        )
+            case presences of
+                Ok ps ->
+                    ( { model
+                        | presences = ps
+                        , slots = filterSlots ps model.slots
+                      }
+                    , Cmd.none
+                    )
 
-                    Err e ->
-                        ( model, Cmd.none )
+                Err e ->
+                    ( model, Cmd.none )
 
         ReceivePresenceDiff jsonVal ->
             let
@@ -651,17 +654,17 @@ update config msg model =
                     decodePresenceDiff jsonVal
                         |> Result.map (\diff -> Presence.syncDiff diff model.presences)
             in
-                case presences of
-                    Ok ps ->
-                        ( { model
-                            | presences = ps
-                            , slots = filterSlots ps model.slots
-                          }
-                        , Cmd.none
-                        )
+            case presences of
+                Ok ps ->
+                    ( { model
+                        | presences = ps
+                        , slots = filterSlots ps model.slots
+                      }
+                    , Cmd.none
+                    )
 
-                    Err e ->
-                        ( model, Cmd.none )
+                Err e ->
+                    ( model, Cmd.none )
 
         Delay n msg_ ->
             ( model
@@ -682,15 +685,15 @@ update config msg model =
                 ( newModel, cmd ) =
                     init model.outMsg ( 0, [] ) True
             in
-                ( { newModel
-                    | currentSeed = model.currentSeed
-                    , currentUuid = model.currentUuid
-                  }
-                , Cmd.batch
-                    [ cmd
-                    , pushUrl config.key "/bookings"
-                    ]
-                )
+            ( { newModel
+                | currentSeed = model.currentSeed
+                , currentUuid = model.currentUuid
+              }
+            , Cmd.batch
+                [ cmd
+                , pushUrl config.key "/bookings"
+                ]
+            )
 
         NoOp ->
             ( model, Cmd.none )
@@ -732,27 +735,27 @@ checkInAvailability { booked, notAvailable, noCheckIn, noCheckOut, lockedDays } 
                     (notAvailable ++ locked)
                         |> List.any (\d_ -> Date.compare d_ cOut == LT && Date.compare d_ d == GT)
     in
-        \d ->
-            if List.member d booked then
-                DP.Booked
-            else if
-                (Maybe.map
-                    (\cOut ->
-                        (Date.compare d (Date.add Days -1 cOut) == GT)
-                            || (Date.compare d (Date.add Days -1 cOut) == EQ)
-                    )
-                    mbCheckOutDate
-                    |> Maybe.withDefault False
+    \d ->
+        if List.member d booked then
+            DP.Booked
+        else if
+            (Maybe.map
+                (\cOut ->
+                    (Date.compare d (Date.add Days -1 cOut) == GT)
+                        || (Date.compare d (Date.add Days -1 cOut) == EQ)
                 )
-                    || List.member d notAvailable
-                    || isBridging d
-                    || List.member d locked
-            then
-                DP.NotAvailable
-            else if List.member d noCheckIn then
-                DP.NoCheckIn
-            else
-                DP.Available
+                mbCheckOutDate
+                |> Maybe.withDefault False
+            )
+                || List.member d notAvailable
+                || isBridging d
+                || List.member d locked
+        then
+            DP.NotAvailable
+        else if List.member d noCheckIn then
+            DP.NoCheckIn
+        else
+            DP.Available
 
 
 checkOutAvailability : Slots -> Maybe Date -> (Date -> DP.Availability)
@@ -772,27 +775,27 @@ checkOutAvailability { booked, notAvailable, noCheckIn, noCheckOut, lockedDays }
                     (notAvailable ++ locked)
                         |> List.any (\d_ -> Date.compare d_ cIn == GT && Date.compare d_ d == LT)
     in
-        \d ->
-            if List.member d booked then
-                DP.Booked
-            else if
-                (Maybe.map
-                    (\cIn ->
-                        (Date.compare d (Date.add Days 1 cIn) == LT)
-                            || (Date.compare d (Date.add Days 1 cIn) == EQ)
-                    )
-                    mbCheckInDate
-                    |> Maybe.withDefault False
+    \d ->
+        if List.member d booked then
+            DP.Booked
+        else if
+            (Maybe.map
+                (\cIn ->
+                    (Date.compare d (Date.add Days 1 cIn) == LT)
+                        || (Date.compare d (Date.add Days 1 cIn) == EQ)
                 )
-                    || List.member d notAvailable
-                    || isBridging d
-                    || List.member d locked
-            then
-                DP.NotAvailable
-            else if List.member d noCheckOut then
-                DP.NoCheckOut
-            else
-                DP.Available
+                mbCheckInDate
+                |> Maybe.withDefault False
+            )
+                || List.member d notAvailable
+                || isBridging d
+                || List.member d locked
+        then
+            DP.NotAvailable
+        else if List.member d noCheckOut then
+            DP.NoCheckOut
+        else
+            DP.Available
 
 
 type alias ViewConfig =
@@ -945,25 +948,25 @@ optionsView config model =
                                 )
                         }
             in
-                column
-                    [ spacing 15 ]
-                    [ el
-                        [ Font.bold
-                        , Font.size 18
-                        , Font.family
-                            [ Font.typeface "Montserrat"
-                            , Font.sansSerif
-                            ]
+            column
+                [ spacing 15 ]
+                [ el
+                    [ Font.bold
+                    , Font.size 18
+                    , Font.family
+                        [ Font.typeface "Montserrat"
+                        , Font.sansSerif
                         ]
-                        (textM config.lang
-                            (MultLangStr "Options"
-                                "Options"
-                            )
-                        )
-                    , column
-                        [ spacing 15 ]
-                        (List.map optionView (Dict.values bOptions.options))
                     ]
+                    (textM config.lang
+                        (MultLangStr "Options"
+                            "Options"
+                        )
+                    )
+                , column
+                    [ spacing 15 ]
+                    (List.map optionView (Dict.values bOptions.options))
+                ]
 
         Nothing ->
             Element.none
@@ -1509,109 +1512,109 @@ confirmView config model =
                 nc =
                     nightsCount cInDate cOutDate
             in
-                column
-                    [ spacing 20
-                    , width fill
-                    , height (minimum 400 fill)
-                    , Background.color (rgba 1 1 1 0.7)
-                    , padding 15
-                    , Border.rounded 5
-                    , Border.color grey
-                    , Border.width 1
+            column
+                [ spacing 20
+                , width fill
+                , height (minimum 400 fill)
+                , Background.color (rgba 1 1 1 0.7)
+                , padding 15
+                , Border.rounded 5
+                , Border.color grey
+                , Border.width 1
+                ]
+                [ el
+                    [ Font.bold
+                    , Font.size 22
+                    , Font.family
+                        [ Font.typeface "Montserrat"
+                        , Font.sansSerif
+                        ]
                     ]
-                    [ el
-                        [ Font.bold
-                        , Font.size 22
-                        , Font.family
-                            [ Font.typeface "Montserrat"
-                            , Font.sansSerif
-                            ]
-                        ]
-                        (textM config.lang
-                            (MultLangStr "Confirmation"
-                                "Confirmation"
-                            )
+                    (textM config.lang
+                        (MultLangStr "Confirmation"
+                            "Confirmation"
                         )
-                    , customerDetailView config bookingInfo
-                    , contactView config bookingInfo
-                    , recapView config cInDate cOutDate bookingInfo (model.options |> Maybe.withDefault dummyOptions)
-                    , html <|
-                        Html.img
-                            [ HtmlAttr.hidden True
-                            , HtmlEvents.on "load"
-                                (Decode.succeed (Delay 200 LoadCaptcha))
-                            , HtmlAttr.src "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
-                            ]
-                            []
-                    , el
-                        [ htmlAttribute <|
-                            HtmlAttr.class "g-recaptcha"
-                        , paddingEach
-                            { sides | top = 10 }
+                    )
+                , customerDetailView config bookingInfo
+                , contactView config bookingInfo
+                , recapView config cInDate cOutDate bookingInfo (model.options |> Maybe.withDefault dummyOptions)
+                , html <|
+                    Html.img
+                        [ HtmlAttr.hidden True
+                        , HtmlEvents.on "load"
+                            (Decode.succeed (Delay 200 LoadCaptcha))
+                        , HtmlAttr.src "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
                         ]
-                        Element.none
-                    , case model.bookingProcessed of
-                        Initial ->
-                            row
-                                [ spacing 15 ]
-                                [ link
-                                    (buttonStyle2 True)
-                                    { url = "/bookings/form"
-                                    , label =
-                                        textM config.lang
-                                            (MultLangStr "Go back" "Retour")
-                                    }
-                                , Input.button
-                                    (buttonStyle_ (model.captchaResp /= ""))
-                                    { onPress =
-                                        if model.captchaResp /= "" then
-                                            Just (SendBookingData config.lang)
-                                        else
-                                            Nothing
-                                    , label =
-                                        textM config.lang
-                                            (MultLangStr "Send"
-                                                "Envoyer"
-                                            )
-                                    }
-                                ]
+                        []
+                , el
+                    [ htmlAttribute <|
+                        HtmlAttr.class "g-recaptcha"
+                    , paddingEach
+                        { sides | top = 10 }
+                    ]
+                    Element.none
+                , case model.bookingProcessed of
+                    Initial ->
+                        row
+                            [ spacing 15 ]
+                            [ link
+                                (buttonStyle2 True)
+                                { url = "/bookings/form"
+                                , label =
+                                    textM config.lang
+                                        (MultLangStr "Go back" "Retour")
+                                }
+                            , Input.button
+                                (buttonStyle_ (model.captchaResp /= ""))
+                                { onPress =
+                                    if model.captchaResp /= "" then
+                                        Just (SendBookingData config.lang)
+                                    else
+                                        Nothing
+                                , label =
+                                    textM config.lang
+                                        (MultLangStr "Send"
+                                            "Envoyer"
+                                        )
+                                }
+                            ]
 
-                        Waiting ->
-                            el
+                    Waiting ->
+                        el
+                            []
+                            (textM config.lang
+                                (MultLangStr "Your request is being processed, please wait... "
+                                    "Votre demande est en cours de traitement, veuillez patienter... "
+                                )
+                            )
+
+                    Success ->
+                        column
+                            [ spacing 15 ]
+                            [ el
                                 []
                                 (textM config.lang
-                                    (MultLangStr "Your request is being processed, please wait... "
-                                        "Votre demande est en cours de traitement, veuillez patienter... "
+                                    (MultLangStr "Your request has been processed, you will receive a confirmation email in the next 24H."
+                                        "Votre demande à été prise en compte, vous allez recevoir un email de confirmation dans les prochaines 24H."
                                     )
                                 )
-
-                        Success ->
-                            column
-                                [ spacing 15 ]
-                                [ el
-                                    []
-                                    (textM config.lang
-                                        (MultLangStr "Your request has been processed, you will receive a confirmation email in the next 24H."
-                                            "Votre demande à été prise en compte, vous allez recevoir un email de confirmation dans les prochaines 24H."
+                            , Input.button
+                                (buttonStyle_ True)
+                                { onPress =
+                                    Just NewBooking
+                                , label =
+                                    textM config.lang
+                                        (MultLangStr "New booking"
+                                            "Nouvelle reservation"
                                         )
-                                    )
-                                , Input.button
-                                    (buttonStyle_ True)
-                                    { onPress =
-                                        Just NewBooking
-                                    , label =
-                                        textM config.lang
-                                            (MultLangStr "New booking"
-                                                "Nouvelle reservation"
-                                            )
-                                    }
-                                ]
+                                }
+                            ]
 
-                        Failure ->
-                            el
-                                []
-                                (text <| "Failure")
-                    ]
+                    Failure ->
+                        el
+                            []
+                            (text <| "Failure")
+                ]
 
         _ ->
             column
@@ -1644,11 +1647,11 @@ sendBookingData lang model =
                 ]
                 |> Http.jsonBody
     in
-        Http.post
-            { url = "/api/bookings"
-            , body = body
-            , expect = Http.expectJson BookingProcessed decodeBookingResult
-            }
+    Http.post
+        { url = "/api/bookings"
+        , body = body
+        , expect = Http.expectJson BookingProcessed decodeBookingResult
+        }
 
 
 decodeBookingResult =
@@ -1663,114 +1666,114 @@ encodeBookingData lang model =
             Maybe.map Encode.string s
                 |> Maybe.withDefault Encode.null
     in
-        Encode.object
-            [ ( "check_in"
-              , model.checkInDate
-                    |> Maybe.map Date.toRataDie
-                    |> Maybe.map Encode.int
-                    |> Maybe.withDefault Encode.null
-              )
-            , ( "check_out"
-              , model.checkOutDate
-                    |> Maybe.map Date.toRataDie
-                    |> Maybe.map Encode.int
-                    |> Maybe.withDefault Encode.null
-              )
-            , ( "first_name"
-              , strEncode model.firstName
-              )
-            , ( "last_name"
-              , strEncode model.lastName
-              )
-            , ( "address"
-              , strEncode model.address
-              )
-            , ( "add_address"
-              , strEncode model.addAddress
-              )
-            , ( "postcode"
-              , model.postcode
-                    |> Maybe.map Encode.int
-                    |> Maybe.withDefault Encode.null
-              )
-            , ( "city"
-              , strEncode model.city
-              )
-            , ( "country"
-              , strEncode model.country
-              )
-            , ( "phone1"
-              , strEncode model.phone1
-              )
-            , ( "phone2"
-              , strEncode model.phone2
-              )
-            , ( "email"
-              , strEncode model.email
-              )
-            , ( "nbr_adults"
-              , model.nbrAdults
-                    |> Maybe.map Encode.int
-                    |> Maybe.withDefault Encode.null
-              )
-            , ( "nbr_children"
-              , model.nbrChildren
-                    |> Maybe.map Encode.int
-                    |> Maybe.withDefault Encode.null
-              )
-            , ( "pets"
-              , model.petsType
-                    |> Maybe.map Encode.string
-                    |> Maybe.withDefault Encode.null
-              )
-            , ( "comments"
-              , strEncode model.comments
-              )
-            , ( "options"
-              , Maybe.withDefault dummyOptions model.options
-                    |> encodeBookingOptions
-              )
-            , ( "language"
-              , case lang of
-                    French ->
-                        Encode.string "french"
+    Encode.object
+        [ ( "check_in"
+          , model.checkInDate
+                |> Maybe.map Date.toRataDie
+                |> Maybe.map Encode.int
+                |> Maybe.withDefault Encode.null
+          )
+        , ( "check_out"
+          , model.checkOutDate
+                |> Maybe.map Date.toRataDie
+                |> Maybe.map Encode.int
+                |> Maybe.withDefault Encode.null
+          )
+        , ( "first_name"
+          , strEncode model.firstName
+          )
+        , ( "last_name"
+          , strEncode model.lastName
+          )
+        , ( "address"
+          , strEncode model.address
+          )
+        , ( "add_address"
+          , strEncode model.addAddress
+          )
+        , ( "postcode"
+          , model.postcode
+                |> Maybe.map Encode.int
+                |> Maybe.withDefault Encode.null
+          )
+        , ( "city"
+          , strEncode model.city
+          )
+        , ( "country"
+          , strEncode model.country
+          )
+        , ( "phone1"
+          , strEncode model.phone1
+          )
+        , ( "phone2"
+          , strEncode model.phone2
+          )
+        , ( "email"
+          , strEncode model.email
+          )
+        , ( "nbr_adults"
+          , model.nbrAdults
+                |> Maybe.map Encode.int
+                |> Maybe.withDefault Encode.null
+          )
+        , ( "nbr_children"
+          , model.nbrChildren
+                |> Maybe.map Encode.int
+                |> Maybe.withDefault Encode.null
+          )
+        , ( "pets"
+          , model.petsType
+                |> Maybe.map Encode.string
+                |> Maybe.withDefault Encode.null
+          )
+        , ( "comments"
+          , strEncode model.comments
+          )
+        , ( "options"
+          , Maybe.withDefault dummyOptions model.options
+                |> encodeBookingOptions
+          )
+        , ( "language"
+          , case lang of
+                French ->
+                    Encode.string "french"
 
-                    English ->
-                        Encode.string "English"
-              )
-            , ( "days_booked"
-              , model.slots.booked
-                    |> List.map Date.toRataDie
-                    |> Encode.list
-                        (\d ->
-                            Encode.object
-                                [ ( "date", Encode.int d )
-                                , ( "availability", Encode.string "Booked" )
-                                ]
-                        )
-              )
-            , ( "captcha_response", Encode.string model.captchaResp )
-            , ( "notification_mail"
-              , let
-                    ( subject, body ) =
-                        notificationMail lang model
-                in
-                    Encode.object
-                        [ ( "subject", Encode.string subject )
-                        , ( "body", Encode.string body )
-                        ]
-              )
-            , ( "notification_mail_admin"
-              , let
-                    ( subject, body ) =
-                        notificationMailAdmin model
-                in
-                    Encode.object
-                        [ ( "subject", Encode.string subject )
-                        , ( "body", Encode.string body )
-                        ]
-              )
-            ]
+                English ->
+                    Encode.string "English"
+          )
+        , ( "days_booked"
+          , model.slots.booked
+                |> List.map Date.toRataDie
+                |> Encode.list
+                    (\d ->
+                        Encode.object
+                            [ ( "date", Encode.int d )
+                            , ( "availability", Encode.string "Booked" )
+                            ]
+                    )
+          )
+        , ( "captcha_response", Encode.string model.captchaResp )
+        , ( "notification_mail"
+          , let
+                ( subject, body ) =
+                    notificationMail lang model
+            in
+            Encode.object
+                [ ( "subject", Encode.string subject )
+                , ( "body", Encode.string body )
+                ]
+          )
+        , ( "notification_mail_admin"
+          , let
+                ( subject, body ) =
+                    notificationMailAdmin model
+            in
+            Encode.object
+                [ ( "subject", Encode.string subject )
+                , ( "body", Encode.string body )
+                ]
+          )
+        ]
 
 
 broadcastLockedDaysCmd : Maybe Date -> Maybe Date -> Cmd msg
@@ -1825,15 +1828,15 @@ decodeSlots currentSlots =
                 _ ->
                     slots
     in
-        Decode.field "data"
-            (Decode.list
-                (Decode.map2 Tuple.pair
-                    (Decode.field "date" (Decode.map Date.fromRataDie Decode.int))
-                    (Decode.field "availability" decodeAvailability)
-                )
-                |> Decode.map swapBooked
-                |> Decode.map (List.foldr (\x acc -> putInSlot x acc) currentSlots_)
+    Decode.field "data"
+        (Decode.list
+            (Decode.map2 Tuple.pair
+                (Decode.field "date" (Decode.map Date.fromRataDie Decode.int))
+                (Decode.field "availability" decodeAvailability)
             )
+            |> Decode.map swapBooked
+            |> Decode.map (List.foldr (\x acc -> putInSlot x acc) currentSlots_)
+        )
 
 
 decodeAvailability =
@@ -1911,15 +1914,15 @@ validateForm { firstName, lastName, address, postcode, city, country, phone1, em
                 Just _ ->
                     True
     in
-        validFstName
-            && validLstName
-            && validAddr
-            && validPostcode
-            && validCity
-            && validCountry
-            && validPhone1
-            && validEmail
-            && validNbrAdults
+    validFstName
+        && validLstName
+        && validAddr
+        && validPostcode
+        && validCity
+        && validCountry
+        && validPhone1
+        && validEmail
+        && validNbrAdults
 
 
 
