@@ -11,6 +11,7 @@ import Element.Input as Input
 import Element.Keyed as Keyed
 import Element.Lazy exposing (lazy)
 import Element.Region as Region
+import File.Download as Download
 import Gallery.Gallery as Gallery
 import Gallery.GalleryShared exposing (..)
 import Http exposing (..)
@@ -74,6 +75,7 @@ type Msg
     | Save
     | Saved (Result Http.Error ())
     | SetDisplayMode DisplayMode
+    | DownloadDoc String
     | NoOp
 
 
@@ -536,6 +538,9 @@ update config msg model =
             , Cmd.none
             )
 
+        DownloadDoc url ->
+            ( model, Download.url url )
+
         NoOp ->
             ( model, Cmd.none )
 
@@ -745,6 +750,7 @@ homeView config model =
                 Just a ->
                     MarkdownParser.renderMarkdown
                         (strM config.lang a)
+                        DownloadDoc
 
                 Nothing ->
                     Element.none
@@ -906,6 +912,7 @@ galleryMetaView config model title =
                         Just h ->
                             MarkdownParser.renderMarkdown
                                 (strM config.lang h)
+                                (model.outMsg << DownloadDoc)
 
                         Nothing ->
                             Element.none
@@ -919,6 +926,7 @@ galleryMetaView config model title =
                         Just a ->
                             MarkdownParser.renderMarkdown
                                 (strM config.lang a)
+                                (model.outMsg << DownloadDoc)
 
                         Nothing ->
                             Element.none

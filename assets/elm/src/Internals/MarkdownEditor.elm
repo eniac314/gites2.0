@@ -9,6 +9,7 @@ import Element.Input as Input
 import Element.Keyed as Keyed
 import Element.Lazy exposing (lazy)
 import Element.Region as Region
+import File.Download as Download
 import Html as Html
 import Html.Attributes as HtmlAttr
 import Internals.Helpers exposing (..)
@@ -43,6 +44,7 @@ type Msg
     | TooglePreviewLang
     | GoBack
     | Save
+    | DownloadDoc String
     | NoOp
 
 
@@ -92,6 +94,9 @@ update msg model =
                         ( { model | inputs = Nothing }
                         , Just <| PluginData data
                         )
+
+        DownloadDoc url ->
+            ( model, Nothing )
 
         NoOp ->
             ( model, Nothing )
@@ -167,6 +172,7 @@ view config model =
                     ]
                     [ MarkdownParser.renderMarkdown
                         (strM model.previewLang baseMls)
+                        DownloadDoc
                     , column
                         []
                         [ image

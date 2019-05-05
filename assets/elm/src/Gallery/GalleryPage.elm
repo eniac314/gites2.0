@@ -11,6 +11,7 @@ import Element.Input as Input
 import Element.Keyed as Keyed
 import Element.Lazy as Lazy
 import Element.Region as Region
+import File.Download as Download
 import Gallery.Gallery as Gallery exposing (..)
 import Gallery.GalleryShared exposing (..)
 import Http exposing (..)
@@ -33,6 +34,7 @@ type Msg
     = GalleryMsg String Gallery.Msg
     | OpenGallery String
     | GotGalleryMetas (Result Http.Error DetailsPage)
+    | DownloadDoc String
     | NoOp
 
 
@@ -104,6 +106,9 @@ update config msg model =
                 _ ->
                     ( model, Cmd.none )
 
+        DownloadDoc url ->
+            ( model, Download.url url )
+
         NoOp ->
             ( model, Cmd.none )
 
@@ -151,6 +156,7 @@ homeView config model =
             Just a ->
                 MarkdownParser.renderMarkdown
                     (strM config.lang a)
+                    (model.outMsg << DownloadDoc)
 
             Nothing ->
                 Element.none
@@ -197,6 +203,7 @@ galleryView config model title =
                     Just h ->
                         MarkdownParser.renderMarkdown
                             (strM config.lang h)
+                            (model.outMsg << DownloadDoc)
 
                     Nothing ->
                         Element.none
@@ -205,6 +212,7 @@ galleryView config model title =
                     Just a ->
                         MarkdownParser.renderMarkdown
                             (strM config.lang a)
+                            (model.outMsg << DownloadDoc)
 
                     Nothing ->
                         Element.none

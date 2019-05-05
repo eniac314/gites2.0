@@ -47,6 +47,7 @@ genericPageItemView :
         | lang : Lang
         , width : Int
         , carousels : Dict String (Carousel.Model msg)
+        , downloadHandler : String -> msg
     }
     -> GenericPageItem
     -> Element msg
@@ -55,6 +56,7 @@ genericPageItemView config item =
         MarkdownContent mls ->
             MarkdownParser.renderMarkdown
                 (strM config.lang mls)
+                config.downloadHandler
 
         ImageRow images ->
             if config.width < 1000 then

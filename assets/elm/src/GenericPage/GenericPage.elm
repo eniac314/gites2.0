@@ -52,26 +52,28 @@ subscriptions model =
         )
 
 
-update : { a | width : Int } -> Msg -> Model msg -> Model msg
+update : { a | width : Int } -> Msg -> Model msg -> ( Model msg, Cmd msg )
 update config msg model =
     case msg of
         GotGenericPageContent res ->
             case res of
                 Ok content ->
-                    { model
+                    ( { model
                         | content = content
                         , carousels =
                             initCarousels content
                                 (\id -> model.outMsg << CarouselMsg id)
-                    }
+                      }
+                    , Cmd.none
+                    )
 
                 Err e ->
-                    model
+                    ( model, Cmd.none )
 
         CarouselMsg id carMsg ->
             case Dict.get id model.carousels of
                 Just carousel ->
-                    { model
+                    ( { model
                         | carousels =
                             Dict.insert id
                                 (Carousel.update
@@ -80,16 +82,18 @@ update config msg model =
                                     carousel
                                 )
                                 model.carousels
-                    }
+                      }
+                    , Cmd.none
+                    )
 
                 Nothing ->
-                    model
+                    ( model, Cmd.none )
 
         DownloadDoc url ->
             ( model, Download.url url )
 
         NoOp ->
-            model
+            ( model, Cmd.none )
 
 
 view : { a | lang : Lang, width : Int } -> Model msg -> Element msg
@@ -106,6 +110,7 @@ view config model =
                 { lang = config.lang
                 , width = config.width
                 , carousels = model.carousels
+                , downloadHandler = model.outMsg << DownloadDoc
                 }
             )
             model.content

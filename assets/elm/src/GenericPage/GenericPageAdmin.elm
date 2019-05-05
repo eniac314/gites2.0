@@ -618,6 +618,7 @@ editableItem config model id item =
             { lang = config.lang
             , width = config.width
             , carousels = model.carousels
+            , downloadHandler = model.outMsg << DownloadDoc
             }
             item
         , itemControlView config model id

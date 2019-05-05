@@ -13,6 +13,7 @@ import Element.Input as Input
 import Element.Keyed as Keyed
 import Element.Lazy exposing (lazy)
 import Element.Region as Region
+import File.Download as Download
 import Http exposing (..)
 import Internals.Helpers exposing (..)
 import Internals.MarkdownEditor as MarkdownEditor
@@ -84,6 +85,7 @@ type Msg
     | MarkdownEditorMsg MarkdownEditor.Msg
     | GotRateArticle (Result Http.Error MultLangStr)
     | GotBookingOptions (Result Http.Error BookingOptions)
+    | DownloadDoc String
     | NoOp
 
 
@@ -150,9 +152,9 @@ update config msg model =
                                 , optionPrice = Nothing
                             }
                     in
-                        ( newModel
-                        , saveOptions config.logInfo newModel
-                        )
+                    ( newModel
+                    , saveOptions config.logInfo newModel
+                    )
 
                 _ ->
                     ( model, Cmd.none )
@@ -162,7 +164,7 @@ update config msg model =
                 newModel =
                     { model | options = Dict.remove n model.options }
             in
-                ( newModel, saveOptions config.logInfo newModel )
+            ( newModel, saveOptions config.logInfo newModel )
 
         EditArticle ->
             ( { model
@@ -186,9 +188,9 @@ update config msg model =
                 newModel =
                     { model | options = newOptions }
             in
-                ( newModel
-                , saveOptions config.logInfo newModel
-                )
+            ( newModel
+            , saveOptions config.logInfo newModel
+            )
 
         SwapDown id ->
             let
@@ -201,9 +203,9 @@ update config msg model =
                 newModel =
                     { model | options = newOptions }
             in
-                ( newModel
-                , saveOptions config.logInfo newModel
-                )
+            ( newModel
+            , saveOptions config.logInfo newModel
+            )
 
         NameInputFr name ->
             ( { model
@@ -313,7 +315,7 @@ update config msg model =
                                 , optionPrice = Nothing
                             }
                     in
-                        ( newModel, saveOptions config.logInfo newModel )
+                    ( newModel, saveOptions config.logInfo newModel )
 
                 _ ->
                     ( model, Cmd.none )
@@ -341,33 +343,33 @@ update config msg model =
                 ( newEditor, mbPluginRes ) =
                     MarkdownEditor.update markdownEditorMsg model.markdownEditor
             in
-                case mbPluginRes of
-                    Nothing ->
-                        ( { model | markdownEditor = newEditor }
-                        , Cmd.none
-                        )
+            case mbPluginRes of
+                Nothing ->
+                    ( { model | markdownEditor = newEditor }
+                    , Cmd.none
+                    )
 
-                    Just PluginQuit ->
-                        ( { model
-                            | markdownEditor = newEditor
-                            , displayMode = Preview
-                          }
-                        , Cmd.none
-                        )
+                Just PluginQuit ->
+                    ( { model
+                        | markdownEditor = newEditor
+                        , displayMode = Preview
+                      }
+                    , Cmd.none
+                    )
 
-                    Just (PluginData data) ->
-                        let
-                            newModel =
-                                { model
-                                    | markdownEditor = newEditor
-                                    , article =
-                                        Just data
-                                    , displayMode = Preview
-                                }
-                        in
-                            ( newModel
-                            , saveRateArticle config.logInfo newModel
-                            )
+                Just (PluginData data) ->
+                    let
+                        newModel =
+                            { model
+                                | markdownEditor = newEditor
+                                , article =
+                                    Just data
+                                , displayMode = Preview
+                            }
+                    in
+                    ( newModel
+                    , saveRateArticle config.logInfo newModel
+                    )
 
         GotRateArticle res ->
             case res of
@@ -395,6 +397,9 @@ update config msg model =
 
                 _ ->
                     ( model, Cmd.none )
+
+        DownloadDoc url ->
+            ( model, Download.url url )
 
         NoOp ->
             ( model, Cmd.none )
@@ -677,6 +682,7 @@ view config model =
                             Just a ->
                                 MarkdownParser.renderMarkdown
                                     (strM config.lang a)
+                                    DownloadDoc
 
                             Nothing ->
                                 Element.none
@@ -700,66 +706,66 @@ optionsView config model =
                 defAttr =
                     [ Events.onClick (SelectOption n) ]
             in
-                row
-                    ([ spacing 15
-                     , pointer
-                     ]
-                        ++ (case model.selected of
-                                Just s ->
-                                    if s == n then
-                                        [ Events.onClick Cancel ]
-                                    else
-                                        defAttr
-
-                                Nothing ->
+            row
+                ([ spacing 15
+                 , pointer
+                 ]
+                    ++ (case model.selected of
+                            Just s ->
+                                if s == n then
+                                    [ Events.onClick Cancel ]
+                                else
                                     defAttr
-                           )
-                    )
-                    [ el [ width (px 200) ]
-                        (textM config.lang o.name)
-                    , el [ width (px 200) ]
-                        (text <| String.fromFloat o.price ++ "€")
-                    , row [ spacing 7 ]
-                        [ Input.button
-                            iconsStyle
-                            { onPress = Just <| SwapUp n
-                            , label =
-                                Icons.arrowUp
-                                    (Icons.defOptions
-                                        |> Icons.color black
-                                        |> Icons.size 20
-                                    )
-                            }
-                        , Input.button
-                            iconsStyle
-                            { onPress = Just <| SwapDown n
-                            , label =
-                                Icons.arrowDown
-                                    (Icons.defOptions
-                                        |> Icons.color black
-                                        |> Icons.size 20
-                                    )
-                            }
-                        , Input.button
-                            iconsStyle
-                            { onPress = Just <| DeleteOption n
-                            , label =
-                                Icons.x
-                                    (Icons.defOptions
-                                        |> Icons.color black
-                                        |> Icons.size 20
-                                    )
-                            }
-                        ]
+
+                            Nothing ->
+                                defAttr
+                       )
+                )
+                [ el [ width (px 200) ]
+                    (textM config.lang o.name)
+                , el [ width (px 200) ]
+                    (text <| String.fromFloat o.price ++ "€")
+                , row [ spacing 7 ]
+                    [ Input.button
+                        iconsStyle
+                        { onPress = Just <| SwapUp n
+                        , label =
+                            Icons.arrowUp
+                                (Icons.defOptions
+                                    |> Icons.color black
+                                    |> Icons.size 20
+                                )
+                        }
+                    , Input.button
+                        iconsStyle
+                        { onPress = Just <| SwapDown n
+                        , label =
+                            Icons.arrowDown
+                                (Icons.defOptions
+                                    |> Icons.color black
+                                    |> Icons.size 20
+                                )
+                        }
+                    , Input.button
+                        iconsStyle
+                        { onPress = Just <| DeleteOption n
+                        , label =
+                            Icons.x
+                                (Icons.defOptions
+                                    |> Icons.color black
+                                    |> Icons.size 20
+                                )
+                        }
                     ]
+                ]
     in
-        column
-            [ centerX
-            , spacing 15
-            ]
-            (Dict.toList model.options
-                |> List.map optionView
-            )
+    column
+        [ centerX
+        , spacing 15
+        ]
+        (Dict.toList model.options
+            |> List.map optionView
+        )
 
 
 
@@ -790,12 +796,12 @@ saveOptions logInfo model =
                 ]
                 |> Http.jsonBody
     in
-        securePost logInfo
-            { url = "api/restricted/pagesdata"
-            , body = body
-            , expect =
-                Http.expectWhatever (model.outMsg << Saved)
-            }
+    securePost logInfo
+        { url = "api/restricted/pagesdata"
+        , body = body
+        , expect =
+            Http.expectWhatever (model.outMsg << Saved)
+        }
 
 
 saveRateArticle : LogInfo -> Model msg -> Cmd msg
@@ -811,9 +817,9 @@ saveRateArticle logInfo model =
                 ]
                 |> Http.jsonBody
     in
-        securePost logInfo
-            { url = "api/restricted/pagesdata"
-            , body = body
-            , expect =
-                Http.expectWhatever (model.outMsg << (\_ -> NoOp))
-            }
+    securePost logInfo
+        { url = "api/restricted/pagesdata"
+        , body = body
+        , expect =
+            Http.expectWhatever (model.outMsg << (\_ -> NoOp))
+        }

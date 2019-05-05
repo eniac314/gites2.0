@@ -13,6 +13,7 @@ import Element.Lazy exposing (lazy)
 import Element.Region as Region
 import Html as Html
 import Html.Attributes as HtmlAttr
+import Internals.Helpers exposing (awsUrl)
 import Markdown exposing (..)
 import Markdown.Block as Block exposing (..)
 import Markdown.Inline as Inline exposing (..)
@@ -20,10 +21,10 @@ import Style.Helpers exposing (..)
 import Style.Palette exposing (..)
 
 
-renderMarkdown : String -> Element msg
-renderMarkdown s =
+renderMarkdown : String -> (String -> msg) -> Element msg
+renderMarkdown s downloadHandler =
     Block.parse Nothing s
-        |> blocksToElements
+        |> blocksToElements downloadHandler
         |> column
             [ width fill
             , spacing 15
@@ -34,13 +35,13 @@ renderMarkdown s =
             ]
 
 
-blocksToElements : List (Block b i) -> List (Element msg)
-blocksToElements blocks =
-    List.map (blockToElement 0) blocks
+blocksToElements : (String -> msg) -> List (Block b i) -> List (Element msg)
+blocksToElements downloadHandler blocks =
+    List.map (blockToElement downloadHandler 0) blocks
 
 
-blockToElement : Int -> Block b i -> Element msg
-blockToElement offset block =
+blockToElement : (String -> msg) -> Int -> Block b i -> Element msg
+blockToElement downloadHandler offset block =
     case block of
         BlankLine s ->
             Element.none
@@ -54,7 +55,7 @@ blockToElement offset block =
                 Element.none
 
         Heading raw level inlines ->
-            headings raw level inlines
+            headings downloadHandler raw level inlines
 
         CodeBlock _ raw ->
             el []
@@ -66,12 +67,12 @@ blockToElement offset block =
         Paragraph raw inlines ->
             paragraph
                 []
-                (List.concatMap (inlinesToElements []) inlines)
+                (List.concatMap (inlinesToElements downloadHandler []) inlines)
 
         BlockQuote blocks ->
             column
                 [ spacing 15 ]
-                (List.map (blockToElement offset) blocks)
+                (List.map (blockToElement downloadHandler offset) blocks)
 
         List listblock llistBlocks ->
             let
@@ -89,7 +90,7 @@ blockToElement offset block =
                             []
 
                         (List _ _) :: _ ->
-                            List.map (blockToElement (offset + 1)) bs
+                            List.map (blockToElement downloadHandler (offset + 1)) bs
 
                         _ ->
                             [ row
@@ -102,7 +103,7 @@ blockToElement offset block =
 
                                     Ordered start ->
                                         el [ alignTop ] (text <| String.fromInt (start + i) ++ ". ")
-                                , paragraph [] (List.map (blockToElement (offset + 1)) bs)
+                                , paragraph [] (List.map (blockToElement downloadHandler (offset + 1)) bs)
                                 ]
                             ]
             in
@@ -115,13 +116,13 @@ blockToElement offset block =
         PlainInlines inlines ->
             paragraph
                 []
-                (List.concatMap (inlinesToElements []) inlines)
+                (List.concatMap (inlinesToElements downloadHandler []) inlines)
 
         Block.Custom b llistBlocks ->
             Element.none
 
 
-headings raw level inlines =
+headings downloadHandler raw level inlines =
     let
         headingStyles =
             Dict.fromList
@@ -157,11 +158,11 @@ headings raw level inlines =
                     |> Maybe.withDefault []
                )
         )
-        (List.concatMap (inlinesToElements []) inlines)
+        (List.concatMap (inlinesToElements downloadHandler []) inlines)
 
 
-inlinesToElements : List (Attribute msg) -> Inline i -> List (Element msg)
-inlinesToElements attrs inline =
+inlinesToElements : (String -> msg) -> List (Attribute msg) -> Inline i -> List (Element msg)
+inlinesToElements downloadHandler attrs inline =
     case inline of
         Text s ->
             [ el attrs (text s) ]
@@ -173,16 +174,36 @@ inlinesToElements attrs inline =
             [ el attrs (text s) ]
 
         Link url mbTitle inlines ->
-            [ link
-                (attrs
-                    ++ [ Font.underline
-                       , Font.color lightBlue
-                       ]
-                )
-                { url = url
-                , label = text <| Inline.extractText inlines
-                }
-            ]
+            if String.contains "Documents/" url then
+                [ el
+                    [ mouseOver
+                        [ Font.color blue
+                        ]
+                    , Font.underline
+                    , Font.color lightBlue
+                    , pointer
+                    , Events.onClick (downloadHandler (awsUrl ++ url))
+                    ]
+                    (text <| Inline.extractText inlines)
+                ]
+            else
+                [ (if String.startsWith "/" url then
+                    link
+                   else
+                    newTabLink
+                  )
+                    (attrs
+                        ++ [ mouseOver
+                                [ Font.color blue
+                                ]
+                           , Font.underline
+                           , Font.color lightBlue
+                           ]
+                    )
+                    { url = url
+                    , label = text <| Inline.extractText inlines
+                    }
+                ]
 
         Image url mbTitle inlines ->
             [ image
@@ -211,7 +232,7 @@ inlinesToElements attrs inline =
                                 []
                            )
             in
-            List.concatMap (inlinesToElements attrs_) inlines
+            List.concatMap (inlinesToElements downloadHandler attrs_) inlines
 
         Inline.Custom i inlines ->
             []

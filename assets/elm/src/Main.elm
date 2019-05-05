@@ -13,6 +13,7 @@ import Element.Font as Font
 import Element.Input as Input
 import Element.Keyed as Keyed
 import Element.Region as Region
+import File.Download as Download
 import Gallery.GalleryPage as GalleryPage
 import GenericPage.GenericPage as GenericPage
 import Html.Attributes as HtmlAttr
@@ -77,6 +78,7 @@ type Msg
     | BookingsMsg Bookings.Msg
     | ChangeLang Lang
     | GotRateArticle (Result Http.Error MultLangStr)
+    | DownloadDoc String
     | NoOp
 
 
@@ -209,29 +211,29 @@ update msg model =
 
         FrontPageMsg frontPageMsg ->
             let
-                newFrontPage =
+                ( newFrontPage, cmd ) =
                     GenericPage.update { width = model.width } frontPageMsg model.frontPage
             in
             ( { model | frontPage = newFrontPage }
-            , Cmd.none
+            , cmd
             )
 
         AccessPageMsg accessPageMsg ->
             let
-                newAccessPage =
+                ( newAccessPage, cmd ) =
                     GenericPage.update { width = model.width } accessPageMsg model.accessPage
             in
             ( { model | accessPage = newAccessPage }
-            , Cmd.none
+            , cmd
             )
 
         NearbyPageMsg nearbyPageMsg ->
             let
-                newNearbyPage =
+                ( newNearbyPage, cmd ) =
                     GenericPage.update { width = model.width } nearbyPageMsg model.nearbyPage
             in
             ( { model | nearbyPage = newNearbyPage }
-            , Cmd.none
+            , cmd
             )
 
         GalleryPageMsg galleryPageMsg ->
@@ -268,6 +270,9 @@ update msg model =
 
                 _ ->
                     ( model, Cmd.none )
+
+        DownloadDoc url ->
+            ( model, Download.url url )
 
         NoOp ->
             ( model, Cmd.none )
@@ -371,6 +376,7 @@ view model =
                                             ]
                                             (MarkdownParser.renderMarkdown
                                                 (strM model.lang page)
+                                                DownloadDoc
                                             )
 
                             DisplayNearby ->
