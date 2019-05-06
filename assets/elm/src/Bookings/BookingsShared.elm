@@ -524,12 +524,12 @@ priceView lang nc na nk bo =
             let
                 taxBase =
                     min 2.3
-                        (roundC
+                        (roundC <|
                             (roundC <|
                                 (roundC <| basePrice / toFloat nc)
                                     / (toFloat <| na + nk)
                             )
-                            * 0.05
+                                * 0.05
                         )
 
                 taxAdd =
