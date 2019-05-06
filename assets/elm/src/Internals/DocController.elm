@@ -70,6 +70,11 @@ load logInfo model =
     )
 
 
+extractDocs : Model msg -> Dict String String
+extractDocs model =
+    model.contents
+
+
 subscriptions : Model msg -> Sub msg
 subscriptions model =
     Sub.batch
@@ -418,23 +423,118 @@ fileSelectorView config model =
         )
 
 
-linkPicker : Model msg -> (String -> msg_) -> Element msg_
-linkPicker model handler =
+type alias LinkPickerConfig msg =
+    { isOpen : Bool
+    , picked : Maybe String
+    , toogleOpen : msg
+    , handler : String -> msg
+    , noOp : msg
+    , lang : Lang
+    }
+
+
+linkPicker : Dict String String -> LinkPickerConfig msg -> Element msg
+linkPicker contents config =
     let
+        markdownLink fn url =
+            "[" ++ fn ++ "]" ++ "(" ++ awsUrl ++ url ++ ")"
+
         linkView filename url =
-            el
-                [ mouseOver
-                    [ Font.color blue
-                    ]
-                , pointer
-                , Events.onClick (handler url)
+            row
+                [ width fill
+                , spacing 10
                 ]
-                (text filename)
+                [ el
+                    [ width (px 20)
+                    , height (px 20)
+                    , Background.uncropped "/images/pdf.svg"
+                    ]
+                    Element.none
+                , el
+                    [ mouseOver
+                        [ Font.color blue
+                        ]
+                    , pointer
+                    , Events.onClick
+                        (config.handler (markdownLink filename url))
+                    , width fill
+                    , padding 10
+                    , case config.picked of
+                        Just link ->
+                            if link == markdownLink filename url then
+                                Background.color white
+                            else
+                                noAttr
+
+                        _ ->
+                            noAttr
+                    ]
+                    (text filename)
+                ]
     in
     column
-        []
-        (Dict.map linkView model.contents
-            |> Dict.values
+        [ centerX
+        , width (px 500)
+        , Background.color white
+        , Border.rounded 5
+        , Border.color grey
+        , Border.width 1
+        , padding 10
+        , spacing 10
+        ]
+        ([ row
+            [ spacing 15 ]
+            [ el
+                [ Font.bold ]
+                (textM config.lang
+                    (MultLangStr "Link to internal document:"
+                        "Lien document interne:"
+                    )
+                )
+            , Input.text
+                textInputStyle
+                { onChange = \_ -> config.noOp
+                , text =
+                    Maybe.withDefault "" config.picked
+                , placeholder = Nothing
+                , label =
+                    Input.labelHidden ""
+                }
+            , el
+                [ Events.onClick config.toogleOpen
+                , alignRight
+                , pointer
+                , mouseOver
+                    [ Font.color grey ]
+                ]
+                ((if config.isOpen then
+                    Icons.chevronUp
+                  else
+                    Icons.chevronDown
+                 )
+                    (Icons.defOptions
+                        |> Icons.color black
+                        |> Icons.size 20
+                    )
+                )
+            ]
+         ]
+            ++ (if config.isOpen then
+                    [ column
+                        [ Background.color lightGrey
+                        , Border.rounded 5
+                        , padding 10
+                        , width fill
+                        , height (maximum 200 fill)
+                        , scrollbarY
+                        ]
+                        (Dict.map linkView contents
+                            |> Dict.values
+                        )
+                    ]
+                else
+                    []
+               )
         )
 
 

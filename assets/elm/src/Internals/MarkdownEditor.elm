@@ -1,5 +1,6 @@
 module Internals.MarkdownEditor exposing (..)
 
+import Dict exposing (..)
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -12,6 +13,7 @@ import Element.Region as Region
 import File.Download as Download
 import Html as Html
 import Html.Attributes as HtmlAttr
+import Internals.DocController as DocController
 import Internals.Helpers exposing (..)
 import Internals.MarkdownParser as MarkdownParser exposing (..)
 import MultLang.MultLang exposing (..)
@@ -23,6 +25,8 @@ import Style.Palette exposing (..)
 type alias Model msg =
     { inputs : Maybe MultLangStr
     , previewLang : Lang
+    , pickedLink : Maybe String
+    , linkPickerOpen : Bool
     , outMsg : Msg -> msg
     }
 
@@ -30,6 +34,8 @@ type alias Model msg =
 init defaultLang outMsg =
     { inputs = Nothing
     , previewLang = defaultLang
+    , pickedLink = Nothing
+    , linkPickerOpen = False
     , outMsg = outMsg
     }
 
@@ -44,6 +50,8 @@ type Msg
     | TooglePreviewLang
     | GoBack
     | Save
+    | ToogleLinkPickerOpen
+    | PickLink String
     | DownloadDoc String
     | NoOp
 
@@ -95,6 +103,16 @@ update msg model =
                         , Just <| PluginData data
                         )
 
+        ToogleLinkPickerOpen ->
+            ( { model | linkPickerOpen = not model.linkPickerOpen }
+            , Nothing
+            )
+
+        PickLink url ->
+            ( { model | pickedLink = Just url }
+            , Nothing
+            )
+
         DownloadDoc url ->
             ( model, Nothing )
 
@@ -102,7 +120,15 @@ update msg model =
             ( model, Nothing )
 
 
-view : { a | lang : Lang, width : Int } -> Model msg -> Element msg
+type alias ViewConfig a =
+    { a
+        | lang : Lang
+        , width : Int
+        , documents : Dict String String
+    }
+
+
+view : ViewConfig a -> Model msg -> Element msg
 view config model =
     let
         baseMls =
@@ -163,6 +189,15 @@ view config model =
                         , spellcheck = False
                         }
                     ]
+                , DocController.linkPicker
+                    config.documents
+                    { isOpen = model.linkPickerOpen
+                    , picked = model.pickedLink
+                    , toogleOpen = ToogleLinkPickerOpen
+                    , handler = PickLink
+                    , noOp = NoOp
+                    , lang = config.lang
+                    }
                 , row
                     [ width fill
                     , padding 15

@@ -360,6 +360,7 @@ view model =
                             { lang = model.lang
                             , width = model.width
                             , logInfo = Auth.getLogInfo model.authPlugin
+                            , documents = DocController.extractDocs model.docController
                             }
                             model.frontPageAdmin
 
@@ -368,6 +369,7 @@ view model =
                             { lang = model.lang
                             , width = model.width
                             , logInfo = Auth.getLogInfo model.authPlugin
+                            , documents = DocController.extractDocs model.docController
                             }
                             model.galleryAdmin
 
@@ -386,6 +388,7 @@ view model =
                             { lang = model.lang
                             , width = model.width
                             , logInfo = Auth.getLogInfo model.authPlugin
+                            , documents = DocController.extractDocs model.docController
                             }
                             model.accessPageAdmin
 
@@ -394,6 +397,7 @@ view model =
                             { lang = model.lang
                             , width = model.width
                             , logInfo = Auth.getLogInfo model.authPlugin
+                            , documents = DocController.extractDocs model.docController
                             }
                             model.nearbyPageAdmin
 
@@ -401,6 +405,7 @@ view model =
                         OptionsAdmin.view
                             { lang = model.lang
                             , width = model.width
+                            , documents = DocController.extractDocs model.docController
                             }
                             model.optionsAdmin
 

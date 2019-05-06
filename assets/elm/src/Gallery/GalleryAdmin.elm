@@ -603,6 +603,7 @@ type alias ViewConfig =
     { lang : Lang
     , width : Int
     , logInfo : LogInfo
+    , documents : Dict String String
     }
 
 
