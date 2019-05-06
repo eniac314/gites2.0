@@ -182,7 +182,7 @@ inlinesToElements downloadHandler attrs inline =
                     , Font.underline
                     , Font.color lightBlue
                     , pointer
-                    , Events.onClick (downloadHandler (awsUrl ++ url))
+                    , Events.onClick (downloadHandler url)
                     ]
                     (text <| Inline.extractText inlines)
                 ]
