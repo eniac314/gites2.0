@@ -374,118 +374,118 @@ recapView config cInDate cOutDate bi opt =
         nc =
             nightsCount cInDate cOutDate
     in
-        column
-            [ spacing 15 ]
-            [ el
-                [ Font.bold
-                ]
-                (textM config.lang
-                    (MultLangStr "Your booking"
-                        "Votre réservation"
-                    )
+    column
+        [ spacing 15 ]
+        [ el
+            [ Font.bold
+            ]
+            (textM config.lang
+                (MultLangStr "Your booking"
+                    "Votre réservation"
                 )
-            , row
-                [ spacing 20 ]
-                [ el
-                    []
-                    (text <|
-                        strM config.lang
-                            (MultLangStr
-                                "Check-In"
-                                "Date d'arrivée"
-                            )
-                            ++ " : "
-                            ++ formatDate config.lang cInDate
-                    )
-                , el
-                    []
-                    (text <|
-                        strM config.lang
-                            (MultLangStr
-                                "Check-out"
-                                "Date de départ"
-                            )
-                            ++ " : "
-                            ++ formatDate config.lang cOutDate
-                    )
-                ]
+            )
+        , row
+            [ spacing 20 ]
+            [ el
+                []
+                (text <|
+                    strM config.lang
+                        (MultLangStr
+                            "Check-In"
+                            "Date d'arrivée"
+                        )
+                        ++ " : "
+                        ++ formatDate config.lang cInDate
+                )
             , el
                 []
                 (text <|
                     strM config.lang
                         (MultLangStr
-                            "Number of adults"
-                            "Nombre d'adultes"
+                            "Check-out"
+                            "Date de départ"
                         )
                         ++ " : "
-                        ++ String.fromInt bi.nbrAdults
+                        ++ formatDate config.lang cOutDate
                 )
-            , case bi.nbrKids of
-                Just n ->
-                    el
-                        []
-                        (text <|
-                            strM config.lang
-                                (MultLangStr
-                                    "Number of children"
-                                    "Nombre d'enfants"
-                                )
-                                ++ " : "
-                                ++ String.fromInt n
-                        )
-
-                Nothing ->
-                    Element.none
-            , el
-                []
-                (text <|
-                    strM config.lang
-                        (MultLangStr "Your stay: "
-                            "Réservation pour "
-                        )
-                        ++ String.fromInt nc
-                        ++ (if nc > 1 then
-                                strM config.lang
-                                    (MultLangStr " nights"
-                                        " nuits"
-                                    )
-                            else
-                                strM config.lang
-                                    (MultLangStr " night"
-                                        " nuit"
-                                    )
-                           )
-                )
-            , priceView config.lang nc bi.nbrAdults opt
-            , case bi.pets of
-                Just s ->
-                    paragraph
-                        []
-                        [ text <| (strM config.lang (MultLangStr "Pets: " "Animaux: ") ++ s) ]
-
-                Nothing ->
-                    Element.none
-            , case bi.comment of
-                Just c ->
-                    column
-                        [ spacing 15 ]
-                        [ el
-                            [ Font.size 20
-                            ]
-                            (textM config.lang
-                                (MultLangStr "Remarks / Requests"
-                                    "Remarques / Demandes particulières"
-                                )
-                            )
-                        , paragraph [] [ text c ]
-                        ]
-
-                _ ->
-                    Element.none
             ]
+        , el
+            []
+            (text <|
+                strM config.lang
+                    (MultLangStr
+                        "Number of adults"
+                        "Nombre d'adultes"
+                    )
+                    ++ " : "
+                    ++ String.fromInt bi.nbrAdults
+            )
+        , case bi.nbrKids of
+            Just n ->
+                el
+                    []
+                    (text <|
+                        strM config.lang
+                            (MultLangStr
+                                "Number of children"
+                                "Nombre d'enfants"
+                            )
+                            ++ " : "
+                            ++ String.fromInt n
+                    )
+
+            Nothing ->
+                Element.none
+        , el
+            []
+            (text <|
+                strM config.lang
+                    (MultLangStr "Your stay: "
+                        "Réservation pour "
+                    )
+                    ++ String.fromInt nc
+                    ++ (if nc > 1 then
+                            strM config.lang
+                                (MultLangStr " nights"
+                                    " nuits"
+                                )
+                        else
+                            strM config.lang
+                                (MultLangStr " night"
+                                    " nuit"
+                                )
+                       )
+            )
+        , priceView config.lang nc bi.nbrAdults (Maybe.withDefault 0 bi.nbrKids) opt
+        , case bi.pets of
+            Just s ->
+                paragraph
+                    []
+                    [ text <| (strM config.lang (MultLangStr "Pets: " "Animaux: ") ++ s) ]
+
+            Nothing ->
+                Element.none
+        , case bi.comment of
+            Just c ->
+                column
+                    [ spacing 15 ]
+                    [ el
+                        [ Font.size 20
+                        ]
+                        (textM config.lang
+                            (MultLangStr "Remarks / Requests"
+                                "Remarques / Demandes particulières"
+                            )
+                        )
+                    , paragraph [] [ text c ]
+                    ]
+
+            _ ->
+                Element.none
+        ]
 
 
-priceView lang nc na bo =
+priceView lang nc na nk bo =
     let
         p1 =
             bo.twoNightsPrice
@@ -505,7 +505,7 @@ priceView lang nc na bo =
             else if nc == 3 then
                 p2
             else
-                (toFloat nc) * p3
+                toFloat nc * p3
 
         opts =
             bo.options
@@ -516,17 +516,19 @@ priceView lang nc na bo =
                     0
 
         tax =
-            bo.touristTax
-                |> Maybe.map (\t -> t * (toFloat na))
-                |> Maybe.withDefault 0
+            let
+                taxBase =
+                    ((toFloat nc / (toFloat <| na + nk)) * 0.05) * (toFloat <| na * nc)
+            in
+            taxBase + (0.1 * taxBase)
     in
-        el
-            []
-            (text <|
-                "Total: "
-                    ++ String.fromFloat (basePrice + opts + tax)
-                    ++ " €"
-            )
+    el
+        []
+        (text <|
+            "Total: "
+                ++ String.fromFloat (basePrice + opts + tax)
+                ++ " €"
+        )
 
 
 

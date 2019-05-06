@@ -516,26 +516,27 @@ view config model =
                                             )
                                         )
                                 }
-                            , Input.text
-                                (textInputStyle ++ [ width (px 100) ])
-                                { onChange = SetTouristTax
-                                , text =
-                                    Maybe.map String.fromFloat model.touristTax
-                                        |> Maybe.withDefault ""
-                                , placeholder =
-                                    Nothing
-                                , label =
-                                    Input.labelLeft
-                                        [ centerY
-                                        , width (px 150)
-                                        ]
-                                        (textM config.lang
-                                            (MultLangStr
-                                                "Tourist tax:"
-                                                "Taxe de séjour:"
-                                            )
-                                        )
-                                }
+
+                            --, Input.text
+                            --    (textInputStyle ++ [ width (px 100) ])
+                            --    { onChange = SetTouristTax
+                            --    , text =
+                            --        Maybe.map String.fromFloat model.touristTax
+                            --            |> Maybe.withDefault ""
+                            --    , placeholder =
+                            --        Nothing
+                            --    , label =
+                            --        Input.labelLeft
+                            --            [ centerY
+                            --            , width (px 150)
+                            --            ]
+                            --            (textM config.lang
+                            --                (MultLangStr
+                            --                    "Tourist tax:"
+                            --                    "Taxe de séjour:"
+                            --                )
+                            --            )
+                            --    }
                             , Input.button
                                 (buttonStyle model.needToSave)
                                 { onPress =
