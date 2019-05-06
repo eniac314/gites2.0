@@ -518,7 +518,7 @@ priceView lang nc na nk bo =
         tax =
             let
                 taxBase =
-                    ((toFloat nc / (toFloat <| na + nk)) * 0.05) * (toFloat <| na * nc)
+                    ((basePrice / (toFloat <| na + nk)) * 0.05) * (toFloat <| na * nc)
             in
             taxBase + (0.1 * taxBase)
     in
