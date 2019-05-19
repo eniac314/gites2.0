@@ -198,7 +198,10 @@ getPresignedUrl logInfo metadata mime fn =
                   , E.string mime
                   )
                 , ( "filename"
-                  , E.string (String.replace "/" "¤" fn)
+                  , E.string
+                        (String.replace "/" "¤" fn
+                            |> String.replace " " "_"
+                        )
                   )
                 , ( "metadata"
                   , E.object
