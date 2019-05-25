@@ -16,7 +16,8 @@ defmodule Gites.Application do
       # {Gites.Worker, arg},
       {GitesWeb.Presence, []},
       Gites.AuthLock,
-      Gites.LockedAvailabilitiesServer
+      Gites.LockedAvailabilitiesServer,
+      Gites.BackupServer
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

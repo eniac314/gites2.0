@@ -231,6 +231,12 @@ galleryView config model title =
                     { url = "/details"
                     , label = textM config.lang (MultLangStr "Go back" "Retour")
                     }
+
+                --, image
+                --    [ centerX ]
+                --    { src = "/images/chair.png"
+                --    , description = ""
+                --    }
                 ]
 
         Nothing ->

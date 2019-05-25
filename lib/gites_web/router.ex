@@ -36,8 +36,8 @@ defmodule GitesWeb.Router do
     get "/users", UserController, :index 
     get "/refresh_jwt", UserSessionController, :refresh
     get "/logout", UserSessionController, :delete
-    get "/list_bucket", AwsUploadController, :index
     post "/presigned_url", AwsUploadController, :get_url
+    get "/list_bucket", AwsUploadController, :index
     get "/list_bucket/:folder", AwsUploadController, :show
     get "/delete_obj/:filename", AwsUploadController, :delete
     get "/delete_folder/:folder", AwsUploadController, :delete_folder
