@@ -1,4 +1,4 @@
-module Main exposing (..)
+module Main exposing (DisplayMode(..), Flags, Model, Msg(..), footer, header, init, main, mainMenu, subscriptions, update, urlDict, urlToDisplayMode, view)
 
 import Bookings.Bookings as Bookings
 import Browser exposing (UrlRequest(..), application)
@@ -114,6 +114,7 @@ init flags url key =
                     || (urlToDisplayMode url == Nothing)
             then
                 { url | path = "/home" }
+
             else
                 url
     in
@@ -139,6 +140,7 @@ init flags url key =
     , Cmd.batch
         [ if url /= url_ then
             Nav.pushUrl key (Url.toString url_)
+
           else
             Cmd.none
         , frontPageCmd
@@ -180,6 +182,7 @@ update msg model =
                     ( model
                     , if urlToDisplayMode url == Nothing then
                         Cmd.none
+
                       else
                         Nav.pushUrl
                             model.key
@@ -407,115 +410,164 @@ header model =
         isDesktop =
             model.width > 1000
 
-        alphaLayerHeight =
+        headerHeight =
             if isDesktop then
                 325
+
             else
-                170
+                120
 
         titleFontsize =
             if isDesktop then
                 65
-            else
-                32
 
-        titleOffset =
-            if isDesktop then
-                60
             else
-                30
+                40
 
-        titleContainerWidth =
-            if isDesktop then
-                400
-            else
-                200
+        quoteFontsize =
+            32
 
         backgroundSize =
             if isDesktop then
                 300
+
             else
-                150
+                100
+
+        langSelectView =
+            column
+                [ alignRight
+                , alignTop
+                , moveLeft 15
+                , moveDown 15
+                ]
+                [ image
+                    [ width (px 30)
+                    , Events.onClick
+                        (if model.lang == French then
+                            ChangeLang English
+
+                         else
+                            ChangeLang French
+                        )
+                    , pointer
+                    ]
+                    { src =
+                        case model.lang of
+                            English ->
+                                "/images/french.png"
+
+                            French ->
+                                "/images/english.png"
+                    , description = ""
+                    }
+                ]
+
+        mainTitle =
+            el
+                [ Font.family
+                    [ Font.typeface "Great Vibes"
+                    , Font.serif
+                    ]
+                , Font.size titleFontsize
+                , Font.color darkCharcoal
+                , Font.shadow
+                    { offset = ( 1, 1 )
+                    , blur = 0
+                    , color = white
+                    }
+                , Font.family
+                    [ Font.typeface "Great Vibes"
+                    , Font.serif
+                    ]
+                , centerX
+                ]
+                (text "Le Vieux Lilas")
+
+        headerBody =
+            row
+                [ centerX
+                , moveUp 50
+                , spacing 15
+                ]
+                [ quoteView
+                , logoView
+                ]
+
+        quoteView =
+            column
+                [ spacing 25
+                ]
+                [ column
+                    [ spacing 5
+                    , Font.family
+                        [ Font.typeface "Great Vibes"
+                        , Font.serif
+                        ]
+                    , Font.size quoteFontsize
+                    , Font.color darkCharcoal
+                    ]
+                    [ el [ centerX ] (text "Vois, arrête-toi\u{200A}, cet instant est beau\u{200A}!")
+                    , el [ centerX ] (text "Y a-t-il ailleurs\u{200A}, dans toute ta vie qui se précipite\u{200A},")
+                    , el [ centerX ] (text "un soleil aussi blond\u{200A}, un lilas aussi bleu à force d'être mauve\u{200A}…\u{200A}?")
+                    ]
+                , row
+                    [ spacing 10
+                    , Font.family
+                        [ Font.typeface "times"
+                        , Font.serif
+                        ]
+                    , Font.size <| quoteFontsize - 14
+                    , Font.color darkCharcoal
+                    , alignRight
+                    ]
+                    [ el [ Font.italic ]
+                        (text "La retraite sentimentale,")
+                    , el [] (text "Colette")
+                    ]
+                ]
+
+        logoView =
+            el
+                [ Background.uncropped "/images/lilacW.png"
+                , Background.color lightGrey
+                , width (px backgroundSize)
+                , height (px backgroundSize)
+                ]
+                Element.none
     in
     column
         [ width fill
+        , height (px headerHeight)
         , Background.tiled "/images/canvas.png"
         , behindContent
             (el
                 [ Background.color white
                 , alpha 0.5
                 , width fill
-                , height (px alphaLayerHeight)
+                , height (px headerHeight)
                 , paddingEach { sides | top = 15 }
                 ]
                 Element.none
             )
         ]
-        [ column
-            [ alignRight
-            , alignTop
-            , moveLeft 15
-            , moveDown 15
+        (if isDesktop then
+            [ langSelectView
+            , mainTitle
+            , headerBody
             ]
-            [ image
-                [ width (px 30)
-                , Events.onClick
-                    (if model.lang == French then
-                        ChangeLang English
-                     else
-                        ChangeLang French
-                    )
-                , pointer
-                ]
-                { src =
-                    case model.lang of
-                        English ->
-                            "/images/french.png"
 
-                        French ->
-                            "/images/english.png"
-                , description = ""
-                }
-            ]
-        , row
-            [ width (px titleContainerWidth)
-
-            --, Background.color red
-            , centerX
-            , inFront
-                (el
-                    [ Font.family
-                        [ Font.typeface "Great Vibes"
-                        , Font.serif
-                        ]
-                    , Font.size titleFontsize
-                    , Font.color darkCharcoal
-                    , Font.shadow
-                        { offset = ( 1, 1 )
-                        , blur = 0
-                        , color = white
-                        }
-                    , Font.family
-                        [ Font.typeface "Great Vibes"
-                        , Font.serif
-                        ]
-                    , moveLeft titleOffset
-                    ]
-                    (text "Le Vieux Lilas")
-                )
-            ]
-            [ el
-                [ Background.uncropped "/images/lilacW.png"
-                , Background.color lightGrey
-                , width (px backgroundSize)
-                , height (px backgroundSize)
-                , centerX
-                , paddingEach { sides | top = 15 }
-                , alignRight
+         else
+            [ row
+                [ width fill
+                , paddingXY 15 0
+                , centerY
                 ]
-                Element.none
+                [ mainTitle
+                , el [ alignRight ] logoView
+                ]
             ]
-        ]
+        )
 
 
 mainMenu : Model -> Element Msg
@@ -539,6 +591,7 @@ mainMenu model =
                 , Font.color lightGray
                 , if isMobile then
                     width fill
+
                   else
                     noAttr
                 ]
@@ -549,6 +602,7 @@ mainMenu model =
     in
     (if isMobile then
         column
+
      else
         row
     )
@@ -616,6 +670,7 @@ footer model =
                 , Font.color grey
                 , if isMobile then
                     width fill
+
                   else
                     noAttr
                 ]
@@ -626,6 +681,7 @@ footer model =
     in
     (if isMobile then
         column
+
      else
         row
     )
@@ -634,6 +690,7 @@ footer model =
         , padding 45
         , if isMobile then
             spacing 50
+
           else
             spacing 150
         ]

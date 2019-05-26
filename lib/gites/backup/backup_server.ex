@@ -17,12 +17,12 @@ defmodule Gites.BackupServer do
       current_time: current_time
     }
 
-    ExAws.S3.put_object(
-      bucket,
-      "Backups/" <> DateTime.to_string(current_time),
-      :erlang.term_to_binary(initial_state)
-    )
-    |> ExAws.request!()
+    # ExAws.S3.put_object(
+    #   bucket,
+    #   "Backups/" <> DateTime.to_string(current_time),
+    #   :erlang.term_to_binary(initial_state)
+    # )
+    # |> ExAws.request!()
 
     IO.inspect(initial_state)
 
