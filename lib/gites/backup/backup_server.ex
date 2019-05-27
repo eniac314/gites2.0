@@ -52,12 +52,20 @@ defmodule Gites.BackupServer do
     GenServer.start_link(__MODULE__, initial_state, name: @name)
   end
 
-  def get_current_backup do
-    GenServer.call(@name, :get_current_backup)
+  def get_loaded_backup do
+    GenServer.call(@name, :get_loaded_backup)
   end
 
-  def import_backup do
-    GenServer.cast(@name, :import_backup)
+  def manual_backup do
+    GenServer.cast(@name, :manual_backup)
+  end
+
+  def external_manual_backup(backup) do
+    GenServer.cast(@name, {:external_manual_backup, backup})
+  end
+
+  def restore_backup do
+    GenServer.cast(@name, :restore_backup)
   end
 
   def export_backup do
@@ -89,11 +97,45 @@ defmodule Gites.BackupServer do
   end
 
   # server callbacks 
-  def handle_call(:get_current_backup, _from, %{current_backup: backup} = state) do
+  def handle_call(:get_loaded_backup, _from, %{current_backup: backup} = state) do
     {:reply, backup, state}
   end
 
-  def handle_cast(:import_backup, state) do
+  def handle_cast(:manual_backup, state) do
+    bucket = System.get_env("S3_BUCKET")
+    availabilities = BookingSystem.list_availabilities()
+    bookings = BookingSystem.list_bookings()
+    pages_data = PagesData.list_pagesdata()
+    current_time = DateTime.utc_now()
+
+    current_data = %{
+      availabilities: availabilities,
+      bookings: bookings,
+      pages_data: pages_data,
+      current_time: current_time
+    }
+
+    create_new_backup(current_data)
+
+    {:noreply, state}
+  end
+
+  def handle_cast({:external_manual_backup, %{payload: payload}}, state) do
+    contents = :erlang.binary_to_term(payload)
+
+    backup = %{
+      availabilities: contents.availabilities,
+      bookings: contents.bookings,
+      pages_data: contents.pages_data,
+      current_time: contents.current_time
+    }
+
+    create_new_backup(backup)
+
+    {:noreply, state}
+  end
+
+  def handle_cast(:restore_backup, state) do
     availabilities = BookingSystem.list_availabilities()
     bookings = BookingSystem.list_bookings()
     pages_data = PagesData.list_pagesdata()
@@ -110,28 +152,18 @@ defmodule Gites.BackupServer do
 
     IO.puts("Deleting current data from database...")
 
-    IO.puts("Deleting availabilities...")
-    Enum.map(availabilities, fn a -> BookingSystem.delete_availability(a) end)
-
     IO.puts("Deleting bookings...")
     Enum.map(bookings, fn b -> BookingSystem.delete_booking(b) end)
+
+    IO.puts("Deleting availabilities...")
+    Enum.map(availabilities, fn a -> BookingSystem.delete_availability(a) end)
 
     IO.puts("Deleting pages data...")
     Enum.map(pages_data, fn pd -> PagesData.delete_page_data(pd) end)
 
-    IO.puts("Importing data...")
+    IO.puts("Inserting data...")
 
-    IO.puts("Importing availabilities...")
-
-    Enum.map(
-      state.current_backup.availabilities,
-      fn a ->
-        Map.from_struct(a)
-        |> BookingSystem.create_availability()
-      end
-    )
-
-    IO.puts("Importing bookings...")
+    IO.puts("Inserting bookings...")
 
     Enum.map(
       state.current_backup.bookings,
@@ -141,7 +173,17 @@ defmodule Gites.BackupServer do
       end
     )
 
-    IO.puts("Importing pages_data...")
+    IO.puts("Inserting availabilities...")
+
+    Enum.map(
+      state.current_backup.availabilities,
+      fn a ->
+        Map.from_struct(a)
+        |> BookingSystem.create_availability()
+      end
+    )
+
+    IO.puts("Inserting pages_data...")
 
     Enum.map(
       state.current_backup.pages_data,
@@ -154,9 +196,9 @@ defmodule Gites.BackupServer do
     {:noreply, state}
   end
 
-  def handle_call(:export_backup, _from, state) do
-    {:ok, filename} = DateTime.to_iso8601(state.current_time)
-    result = %{filename: filename, content: :erlang.term_to_binary(state)}
+  def handle_call(:export_backup, _from, %{current_backup: backup} = state) do
+    key = DateTime.to_iso8601(backup.current_time)
+    result = %{key: key, payload: :erlang.term_to_binary(backup)}
     {:reply, result, state}
   end
 
@@ -167,7 +209,9 @@ defmodule Gites.BackupServer do
       ExAws.S3.list_objects(bucket, delimiter: "/", prefix: "Backups/")
       |> ExAws.request!()
 
-    {:reply, backups_meta.body.contents, state}
+    result = Enum.map(backups_meta.body.contents, fn b -> %{key: b.key, size: b.size} end)
+
+    {:reply, result, state}
   end
 
   def handle_cast({:load_backup, key}, _state) do

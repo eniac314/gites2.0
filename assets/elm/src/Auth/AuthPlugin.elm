@@ -214,6 +214,7 @@ internalUpdate msg model =
                 | username =
                     if s == "" then
                         Nothing
+
                     else
                         Just s
               }
@@ -226,6 +227,7 @@ internalUpdate msg model =
                 | password =
                     if s == "" then
                         Nothing
+
                     else
                         Just s
               }
@@ -238,6 +240,7 @@ internalUpdate msg model =
                 | confirmPassword =
                     if s == "" then
                         Nothing
+
                     else
                         Just s
               }
@@ -250,6 +253,7 @@ internalUpdate msg model =
                 | email =
                     if s == "" then
                         Nothing
+
                     else
                         Just s
               }
@@ -303,7 +307,7 @@ internalUpdate msg model =
                         , pluginMode = LoginMode Success
                       }
                     , toAuthLocalStorage (setJwt username jwt)
-                    , Nothing
+                    , Just PluginQuit
                     )
 
         SignUp ->
@@ -386,6 +390,7 @@ internalUpdate msg model =
                         , refreshJwt jwt
                         , Nothing
                         )
+
                     else
                         ( { model | checkForExistingJwtDone = True }
                         , toAuthLocalStorage clearJwt
@@ -506,6 +511,7 @@ decodeLclStorResult =
                 (\res ->
                     if res == "ok" then
                         LclStorOk
+
                     else
                         LclStorErr
                 )
@@ -566,6 +572,7 @@ view config model =
             LoginMode status ->
                 if not model.checkForExistingJwtDone then
                     Element.none
+
                 else
                     loginView config status model
 
@@ -640,6 +647,7 @@ signUpView config status model =
                         { onPress =
                             if canSignUp then
                                 Just SignUp
+
                             else
                                 Nothing
                         , label = text "Envoyer"
@@ -746,6 +754,7 @@ loginView config status model =
                         { onPress =
                             if canLogin then
                                 Just Login
+
                             else
                                 Nothing
                         , label = text "Connexion"
@@ -770,10 +779,6 @@ loginView config status model =
                     [ Input.button (buttonStyle_ True)
                         { onPress = Just <| ChangePluginMode (LogoutMode Initial)
                         , label = text "Deconnexion"
-                        }
-                    , Input.button (buttonStyle_ True)
-                        { onPress = Just <| Quit
-                        , label = text "Admin"
                         }
                     ]
                 ]

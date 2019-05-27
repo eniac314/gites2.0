@@ -1,6 +1,7 @@
-module Admin exposing (..)
+module Admin exposing (DisplayMode(..), Flags, Model, Msg(..), init, main, subscriptions, tabsView, update, view)
 
 import Auth.AuthPlugin as Auth
+import Backups.Backups as Backups
 import Bookings.BookingsAdmin as BookingsAdmin
 import Bookings.OptionsAdmin as OptionsAdmin
 import Browser exposing (Document)
@@ -192,6 +193,7 @@ update msg model =
                 , displayMode =
                     if mbPluginResult == Just PluginQuit then
                         DisplayFrontPageAdmin
+
                     else
                         model.displayMode
               }
@@ -314,6 +316,7 @@ update msg model =
                     , dcCmd
                     ]
                 )
+
             else
                 ( model, Cmd.none )
 
@@ -516,6 +519,7 @@ tabsView model =
                 , Events.onClick
                     (if model.lang == French then
                         ChangeLang English
+
                      else
                         ChangeLang French
                     )
