@@ -507,7 +507,7 @@ header model =
                     , Font.size quoteFontsize
                     , Font.color darkCharcoal
                     ]
-                    [ el [ centerX ] (text "Vois, arrête-toi\u{200A}, cet instant est beau\u{200A}!")
+                    [ el [ centerX ] (text "Vois\u{200A}, arrête-toi\u{200A}, cet instant est beau\u{200A}!")
                     , el [ centerX ] (text "Y a-t-il ailleurs\u{200A}, dans toute ta vie qui se précipite\u{200A},")
                     , el [ centerX ] (text "un soleil aussi blond\u{200A}, un lilas aussi bleu à force d'être mauve\u{200A}…\u{200A}?")
                     ]

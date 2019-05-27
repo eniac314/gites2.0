@@ -28,14 +28,6 @@ defmodule GitesWeb.AwsUploadController do
 
     heads = get_metadata(bucket, objects)
 
-    # lastModifs = 
-    #   objects.body.contents
-    #   |> Enum.map(fn o -> o.last_modified end)
-    #   |> Enum.map(fn lm -> DateTime.from_iso8601(lm) end)
-    #   |> Enum.map(fn {:ok, res, _} -> res end)
-
-    # IO.inspect(lastModifs)
-
     render(conn, "bucket_content.json", content: heads)
   end
 
