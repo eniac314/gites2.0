@@ -194,20 +194,21 @@ update msg model =
                 ( newAuthPlugin, authToolCmds, mbPluginResult ) =
                     Auth.update authPluginMsg model.authPlugin
 
-                ( newBookingAdmin, baCmd ) =
-                    BookingsAdmin.load
-                        { logInfo = logInfo }
-                        model.bookingsAdmin
+                ( ( newBookingAdmin, baCmd ), ( newDocController, dcCmd ), ( newBackupsAdmin, bckCmd ) ) =
+                    if Auth.isLogged logInfo then
+                        ( BookingsAdmin.load
+                            { logInfo = logInfo }
+                            model.bookingsAdmin
+                        , DocController.load
+                            logInfo
+                            model.docController
+                        , Backups.load
+                            logInfo
+                            model.backupsAdmin
+                        )
 
-                ( newDocController, dcCmd ) =
-                    DocController.load
-                        logInfo
-                        model.docController
-
-                ( newBackupsAdmin, bckCmd ) =
-                    Backups.load
-                        logInfo
-                        model.backupsAdmin
+                    else
+                        ( ( model.bookingsAdmin, Cmd.none ), ( model.docController, Cmd.none ), ( model.backupsAdmin, Cmd.none ) )
             in
             ( { model
                 | authPlugin = newAuthPlugin
