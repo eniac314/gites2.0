@@ -31,12 +31,12 @@ defmodule GitesWeb.Router do
     resources("/bookings", BookingController, only: [:create])
     resources("/availabilities", AvailabilityController, only: [:index])
     resources("/pagesdata", PageDataController, only: [:show])
-    get("/list_backups", BackupsController, :list_backups)
-    post("/import_backup", BackupsController, :import_backup)
-    get("/manual_backup", BackupsController, :manual_backup)
-    get("/export_backup/:key", BackupsController, :export_backup)
-    post("/delete_backups", BackupsController, :delete_backups)
-    get("/restore_backup/:key", BackupsController, :restore_backup)
+    # get("/list_backups", BackupsController, :list_backups)
+    # post("/import_backup", BackupsController, :import_backup)
+    # get("/manual_backup", BackupsController, :manual_backup)
+    # get("/export_backup/:key", BackupsController, :export_backup)
+    # post("/delete_backups", BackupsController, :delete_backups)
+    # get("/restore_backup/:key", BackupsController, :restore_backup)
   end
 
   scope "/api/restricted", GitesWeb do
@@ -56,11 +56,12 @@ defmodule GitesWeb.Router do
     get("/bookings", BookingController, :index)
     delete("/bookings/:id", BookingController, :delete)
     put("/bookings", BookingController, :update)
-    # get("/list_backups", BackupsController, :list_backups)
-    # post("/import_backup", BackupsController, :import_backup)
-    # get("/manual_backup", BackupsController, :manual_backup)
-    # get("/export_backup/:key", BackupsController, :export_backup)
-    # post("/delete_backups", BackupsController, :delete_backups)
+    get("/list_backups", BackupsController, :list_backups)
+    post("/import_backup", BackupsController, :import_backup)
+    get("/manual_backup", BackupsController, :manual_backup)
+    get("/export_backup/:key", BackupsController, :export_backup)
+    post("/delete_backups", BackupsController, :delete_backups)
+    get("/restore_backup/:key", BackupsController, :restore_backup)
   end
 
   scope "/", GitesWeb do

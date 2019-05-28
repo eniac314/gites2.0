@@ -3,17 +3,17 @@ defmodule GitesWeb.BackupsController do
 
   alias Gites.BackupServer
 
-  # plug(
-  #   Guardian.Plug.EnsureAuthenticated
-  #   when action in [
-  #          :list_backups,
-  #          :import_backup,
-  #          :manual_backup,
-  #          :export_backup,
-  #          :restore_backup,
-  #          :delete_backups
-  #        ]
-  # )
+  plug(
+    Guardian.Plug.EnsureAuthenticated
+    when action in [
+           :list_backups,
+           :import_backup,
+           :manual_backup,
+           :export_backup,
+           :restore_backup,
+           :delete_backups
+         ]
+  )
 
   def list_backups(conn, _params) do
     content = BackupServer.list_backups()
@@ -21,7 +21,8 @@ defmodule GitesWeb.BackupsController do
   end
 
   def import_backup(conn, %{"payload" => payload}) do
-    BackupServer.external_manual_backup(Base.decode64(payload))
+    {ok, payload} = Base.decode64(payload)
+    BackupServer.external_manual_backup(%{payload: payload})
     render(conn, "success.json", %{})
   end
 
@@ -37,9 +38,14 @@ defmodule GitesWeb.BackupsController do
     render(conn, "export_backup.json", content: %{key: key, payload: Base.encode64(payload)})
   end
 
-  def restore_backup(conn, %{"key => key"}) do 
-  	BackupServer.load_backup("Backups/" <> key)
-  	BackupServer.restore_backup()
-  	render(conn, "success.json")
-  end 
+  def delete_backups(conn, %{"keys" => keys}) do
+    BackupServer.delete_backups(keys)
+    render(conn, "success.json")
+  end
+
+  def restore_backup(conn, %{"key" => key}) do
+    BackupServer.load_backup("Backups/" <> key)
+    BackupServer.restore_backup()
+    render(conn, "success.json")
+  end
 end

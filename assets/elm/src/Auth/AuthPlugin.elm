@@ -187,7 +187,7 @@ type Msg
     | SetEmail String
     | Ping
     | Login
-    | ConfirmLogin (Result Http.Error { username : String, jwt : String })
+    | ConfirmLogin LoginType (Result Http.Error { username : String, jwt : String })
     | SignUp
     | ConfirmSignUp (Result Http.Error Bool)
     | Logout
@@ -196,6 +196,11 @@ type Msg
     | FromAuthLocalStorage Decode.Value
     | Quit
     | NoOp
+
+
+type LoginType
+    = ManualLogin
+    | AutoLogin
 
 
 update : Msg -> Model msg -> ( Model msg, Cmd msg, Maybe (PluginResult LogInfo) )
@@ -265,7 +270,7 @@ internalUpdate msg model =
             case model.logInfo of
                 LoggedIn { jwt } ->
                     ( model
-                    , refreshJwt jwt
+                    , refreshJwt AutoLogin jwt
                     , Nothing
                     )
 
@@ -280,7 +285,7 @@ internalUpdate msg model =
             , Nothing
             )
 
-        ConfirmLogin res ->
+        ConfirmLogin logType res ->
             case res of
                 Err e ->
                     ( { model
@@ -307,7 +312,11 @@ internalUpdate msg model =
                         , pluginMode = LoginMode Success
                       }
                     , toAuthLocalStorage (setJwt username jwt)
-                    , Just PluginQuit
+                    , if logType == ManualLogin then
+                        Just PluginQuit
+
+                      else
+                        Nothing
                     )
 
         SignUp ->
@@ -387,7 +396,7 @@ internalUpdate msg model =
                             , pluginMode = LoginMode Success
                             , checkForExistingJwtDone = True
                           }
-                        , refreshJwt jwt
+                        , refreshJwt ManualLogin jwt
                         , Nothing
                         )
 
@@ -439,7 +448,7 @@ login model =
     Http.post
         { url = "/api/login"
         , body = body
-        , expect = Http.expectJson ConfirmLogin decodeLoginResult
+        , expect = Http.expectJson (ConfirmLogin ManualLogin) decodeLoginResult
         }
 
 
@@ -540,11 +549,11 @@ clearJwt =
         [ ( "action", Encode.string "clear" ) ]
 
 
-refreshJwt jwt =
+refreshJwt logType jwt =
     Jwt.Http.get
         jwt
         { url = "/api/restricted/refresh_jwt"
-        , expect = Http.expectJson ConfirmLogin decodeLoginResult
+        , expect = Http.expectJson (ConfirmLogin logType) decodeLoginResult
         }
 
 

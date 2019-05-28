@@ -80,8 +80,8 @@ defmodule Gites.BackupServer do
     GenServer.cast(@name, {:load_backup, key})
   end
 
-  def delete_backup(key) do
-    GenServer.cast(@name, {:delete_backup, key})
+  def delete_backups(keys) do
+    GenServer.cast(@name, {:delete_backups, keys})
   end
 
   defp create_new_backup(backup) do
@@ -102,7 +102,6 @@ defmodule Gites.BackupServer do
   end
 
   def handle_cast(:manual_backup, state) do
-    bucket = System.get_env("S3_BUCKET")
     availabilities = BookingSystem.list_availabilities()
     bookings = BookingSystem.list_bookings()
     pages_data = PagesData.list_pagesdata()
@@ -152,11 +151,11 @@ defmodule Gites.BackupServer do
 
     IO.puts("Deleting current data from database...")
 
-    IO.puts("Deleting bookings...")
-    Enum.map(bookings, fn b -> BookingSystem.delete_booking(b) end)
-
     IO.puts("Deleting availabilities...")
     Enum.map(availabilities, fn a -> BookingSystem.delete_availability(a) end)
+
+    IO.puts("Deleting bookings...")
+    Enum.map(bookings, fn b -> BookingSystem.delete_booking(b) end)
 
     IO.puts("Deleting pages data...")
     Enum.map(pages_data, fn pd -> PagesData.delete_page_data(pd) end)
@@ -226,11 +225,13 @@ defmodule Gites.BackupServer do
     {:noreply, new_state}
   end
 
-  def handle_cast({:delete_backup, key}, state) do
+  def handle_cast({:delete_backups, keys}, state) do
     bucket = System.get_env("S3_BUCKET")
 
-    ExAws.S3.delete_object(bucket, key)
-    |> ExAws.request!()
+    Enum.map(keys, fn key ->
+      ExAws.S3.delete_object(bucket, key)
+      |> ExAws.request!()
+    end)
 
     {:noreply, state}
   end

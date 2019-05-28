@@ -61,6 +61,7 @@ type alias Model =
     , optionsAdmin : OptionsAdmin.Model Msg
     , bookingsAdmin : BookingsAdmin.Model Msg
     , docController : DocController.Model Msg
+    , backupsAdmin : Backups.Model Msg
     }
 
 
@@ -73,6 +74,7 @@ type Msg
     | GalleryAdminMsg GalleryAdmin.Msg
     | BookingAdminMsg BookingsAdmin.Msg
     | DocControllerMsg DocController.Msg
+    | BackupsAdminMsg Backups.Msg
     | SetDisplayMode DisplayMode
     | WinResize Int Int
     | SetZone Time.Zone
@@ -144,6 +146,9 @@ init flags =
         ( newDocController, docCtrlCmd ) =
             DocController.init
                 DocControllerMsg
+
+        newBackupsAdmin =
+            Backups.init BackupsAdminMsg
     in
     ( { displayMode = DisplayAuth
       , lang = French
@@ -162,6 +167,7 @@ init flags =
       , galleryAdmin = newGalleryAdmin
       , bookingsAdmin = newBookingAdmin
       , docController = newDocController
+      , backupsAdmin = newBackupsAdmin
       }
     , Cmd.batch
         [ Task.perform SetZone Time.here
@@ -187,9 +193,27 @@ update msg model =
 
                 ( newAuthPlugin, authToolCmds, mbPluginResult ) =
                     Auth.update authPluginMsg model.authPlugin
+
+                ( newBookingAdmin, baCmd ) =
+                    BookingsAdmin.load
+                        { logInfo = logInfo }
+                        model.bookingsAdmin
+
+                ( newDocController, dcCmd ) =
+                    DocController.load
+                        logInfo
+                        model.docController
+
+                ( newBackupsAdmin, bckCmd ) =
+                    Backups.load
+                        logInfo
+                        model.backupsAdmin
             in
             ( { model
                 | authPlugin = newAuthPlugin
+                , bookingsAdmin = newBookingAdmin
+                , docController = newDocController
+                , backupsAdmin = newBackupsAdmin
                 , displayMode =
                     if mbPluginResult == Just PluginQuit then
                         DisplayFrontPageAdmin
@@ -198,7 +222,11 @@ update msg model =
                         model.displayMode
               }
             , Cmd.batch <|
-                [ authToolCmds ]
+                [ authToolCmds
+                , baCmd
+                , dcCmd
+                , bckCmd
+                ]
             )
 
         FrontPageAdminMsg fpaMsg ->
@@ -293,28 +321,25 @@ update msg model =
             , cmd
             )
 
+        BackupsAdminMsg backupsMsg ->
+            let
+                ( backupsAdmin, cmd ) =
+                    Backups.update
+                        { logInfo = model.authPlugin.logInfo }
+                        backupsMsg
+                        model.backupsAdmin
+            in
+            ( { model | backupsAdmin = backupsAdmin }
+            , cmd
+            )
+
         SetDisplayMode dm ->
             if Auth.isLogged model.authPlugin.logInfo then
-                let
-                    ( newBookingAdmin, baCmd ) =
-                        BookingsAdmin.load
-                            { logInfo = model.authPlugin.logInfo }
-                            model.bookingsAdmin
-
-                    ( newDocController, dcCmd ) =
-                        DocController.load
-                            model.authPlugin.logInfo
-                            model.docController
-                in
                 ( { model
                     | displayMode = dm
-                    , bookingsAdmin = newBookingAdmin
-                    , docController = newDocController
                   }
                 , Cmd.batch
-                    [ baCmd
-                    , dcCmd
-                    ]
+                    []
                 )
 
             else
@@ -356,7 +381,22 @@ view model =
                 [ tabsView model
                 , case model.displayMode of
                     DisplayAuth ->
-                        Auth.view { zone = model.zone } model.authPlugin
+                        column
+                            [ spacing 15
+                            , padding 15
+                            , width fill
+                            ]
+                            [ Auth.view { zone = model.zone } model.authPlugin
+                            , if Auth.isLogged model.authPlugin.logInfo then
+                                Backups.view
+                                    { zone = model.zone
+                                    , lang = model.lang
+                                    }
+                                    model.backupsAdmin
+
+                              else
+                                Element.none
+                            ]
 
                     DisplayFrontPageAdmin ->
                         GenericPageAdmin.view
@@ -504,8 +544,8 @@ tabsView model =
             DisplayAuth
             SetDisplayMode
             (strM model.lang
-                (MultLangStr "Authentication"
-                    "Authentification"
+                (MultLangStr "Administration"
+                    "Administration"
                 )
             )
         , column
