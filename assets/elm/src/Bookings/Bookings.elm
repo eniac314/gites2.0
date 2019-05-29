@@ -1,4 +1,4 @@
-port module Bookings.Bookings exposing (..)
+port module Bookings.Bookings exposing (DisplayMode(..), Model, Msg(..), Slots, ViewConfig, broadcastLockedDays, broadcastLockedDaysCmd, broadcastRefreshAv, canShowForm, captcha_port, checkInAvailability, checkInView, checkOutAvailability, checkOutView, computeBooked, confirmView, dateChoiceView, decodeAvailability, decodeBookingResult, decodeSlots, encodeBookingData, filterSlots, formView, getAvailabilities, init, joinChannel, loadCaptcha, notificationMail, notificationMailAdmin, optionsView, presenceDiff, presenceState, receiveInitialLockedDays, receiveLockedDays, requestRefresh, sendBookingData, subscriptions, toBookingInfo, update, validateForm, view)
 
 import Bookings.BookingsShared exposing (..)
 import Bookings.DatePicker.Date exposing (formatDate)
@@ -21,7 +21,7 @@ import Html.Attributes as HtmlAttr
 import Html.Events as HtmlEvents
 import Http exposing (..)
 import Internals.DropdownSelect as Select exposing (..)
-import Internals.Helpers exposing (Status(..))
+import Internals.Helpers exposing (Status(..), decoBorder)
 import Internals.PhoenixPresence as Presence exposing (..)
 import Json.Decode as Decode
 import Json.Encode as Encode
@@ -253,6 +253,7 @@ init outMsg ( seed, seedExtension ) reset =
             , getBookingOptions GotBookingOptions
             , if reset then
                 requestRefresh ()
+
               else
                 joinChannel (Uuid.encode newUuid)
             ]
@@ -321,6 +322,7 @@ update config msg model =
                 | firstName =
                     if s == "" then
                         Nothing
+
                     else
                         Just s
               }
@@ -332,6 +334,7 @@ update config msg model =
                 | lastName =
                     if s == "" then
                         Nothing
+
                     else
                         Just s
               }
@@ -343,6 +346,7 @@ update config msg model =
                 | address =
                     if s == "" then
                         Nothing
+
                     else
                         Just s
               }
@@ -354,6 +358,7 @@ update config msg model =
                 | addAddress =
                     if s == "" then
                         Nothing
+
                     else
                         Just s
               }
@@ -365,6 +370,7 @@ update config msg model =
                 | postcode =
                     if s == "" then
                         Nothing
+
                     else
                         String.toInt s
               }
@@ -376,6 +382,7 @@ update config msg model =
                 | city =
                     if s == "" then
                         Nothing
+
                     else
                         Just s
               }
@@ -387,6 +394,7 @@ update config msg model =
                 | country =
                     if s == "" then
                         Nothing
+
                     else
                         Just s
               }
@@ -398,6 +406,7 @@ update config msg model =
                 | phone1 =
                     if s == "" then
                         Nothing
+
                     else
                         Just s
               }
@@ -409,6 +418,7 @@ update config msg model =
                 | phone2 =
                     if s == "" then
                         Nothing
+
                     else
                         Just s
               }
@@ -420,6 +430,7 @@ update config msg model =
                 | email =
                     if s == "" then
                         Nothing
+
                     else
                         Just s
               }
@@ -431,6 +442,7 @@ update config msg model =
                 | confEmail =
                     if s == "" then
                         Nothing
+
                     else
                         Just s
               }
@@ -471,6 +483,7 @@ update config msg model =
                 | petsType =
                     if s == "" then
                         Nothing
+
                     else
                         Just s
               }
@@ -482,6 +495,7 @@ update config msg model =
                 | comments =
                     if s == "" then
                         Nothing
+
                     else
                         Just s
               }
@@ -584,6 +598,7 @@ update config msg model =
                 Ok { cIn, cOut, uuid } ->
                     if uuid == Uuid.toString model.currentUuid then
                         ( model, Cmd.none )
+
                     else
                         let
                             slots =
@@ -605,6 +620,7 @@ update config msg model =
                                         == Just DP.NotAvailable
                                 then
                                     Nothing
+
                                 else
                                     model.checkInDate
 
@@ -616,6 +632,7 @@ update config msg model =
                                         == Just DP.NotAvailable
                                 then
                                     Nothing
+
                                 else
                                     model.checkOutDate
                         in
@@ -738,6 +755,7 @@ checkInAvailability { booked, notAvailable, noCheckIn, noCheckOut, lockedDays } 
     \d ->
         if List.member d booked then
             DP.Booked
+
         else if
             (Maybe.map
                 (\cOut ->
@@ -752,8 +770,10 @@ checkInAvailability { booked, notAvailable, noCheckIn, noCheckOut, lockedDays } 
                 || List.member d locked
         then
             DP.NotAvailable
+
         else if List.member d noCheckIn then
             DP.NoCheckIn
+
         else
             DP.Available
 
@@ -778,6 +798,7 @@ checkOutAvailability { booked, notAvailable, noCheckIn, noCheckOut, lockedDays }
     \d ->
         if List.member d booked then
             DP.Booked
+
         else if
             (Maybe.map
                 (\cIn ->
@@ -792,8 +813,10 @@ checkOutAvailability { booked, notAvailable, noCheckIn, noCheckOut, lockedDays }
                 || List.member d locked
         then
             DP.NotAvailable
+
         else if List.member d noCheckOut then
             DP.NoCheckOut
+
         else
             DP.Available
 
@@ -802,6 +825,7 @@ type alias ViewConfig =
     { lang : Lang
     , url : Url.Url
     , width : Int
+    , artwork : String
     }
 
 
@@ -813,9 +837,12 @@ view config model =
             , padding 15
             , width (maximum 1000 fill)
             , centerX
-            , Font.size 16
+            , Font.size 18
+            , Font.family
+                [ Font.typeface "times"
+                ]
             ]
-            (case String.split "/" config.url.path of
+            ((case String.split "/" config.url.path of
                 "" :: "bookings" :: [] ->
                     [ dateChoiceView config model ]
 
@@ -827,6 +854,22 @@ view config model =
 
                 _ ->
                     []
+             )
+                ++ [ image
+                        [ centerX
+                        , width (px <| min 800 (config.width - 30))
+                        ]
+                        { src = decoBorder
+                        , description = ""
+                        }
+                   , el
+                        [ width (px <| min 500 config.width)
+                        , height (px <| min 500 config.width)
+                        , Background.uncropped config.artwork
+                        , centerX
+                        ]
+                        (text "")
+                   ]
             )
 
 
@@ -850,7 +893,7 @@ dateChoiceView config model =
             [ Font.bold
             , Font.size 22
             , Font.family
-                [ Font.typeface "Montserrat"
+                [ Font.typeface "Crimson Text"
                 , Font.sansSerif
                 ]
             ]
@@ -887,6 +930,7 @@ dateChoiceView config model =
             ]
         , (if config.width < 1000 then
             column
+
            else
             row
           )
@@ -900,6 +944,7 @@ dateChoiceView config model =
             Just d ->
                 if d == Dict.empty then
                     Element.none
+
                 else
                     optionsView config model
 
@@ -914,6 +959,7 @@ dateChoiceView config model =
                 { url =
                     if canShowForm model then
                         "/bookings/form"
+
                     else
                         ""
                 , label =
@@ -954,7 +1000,7 @@ optionsView config model =
                     [ Font.bold
                     , Font.size 18
                     , Font.family
-                        [ Font.typeface "Montserrat"
+                        [ Font.typeface "Crimson Text"
                         , Font.sansSerif
                         ]
                     ]
@@ -1040,6 +1086,7 @@ checkInView config model =
                 ]
             , if model.slots.noCheckIn == [] then
                 Element.none
+
               else
                 row
                     [ spacing 10 ]
@@ -1127,6 +1174,7 @@ checkOutView config model =
                 ]
             , if model.slots.noCheckOut == [] then
                 Element.none
+
               else
                 row
                     [ spacing 10 ]
@@ -1179,7 +1227,7 @@ formView config model =
                     [ Font.bold
                     , Font.size 22
                     , Font.family
-                        [ Font.typeface "Montserrat"
+                        [ Font.typeface "Crimson Text"
                         , Font.sansSerif
                         ]
                     ]
@@ -1443,6 +1491,7 @@ formView config model =
                             , label =
                                 Input.labelHidden ""
                             }
+
                       else
                         Element.none
                     ]
@@ -1526,7 +1575,7 @@ confirmView config model =
                     [ Font.bold
                     , Font.size 22
                     , Font.family
-                        [ Font.typeface "Montserrat"
+                        [ Font.typeface "Crimson Text"
                         , Font.sansSerif
                         ]
                     ]
@@ -1569,6 +1618,7 @@ confirmView config model =
                                 { onPress =
                                     if model.captchaResp /= "" then
                                         Just (SendBookingData config.lang)
+
                                     else
                                         Nothing
                                 , label =
@@ -1810,6 +1860,7 @@ decodeSlots currentSlots =
                 (\( d, av ) ->
                     if av == DP.Booked then
                         ( d, DP.NotAvailable )
+
                     else
                         ( d, av )
                 )

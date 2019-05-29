@@ -66,7 +66,10 @@ blockToElement downloadHandler offset block =
 
         Paragraph raw inlines ->
             paragraph
-                []
+                [ Font.family
+                    [ Font.typeface "times" ]
+                , Font.size 18
+                ]
                 (List.concatMap (inlinesToElements downloadHandler []) inlines)
 
         BlockQuote blocks ->
@@ -79,8 +82,10 @@ blockToElement downloadHandler offset block =
                 bullet off =
                     if off == 0 then
                         "•"
+
                     else if off == 1 then
                         "◦"
+
                     else
                         "‣"
 
@@ -186,9 +191,11 @@ inlinesToElements downloadHandler attrs inline =
                     ]
                     (text <| Inline.extractText inlines)
                 ]
+
             else
                 [ (if String.startsWith "/" url then
                     link
+
                    else
                     newTabLink
                   )
@@ -222,12 +229,15 @@ inlinesToElements downloadHandler attrs inline =
                     attrs
                         ++ (if n == 1 then
                                 [ Font.italic ]
+
                             else if n == 2 then
                                 [ Font.bold ]
+
                             else if n == 3 then
                                 [ Font.italic
                                 , Font.bold
                                 ]
+
                             else
                                 []
                            )

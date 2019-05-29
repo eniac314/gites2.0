@@ -1,4 +1,26 @@
-module Internals.Helpers exposing (..)
+module Internals.Helpers exposing
+    ( Log
+    , PluginResult(..)
+    , Status(..)
+    , awsUrl
+    , bestFit
+    , break
+    , chunk
+    , chunkedRows
+    , decoBorder
+    , decodeImageMeta
+    , decodeMls
+    , decodeSize
+    , encodeImageMeta
+    , encodeMls
+    , encodeSize
+    , getArtworks
+    , httpErrorToString
+    , logsView
+    , newLog
+    , nextId
+    , thumbSrc
+    )
 
 import Dict exposing (..)
 import Element exposing (..)
@@ -13,6 +35,7 @@ import Http exposing (Error(..))
 import Json.Decode as D
 import Json.Encode as E
 import MultLang.MultLang exposing (..)
+import Random exposing (Seed, initialSeed, int, list, step)
 import String.Extra exposing (insertAt)
 import Style.Helpers exposing (..)
 import Task exposing (perform)
@@ -83,6 +106,7 @@ logsView logs zone =
                     , el
                         [ if isError then
                             Font.color (rgb 1 0 0)
+
                           else
                             noAttr
                         ]
@@ -159,6 +183,7 @@ break p xs =
                 y :: ys_ ->
                     if p y then
                         ( List.reverse left, y :: ys_ )
+
                     else
                         helper ys_ (y :: left)
     in
@@ -176,6 +201,7 @@ bestFit elemWidth width =
     in
     if (nbrChunks_ * elemWidth + spacing) < width then
         nbrChunks_
+
     else
         nbrChunks_ - 1
 
@@ -280,3 +306,38 @@ nextId dict =
             )
             0
             dict
+
+
+shuffle : Random.Seed -> List a -> List a
+shuffle seed xs =
+    let
+        n =
+            List.length xs
+
+        ( randlist, _ ) =
+            Random.step (Random.list n (Random.float 0 1)) seed
+    in
+    List.map2 Tuple.pair randlist xs
+        |> List.sortBy Tuple.first
+        |> List.map Tuple.second
+
+
+getArtworks : Int -> ( String, String, String )
+getArtworks time =
+    case shuffle (Random.initialSeed time) artwork of
+        a :: b :: c :: xs ->
+            ( a, b, c )
+
+        _ ->
+            ( "", "", "" )
+
+
+artwork =
+    [ "/images/chair.png"
+    , "/images/clock.png"
+    , "/images/duck.png"
+    ]
+
+
+decoBorder =
+    "/images/DecorativeBorder.png"

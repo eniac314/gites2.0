@@ -18,7 +18,7 @@ import Gallery.GalleryPage as GalleryPage
 import GenericPage.GenericPage as GenericPage
 import Html.Attributes as HtmlAttr
 import Http exposing (..)
-import Internals.Helpers exposing (decodeMls)
+import Internals.Helpers exposing (decoBorder, decodeMls, getArtworks)
 import Internals.MarkdownParser as MarkdownParser
 import Json.Decode as D
 import Json.Encode as E
@@ -64,6 +64,7 @@ type alias Model =
     , width : Int
     , height : Int
     , currentTime : Int
+    , artworks : ( String, String, String )
     }
 
 
@@ -136,6 +137,7 @@ init flags url key =
             flags.height
       , currentTime =
             flags.currentTime
+      , artworks = getArtworks flags.currentTime
       }
     , Cmd.batch
         [ if url /= url_ then
@@ -313,6 +315,10 @@ urlToDisplayMode url =
 
 view : Model -> Browser.Document Msg
 view model =
+    let
+        ( a1, a2, a3 ) =
+            model.artworks
+    in
     { title = "Le vieux Lilas"
     , body =
         [ Element.layout
@@ -353,6 +359,7 @@ view model =
                                     { lang = model.lang
                                     , url = model.url
                                     , width = model.width
+                                    , artwork = a1
                                     }
                                     model.galleryPage
 
@@ -361,6 +368,7 @@ view model =
                                     { lang = model.lang
                                     , url = model.url
                                     , width = model.width
+                                    , artwork = a2
                                     }
                                     model.bookings
 
@@ -370,17 +378,34 @@ view model =
                                         Element.none
 
                                     Just page ->
-                                        el
+                                        column
                                             [ width (maximum 1000 fill)
                                             , height (minimum 500 fill)
                                             , centerX
                                             , padding 15
                                             , spacing 15
                                             ]
-                                            (MarkdownParser.renderMarkdown
-                                                (strM model.lang page)
-                                                DownloadDoc
-                                            )
+                                            [ el
+                                                []
+                                                (MarkdownParser.renderMarkdown
+                                                    (strM model.lang page)
+                                                    DownloadDoc
+                                                )
+                                            , image
+                                                [ centerX
+                                                , width (px <| min 800 (model.width - 30))
+                                                ]
+                                                { src = decoBorder
+                                                , description = ""
+                                                }
+                                            , el
+                                                [ width (px <| min 500 model.width)
+                                                , height (px <| min 500 model.width)
+                                                , Background.uncropped a3
+                                                , centerX
+                                                ]
+                                                (text "")
+                                            ]
 
                             DisplayNearby ->
                                 GenericPage.view

@@ -1,4 +1,4 @@
-module Gallery.GalleryPage exposing (..)
+module Gallery.GalleryPage exposing (Config, Model, Msg(..), ViewConfig, galleryView, homeView, init, subscriptions, update, view)
 
 import Browser.Navigation exposing (pushUrl)
 import Dict exposing (..)
@@ -117,6 +117,7 @@ type alias ViewConfig =
     { lang : Lang
     , url : Url.Url
     , width : Int
+    , artwork : String
     }
 
 
@@ -185,6 +186,20 @@ homeView config model =
                     |> List.map (imgBlockView config.lang (model.outMsg << OpenGallery))
                 )
             )
+        , image
+            [ centerX
+            , width (px <| min 800 (config.width - 30))
+            ]
+            { src = decoBorder
+            , description = ""
+            }
+        , el
+            [ width (px <| min 500 config.width)
+            , height (px <| min 500 config.width)
+            , Background.uncropped config.artwork
+            , centerX
+            ]
+            (text "")
         ]
 
 
@@ -201,18 +216,40 @@ galleryView config model title =
                 ]
                 [ case gallery.header of
                     Just h ->
-                        MarkdownParser.renderMarkdown
-                            (strM config.lang h)
-                            (model.outMsg << DownloadDoc)
+                        el
+                            [ centerX
+                            , Font.italic
+                            ]
+                            (MarkdownParser.renderMarkdown
+                                (strM config.lang h)
+                                (model.outMsg << DownloadDoc)
+                            )
 
                     Nothing ->
                         Element.none
+                , image
+                    [ centerX
+                    , width (px <| min 800 (config.width - 30))
+                    ]
+                    { src = decoBorder
+                    , description = ""
+                    }
                 , Gallery.view config gallery
+                , image
+                    [ centerX
+                    , width (px <| min 800 (config.width - 30))
+                    ]
+                    { src = decoBorder
+                    , description = ""
+                    }
                 , case gallery.article of
                     Just a ->
-                        MarkdownParser.renderMarkdown
-                            (strM config.lang a)
-                            (model.outMsg << DownloadDoc)
+                        el
+                            [ centerX ]
+                            (MarkdownParser.renderMarkdown
+                                (strM config.lang a)
+                                (model.outMsg << DownloadDoc)
+                            )
 
                     Nothing ->
                         Element.none
