@@ -1,4 +1,4 @@
-module Bookings.BookingsShared exposing (..)
+module Bookings.BookingsShared exposing (BookingInfo, BookingOption, BookingOptions, contactView, customerDetailView, dJust, dateDecoder, daysBooked, decodeBookingInfo, decodeBookingOption, decodeBookingOptionServer, decodeBookingOptions, decodeLanguage, decodePresenceDiff, decodePresenceState, dummyOptions, encodeBookingInfo, encodeBookingOption, encodeBookingOptions, getBookingOptions, lockedDaysDecoder, nightsCount, priceView, recapView, roundC_, userDecoder)
 
 import Bookings.DatePicker.Date exposing (formatDate)
 import Date exposing (..)
@@ -40,7 +40,7 @@ type alias BookingInfo =
     , nbrKids : Maybe Int
     , comment : Maybe String
     , pets : Maybe String
-    , options : BookingOptions
+    , options : Dict String BookingOption
     , language : Lang
     , confirmed : Bool
     }
@@ -143,7 +143,9 @@ encodeBookingInfo bookingInfo =
                 |> Maybe.withDefault Encode.null
           )
         , ( "options"
-          , encodeBookingOptions bookingInfo.options
+          , Dict.toList bookingInfo.options
+                |> List.map (\( k, v ) -> ( k, encodeBookingOption v ))
+                |> Encode.object
           )
         , ( "language"
           , case bookingInfo.language of
@@ -220,7 +222,7 @@ decodeBookingInfo =
         |> optional "nbr_children" (dJust Decode.int) Nothing
         |> optional "comments" (dJust Decode.string) Nothing
         |> optional "pets" (dJust Decode.string) Nothing
-        |> required "options" decodeBookingOptions
+        |> required "options" (Decode.dict decodeBookingOption)
         |> required "language" decodeLanguage
         |> required "confirmed" Decode.bool
 
@@ -449,6 +451,7 @@ recapView config cInDate cOutDate bi opt =
                                 (MultLangStr " nights"
                                     " nuits"
                                 )
+
                         else
                             strM config.lang
                                 (MultLangStr " night"
@@ -502,8 +505,10 @@ priceView lang nc na nk bo =
         basePrice =
             if nc == 2 then
                 p1
+
             else if nc == 3 then
                 p2
+
             else
                 toFloat nc * p3
 

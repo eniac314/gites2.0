@@ -1,4 +1,4 @@
-port module Bookings.BookingsAdmin exposing (..)
+port module Bookings.BookingsAdmin exposing (Model, Msg(..), ViewConfig, avStr, bookingEditorView, bookingListView, bookingView, broadcastRefresh, checkAvailability, confirmBooking, confirmationMail, datePickerView, decodeAvailabilities, decodeAvailability, deleteBooking, editAvailabilityView, encodeAvailability, getAvailabilities, getBookingInfo, init, load, loadingStatus, presenceDiff, presenceState, presenceStateView, rangeAvailability, receiveInitialLockedDays, receiveLockedDays, setAvailability, subscriptions, update, view)
 
 import Auth.AuthPlugin exposing (LogInfo, cmdIfLogged, secureGet, securePost, secureRequest)
 import Bookings.BookingsShared exposing (..)
@@ -141,6 +141,7 @@ load config model =
                 [ getAvailabilities config.logInfo
                 , getBookingInfo config.logInfo
                 ]
+
       else
         Cmd.none
     )
@@ -188,6 +189,7 @@ update config msg model =
                         , rangeStart =
                             if model.ctrlDown then
                                 model.pickedDate
+
                             else
                                 Nothing
                         , datePicker = datePicker
@@ -311,7 +313,7 @@ update config msg model =
         BookingDeleted id res ->
             case res of
                 Ok () ->
-                    ( model
+                    ( { model | pickedBooking = Nothing }
                     , Cmd.map model.outMsg <|
                         Cmd.batch
                             [ getBookingInfo config.logInfo
@@ -471,11 +473,13 @@ update config msg model =
                 | ctrlDown =
                     if kc == 17 then
                         False
+
                     else
                         model.ctrlDown
                 , rangeStart =
                     if kc == 17 then
                         Nothing
+
                     else
                         model.rangeStart
               }
@@ -487,11 +491,13 @@ update config msg model =
                 | ctrlDown =
                     if v == Hidden then
                         False
+
                     else
                         model.ctrlDown
                 , rangeStart =
                     if v == Hidden then
                         Nothing
+
                     else
                         model.rangeStart
               }
@@ -709,6 +715,7 @@ datePickerView config model =
                                         )
                                     , text <| formatDate config.lang pd
                                     ]
+
                     else
                         el
                             [ Font.italic ]
@@ -741,12 +748,14 @@ bookingListView config model =
         cellStyle id i =
             [ if modBy 2 i /= 0 then
                 Background.color lightGrey
+
               else
                 noAttr
             , Events.onMouseEnter (RowHovered <| Just i)
             , Events.onMouseLeave (RowHovered Nothing)
             , if model.rowHovered == Just i then
                 Background.color grey
+
               else
                 noAttr
             , Events.onClick (PickBooking id)
@@ -840,6 +849,7 @@ bookingListView config model =
                                         , centerX
                                         ]
                                         (textM config.lang (MultLangStr "yes" "oui"))
+
                                  else
                                     el
                                         [ Font.color red
@@ -857,6 +867,7 @@ checkAvailability : Model msg -> (Date -> DP.Availability)
 checkAvailability { availabilities, ctrlDown, rangeStart, pickedDate } =
     if ctrlDown then
         rangeAvailability availabilities rangeStart pickedDate
+
     else
         \d ->
             Dict.get (Date.toRataDie d) availabilities
@@ -901,6 +912,7 @@ rangeAvailability availabilities rangeStart pickedDate =
                         || (Date.compare d (Date.add Days -1 pd) == EQ)
                 then
                     DP.NotAvailable
+
                 else
                     Dict.get (Date.toRataDie d) newAvailabilities
                         |> Maybe.withDefault DP.Available
@@ -924,6 +936,7 @@ presenceStateView config model =
                     (String.fromInt n
                         ++ (if isPlural then
                                 " users"
+
                             else
                                 " user"
                            )
@@ -931,6 +944,7 @@ presenceStateView config model =
                     (String.fromInt n
                         ++ (if isPlural then
                                 " utilisateurs"
+
                             else
                                 " utilisateur"
                            )
@@ -959,6 +973,7 @@ presenceStateView config model =
                     ("There "
                         ++ (if isPlural then
                                 "are"
+
                             else
                                 "is"
                            )
@@ -1040,6 +1055,7 @@ bookingView config bookingInfo model =
                 { onPress =
                     if bookingInfo.confirmed then
                         Nothing
+
                     else
                         Just (ConfirmBooking bookingInfo)
                 , label =
@@ -1102,6 +1118,7 @@ editAvailabilityView config model =
                 (if rangeEdit then
                     MultLangStr "Change availability - Range"
                         "Modification de la disponibilité - Intervalle"
+
                  else
                     MultLangStr "Change availability"
                         "Modification de la disponibilité"
@@ -1109,6 +1126,7 @@ editAvailabilityView config model =
             )
         , if rangeEdit then
             Element.none
+
           else
             column
                 [ spacing 10 ]
@@ -1122,6 +1140,7 @@ editAvailabilityView config model =
                 ]
         , if rangeEdit then
             Element.none
+
           else
             textM config.lang
                 (MultLangStr
@@ -1137,6 +1156,7 @@ editAvailabilityView config model =
             { onChange =
                 if rangeEdit then
                     SetRangeAvailability
+
                 else
                     Maybe.map
                         SetAvailability
@@ -1307,6 +1327,7 @@ setAvailability logInfo d av =
                 , "api/restricted/availabilities/"
                     ++ String.fromInt (Date.toRataDie d)
                 )
+
             else
                 ( "PUT", "api/restricted/availabilities/" )
     in

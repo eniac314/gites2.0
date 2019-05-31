@@ -1,4 +1,4 @@
-module Internals.DropdownSelect exposing (..)
+module Internals.DropdownSelect exposing (Config, Model, Msg(..), init, itemView, update, view)
 
 import Dict exposing (..)
 import Element exposing (..)
@@ -72,6 +72,7 @@ view config model =
     Input.text
         [ if model.open && not model.mouseInside then
             Events.onLoseFocus (om Close)
+
           else
             noAttr
         , if model.open then
@@ -85,13 +86,16 @@ view config model =
                     , width (minimum 200 fill)
                     ]
                     (List.map (itemView config) config.items)
+
           else
             noAttr
         , if model.open then
             Events.onClick (om Close)
+
           else
             Events.onClick (om Open)
-        , Font.size 16
+
+        --, Font.size 16
         , width (px 200)
         , paddingXY 10 5
         ]

@@ -1446,7 +1446,7 @@ formView config model =
                         Just "-"
                     , label =
                         Just <|
-                            mandatoryLabel config
+                            regLabel config
                                 (MultLangStr
                                     "Number of children"
                                     "Nombre d'enfants"
@@ -1523,13 +1523,19 @@ formView config model =
                             textM config.lang
                                 (MultLangStr "Go back" "Retour")
                         }
-                    , link
-                        (buttonStyle2 True)
-                        { url = "/bookings/confirmation"
-                        , label =
-                            textM config.lang
+                    , if validateForm model then
+                        link (buttonStyle2 True)
+                            { url = "/bookings/confirmation"
+                            , label =
+                                textM config.lang
+                                    (MultLangStr "Next" "Suivant")
+                            }
+
+                      else
+                        el (buttonStyle2 False)
+                            (textM config.lang
                                 (MultLangStr "Next" "Suivant")
-                        }
+                            )
                     ]
                 ]
 
@@ -1614,7 +1620,7 @@ confirmView config model =
                                         (MultLangStr "Go back" "Retour")
                                 }
                             , Input.button
-                                (buttonStyle_ (model.captchaResp /= ""))
+                                (buttonStyle2 (model.captchaResp /= ""))
                                 { onPress =
                                     if model.captchaResp /= "" then
                                         Just (SendBookingData config.lang)
@@ -1781,7 +1787,11 @@ encodeBookingData lang model =
           )
         , ( "options"
           , Maybe.withDefault dummyOptions model.options
-                |> encodeBookingOptions
+                |> (\o ->
+                        Dict.toList o.options
+                            |> List.map (\( k, v ) -> ( k, encodeBookingOption v ))
+                            |> Encode.object
+                   )
           )
         , ( "language"
           , case lang of
