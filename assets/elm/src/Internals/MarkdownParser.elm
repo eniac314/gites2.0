@@ -1,4 +1,4 @@
-module Internals.MarkdownParser exposing (renderMarkdown)
+module Internals.MarkdownParser exposing (InlineStyle(..), StyleAttribute(..), attribute, blockToElement, blocksToElements, headings, inlineStyle, inlineStyles, inlinesToElements, renderMarkdown, styleAttribute, styleAttributes, value)
 
 import Browser exposing (element)
 import Dict exposing (..)
@@ -16,14 +16,16 @@ import Html.Attributes as HtmlAttr
 import Internals.Helpers exposing (awsUrl)
 import Markdown exposing (..)
 import Markdown.Block as Block exposing (..)
+import Markdown.Config exposing (defaultOptions)
 import Markdown.Inline as Inline exposing (..)
+import Parser exposing (..)
 import Style.Helpers exposing (..)
 import Style.Palette exposing (..)
 
 
 renderMarkdown : String -> (String -> msg) -> Element msg
 renderMarkdown s downloadHandler =
-    Block.parse Nothing s
+    Block.parse (Just { defaultOptions | softAsHardLineBreak = True }) s
         |> blocksToElements downloadHandler
         |> column
             [ width fill
@@ -166,6 +168,16 @@ headings downloadHandler raw level inlines =
         (List.concatMap (inlinesToElements downloadHandler []) inlines)
 
 
+
+--parseCustomStyles : Inline i -> List (Inline InlineStyle)
+--parseCustomStyles inline =
+--    case inline of
+--        Text s ->
+--            case Parser.run inlineStyles s of
+--                Ok res ->
+--                    List.map Custom res
+
+
 inlinesToElements : (String -> msg) -> List (Attribute msg) -> Inline i -> List (Element msg)
 inlinesToElements downloadHandler attrs inline =
     case inline of
@@ -246,3 +258,147 @@ inlinesToElements downloadHandler attrs inline =
 
         Inline.Custom i inlines ->
             []
+
+
+
+-------------------------------------------------------------------------------
+-------------------------
+-- Inline style parser --
+-------------------------
+
+
+type InlineStyle
+    = Styled
+        { styled : String
+        , attrs : List StyleAttribute
+        }
+    | Regular String
+
+
+type StyleAttribute
+    = Font String
+    | FontSize Int
+    | Color String
+
+
+inlineStyles : Parser (List InlineStyle)
+inlineStyles =
+    let
+        helper styles =
+            oneOf
+                [ succeed (\style -> Loop (style :: styles))
+                    |= inlineStyle
+                    |> backtrackable
+                , symbol "["
+                    |> Parser.map (\_ -> Loop (Regular "[" :: styles))
+                , succeed (\reg -> Loop (Regular reg :: styles))
+                    |= (chompUntil "["
+                            |> getChompedString
+                       )
+                    |> backtrackable
+                , succeed
+                    (\reg ->
+                        Done
+                            (List.reverse
+                                (Regular reg :: styles)
+                                |> concatRegs "" []
+                            )
+                    )
+                    |= (chompUntilEndOr "\n"
+                            |> getChompedString
+                       )
+                ]
+
+        concatRegs acc res xs =
+            case xs of
+                [] ->
+                    if acc == "" then
+                        res
+
+                    else
+                        List.reverse <| Regular acc :: res
+
+                (Styled s) :: xs_ ->
+                    if acc == "" then
+                        concatRegs "" (Styled s :: res) xs_
+
+                    else
+                        concatRegs "" (Styled s :: Regular acc :: res) xs_
+
+                (Regular r) :: xs_ ->
+                    concatRegs (acc ++ r) res xs_
+    in
+    loop [] helper
+
+
+inlineStyle : Parser InlineStyle
+inlineStyle =
+    succeed (\s attrs -> Styled { styled = s, attrs = attrs })
+        |. symbol "["
+        |= (chompUntil "]"
+                |> getChompedString
+           )
+        |. symbol "]"
+        |. spaces
+        |. symbol "{"
+        |. spaces
+        |. keyword "style"
+        |. spaces
+        |. symbol "|"
+        |. spaces
+        |= styleAttributes
+
+
+styleAttributes : Parser (List StyleAttribute)
+styleAttributes =
+    let
+        helper attrs =
+            oneOf
+                [ succeed (\attr -> Loop (attr :: attrs))
+                    |= styleAttribute
+                    |. spaces
+                    |. symbol ","
+                    |. spaces
+                    |> backtrackable
+                , succeed (\attr -> Loop (attr :: attrs))
+                    |= styleAttribute
+                    |. spaces
+                    |. symbol "}"
+                , succeed ()
+                    |> Parser.map (\_ -> Done (List.reverse attrs))
+                ]
+    in
+    loop [] helper
+
+
+styleAttribute : Parser StyleAttribute
+styleAttribute =
+    oneOf
+        [ attribute Font "police" value
+            |> backtrackable
+        , attribute FontSize "taille" int
+            |> backtrackable
+        , attribute Color "couleur" value
+        ]
+
+
+attribute : (a -> b) -> String -> Parser a -> Parser b
+attribute sAttr name valueParser =
+    succeed sAttr
+        |. keyword name
+        |. spaces
+        |. symbol ":"
+        |. spaces
+        |= valueParser
+
+
+value : Parser String
+value =
+    chompWhile
+        (\c ->
+            ((c /= ',')
+                || (c /= '}')
+            )
+                && Char.isAlphaNum c
+        )
+        |> getChompedString

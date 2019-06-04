@@ -6,7 +6,11 @@ add forfait ménage
 mix phx.server
 source .env && mix phx.server
 
-lock log in if login from local storage
+- lock log in if login from local storage
+
+- check responsive layout page détails
+
+- make album thumbs scrollable on ios
 
 ###############################################################################
 git memo:
