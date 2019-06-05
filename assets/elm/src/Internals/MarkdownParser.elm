@@ -1,4 +1,4 @@
-module Internals.MarkdownParser exposing (InlineStyle(..), StyleAttribute(..), attribute, blockToElement, blocksToElements, headings, inlineStyle, inlineStyles, inlinesToElements, renderMarkdown, styleAttribute, styleAttributes, value)
+module Internals.MarkdownParser exposing (renderMarkdown)
 
 import Browser exposing (element)
 import Dict exposing (..)
@@ -37,12 +37,12 @@ renderMarkdown s downloadHandler =
             ]
 
 
-blocksToElements : (String -> msg) -> List (Block b i) -> List (Element msg)
+blocksToElements : (String -> msg) -> List (Block b InlineStyle) -> List (Element msg)
 blocksToElements downloadHandler blocks =
     List.map (blockToElement downloadHandler 0) blocks
 
 
-blockToElement : (String -> msg) -> Int -> Block b i -> Element msg
+blockToElement : (String -> msg) -> Int -> Block b InlineStyle -> Element msg
 blockToElement downloadHandler offset block =
     case block of
         BlankLine s ->
@@ -72,7 +72,9 @@ blockToElement downloadHandler offset block =
                     [ Font.typeface "times" ]
                 , Font.size 18
                 ]
-                (List.concatMap (inlinesToElements downloadHandler []) inlines)
+                (List.concatMap parseCustomStyles inlines
+                    |> List.concatMap (inlinesToElements downloadHandler [])
+                )
 
         BlockQuote blocks ->
             column
@@ -123,7 +125,9 @@ blockToElement downloadHandler offset block =
         PlainInlines inlines ->
             paragraph
                 []
-                (List.concatMap (inlinesToElements downloadHandler []) inlines)
+                (List.concatMap parseCustomStyles inlines
+                    |> List.concatMap (inlinesToElements downloadHandler [])
+                )
 
         Block.Custom b llistBlocks ->
             Element.none
@@ -165,20 +169,37 @@ headings downloadHandler raw level inlines =
                     |> Maybe.withDefault []
                )
         )
-        (List.concatMap (inlinesToElements downloadHandler []) inlines)
+        (List.concatMap parseCustomStyles inlines
+            |> List.concatMap (inlinesToElements downloadHandler [])
+        )
 
 
+parseCustomStyles : Inline InlineStyle -> List (Inline InlineStyle)
+parseCustomStyles inline =
+    case inline of
+        Text s ->
+            case Parser.run inlineStyles s of
+                Ok res ->
+                    List.foldr
+                        (\is acc ->
+                            case is of
+                                Regular r ->
+                                    Text r :: acc
 
---parseCustomStyles : Inline i -> List (Inline InlineStyle)
---parseCustomStyles inline =
---    case inline of
---        Text s ->
---            case Parser.run inlineStyles s of
---                Ok res ->
---                    List.map Custom res
+                                styled ->
+                                    Inline.Custom styled [] :: acc
+                        )
+                        []
+                        res
+
+                _ ->
+                    [ Text s ]
+
+        _ ->
+            [ inline ]
 
 
-inlinesToElements : (String -> msg) -> List (Attribute msg) -> Inline i -> List (Element msg)
+inlinesToElements : (String -> msg) -> List (Attribute msg) -> Inline InlineStyle -> List (Element msg)
 inlinesToElements downloadHandler attrs inline =
     case inline of
         Text s ->
@@ -254,9 +275,13 @@ inlinesToElements downloadHandler attrs inline =
                                 []
                            )
             in
-            List.concatMap (inlinesToElements downloadHandler attrs_) inlines
+            List.concatMap parseCustomStyles inlines
+                |> List.concatMap (inlinesToElements downloadHandler attrs_)
 
-        Inline.Custom i inlines ->
+        Inline.Custom (Styled styled) inlines ->
+            [ styledToElement attrs styled ]
+
+        Inline.Custom (Regular _) _ ->
             []
 
 
@@ -279,6 +304,28 @@ type StyleAttribute
     = Font String
     | FontSize Int
     | Color String
+
+
+styledToElement : List (Attribute msg) -> { styled : String, attrs : List StyleAttribute } -> Element msg
+styledToElement attrs_ { styled, attrs } =
+    el (List.concatMap (styleAttributeToElementAttr attrs_) attrs)
+        (text styled)
+
+
+styleAttributeToElementAttr : List (Attribute msg) -> StyleAttribute -> List (Attribute msg)
+styleAttributeToElementAttr attrs attr =
+    case attr of
+        Font s ->
+            attrs
+                ++ [ Font.family
+                        [ Font.typeface s ]
+                   ]
+
+        FontSize n ->
+            attrs ++ [ Font.size n ]
+
+        Color s ->
+            attrs ++ [ Font.color <| rgb255 255 0 0 ]
 
 
 inlineStyles : Parser (List InlineStyle)
@@ -313,7 +360,7 @@ inlineStyles =
             case xs of
                 [] ->
                     if acc == "" then
-                        res
+                        List.reverse res
 
                     else
                         List.reverse <| Regular acc :: res
@@ -360,12 +407,13 @@ styleAttributes =
                     |. symbol ","
                     |. spaces
                     |> backtrackable
-                , succeed (\attr -> Loop (attr :: attrs))
+                , succeed (\attr -> Done (List.reverse <| attr :: attrs))
                     |= styleAttribute
                     |. spaces
                     |. symbol "}"
-                , succeed ()
-                    |> Parser.map (\_ -> Done (List.reverse attrs))
+
+                --, succeed ()
+                --    |> Parser.map (\_ -> Done (List.reverse attrs))
                 ]
     in
     loop [] helper
@@ -398,7 +446,16 @@ value =
         (\c ->
             ((c /= ',')
                 || (c /= '}')
+                || (c /= ' ')
             )
                 && Char.isAlphaNum c
         )
         |> getChompedString
+        |> Parser.andThen
+            (\s ->
+                if s == "" then
+                    problem "empty value"
+
+                else
+                    succeed s
+            )
