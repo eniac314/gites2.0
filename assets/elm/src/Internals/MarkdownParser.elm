@@ -411,9 +411,6 @@ styleAttributes =
                     |= styleAttribute
                     |. spaces
                     |. symbol "}"
-
-                --, succeed ()
-                --    |> Parser.map (\_ -> Done (List.reverse attrs))
                 ]
     in
     loop [] helper

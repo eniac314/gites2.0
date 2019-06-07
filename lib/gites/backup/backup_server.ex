@@ -31,7 +31,11 @@ defmodule Gites.BackupServer do
 
         _ ->
           backups_meta.body.contents
-          |> Enum.max_by(fn c -> DateTime.from_iso8601(c.last_modified) end)
+          |> Enum.max_by(fn c ->
+            String.slice(c.key, String.length("Backups/")..-1)
+            |> DateTime.from_iso8601()
+            |> (fn {:ok, d, _} -> {d.year, d.month, d.day} end).()
+          end)
       end
 
     case newest_backup_meta do

@@ -336,6 +336,7 @@ artwork =
     [ "/images/chair.png"
     , "/images/clock.png"
     , "/images/duck.png"
+    , "/images/piano.png"
     ]
 
 
