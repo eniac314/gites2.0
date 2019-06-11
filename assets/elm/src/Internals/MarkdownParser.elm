@@ -213,30 +213,30 @@ inlinesToElements downloadHandler attrs inline =
 
         Link url mbTitle inlines ->
             if String.contains "Documents/" url then
-                --[ el
-                --    [ mouseOver
-                --        [ Font.color blue
-                --        ]
-                --    , Font.underline
-                --    , Font.color lightBlue
-                --    , pointer
-                --    , Events.onClick (downloadHandler url)
-                --    ]
-                --    (text <| Inline.extractText inlines)
-                --]
-                [ newTabLink
-                    (attrs
-                        ++ [ mouseOver
-                                [ Font.color blue
-                                ]
-                           , Font.underline
-                           , Font.color lightBlue
-                           ]
-                    )
-                    { url = url
-                    , label = text <| Inline.extractText inlines
-                    }
+                [ el
+                    [ mouseOver
+                        [ Font.color blue
+                        ]
+                    , Font.underline
+                    , Font.color lightBlue
+                    , pointer
+                    , Events.onClick (downloadHandler url)
+                    ]
+                    (text <| Inline.extractText inlines)
                 ]
+                --[ newTabLink
+                --    (attrs
+                --        ++ [ mouseOver
+                --                [ Font.color blue
+                --                ]
+                --           , Font.underline
+                --           , Font.color lightBlue
+                --           ]
+                --    )
+                --    { url = url
+                --    , label = text <| Inline.extractText inlines
+                --    }
+                --]
 
             else
                 [ (if String.startsWith "/" url then
