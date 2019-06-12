@@ -69,7 +69,9 @@ blockToElement downloadHandler offset block =
         Paragraph raw inlines ->
             paragraph
                 [ Font.family
-                    [ Font.typeface "times" ]
+                    [ Font.typeface "Times New Roman"
+                    , Font.serif
+                    ]
                 , Font.size 18
                 ]
                 (List.concatMap parseCustomStyles inlines
@@ -112,7 +114,14 @@ blockToElement downloadHandler offset block =
 
                                     Ordered start ->
                                         el [ alignTop ] (text <| String.fromInt (start + i) ++ ". ")
-                                , paragraph [] (List.map (blockToElement downloadHandler (offset + 1)) bs)
+                                , paragraph
+                                    [ Font.family
+                                        [ Font.typeface "Times New Roman"
+                                        , Font.serif
+                                        ]
+                                    , Font.size 18
+                                    ]
+                                    (List.map (blockToElement downloadHandler (offset + 1)) bs)
                                 ]
                             ]
             in

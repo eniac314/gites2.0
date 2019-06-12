@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="Le gîte le vieux lilas, sur la commune de Lainsecq, à proximité de la Puisaye et du chantier médiéval de Guédelon">
+  <meta name="keywords" content="gîte, lainsecq, vieux lilas">
   <link rel="stylesheet" href="/css/app.css">
  
   <script src="https://www.google.com/recaptcha/api.js?render=explicit" async defer></script>
