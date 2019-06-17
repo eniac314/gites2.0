@@ -1,4 +1,4 @@
-module Gallery.Gallery exposing (..)
+module Gallery.Gallery exposing (Config, DisplayMode(..), Model, Msg(..), ViewConfig, captionRow, chunkView, extractFileName, galleryView, gridView, init, maxWidth, moveChunk, picView, subscriptions, titleRow, update, view)
 
 import Animation
     exposing
@@ -88,8 +88,10 @@ subscriptions model =
         Sub.batch
             [ if model.tickSubOn then
                 onAnimationFrame Tick
+
               else if model.mbAnim == Nothing && model.mbDrag == Nothing then
                 Sub.none
+
               else
                 onAnimationFrame Tick
             ]
@@ -294,6 +296,7 @@ update config msg model =
                           }
                         , Cmd.none
                         )
+
                     else if start.x - current_.x < -10 then
                         let
                             newAnim =
@@ -313,6 +316,7 @@ update config msg model =
                           }
                         , Cmd.none
                         )
+
                     else
                         ( { model | mbDrag = Nothing }, Cmd.none )
 
@@ -329,12 +333,14 @@ update config msg model =
                         Just ( anim, AnimateLeft ) ->
                             if isDone newClock anim then
                                 ( Nothing, right (.imagesStream model), False )
+
                             else
                                 ( model.mbAnim, model.imagesStream, True )
 
                         Just ( anim, AnimateRight ) ->
                             if isDone newClock anim then
                                 ( Nothing, left (.imagesStream model), False )
+
                             else
                                 ( model.mbAnim, model.imagesStream, True )
 
@@ -503,6 +509,7 @@ galleryView config model =
             el
                 ([ if config.width > 750 then
                     width (px (w // 3))
+
                    else
                     width (px 50)
                  , height (px h)
@@ -528,6 +535,7 @@ galleryView config model =
                         icon
                             (if config.width > 750 then
                                 55
+
                              else
                                 40
                             )
@@ -599,6 +607,7 @@ moveChunk config model =
         Just (Drag start stop) ->
             if start.x - stop.x <= 0 then
                 moveRight <| (toFloat <| (-1 * w) + abs (start.x - stop.x))
+
             else
                 moveLeft (toFloat <| w + start.x - stop.x)
 
@@ -634,6 +643,7 @@ picView config model { url, size } =
                 )
                 Element.none
             )
+
     else
         column
             [ Background.tiled "/images/canvas.png"
@@ -705,6 +715,7 @@ gridView config model =
                         ]
                         Element.none
                     )
+
             else
                 el
                     [ Background.color lightCharcoal

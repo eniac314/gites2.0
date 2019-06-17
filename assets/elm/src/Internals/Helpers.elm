@@ -338,6 +338,7 @@ artwork =
     , "/images/duck.png"
     , "/images/piano.png"
     , "/images/bigClock.png"
+    , "/images/washingTable.png"
     ]
 
 

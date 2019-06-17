@@ -162,7 +162,9 @@ homeView config model =
             Nothing ->
                 Element.none
         , column
-            [ spacing 10 ]
+            [ spacing 10
+            , centerX
+            ]
             (chunkedRows
                 (min config.width 1000)
                 (bestFit 200)
