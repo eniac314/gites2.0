@@ -1,4 +1,4 @@
-module GenericPage.GenericPageAdmin exposing (..)
+module GenericPage.GenericPageAdmin exposing (DisplayMode(..), Model, Msg(..), ViewConfig, editableItem, encodeGenericPage, encodeGenericPageItem, encodeGoogleMapMeta, googleMapEditorView, init, itemControlView, previewView, saveGenericPage, subscriptions, update, view)
 
 import Auth.AuthPlugin exposing (LogInfo, cmdIfLogged, secureGet, securePost)
 import Dict exposing (..)
@@ -437,6 +437,7 @@ update config msg model =
                 | googleMapUrl =
                     if s == "" then
                         Nothing
+
                     else
                         Just s
                 , googleMapMeta = parseHtml s
@@ -590,6 +591,7 @@ previewView config model =
             ]
         , if model.content == Dict.empty then
             Element.none
+
           else
             Dict.map (editableItem config model) model.content
                 |> Dict.values
@@ -805,6 +807,7 @@ googleMapEditorView config model =
                     { onPress =
                         if model.googleMapMeta /= Nothing then
                             Just GMSaveAndQuit
+
                         else
                             Nothing
                     , label =

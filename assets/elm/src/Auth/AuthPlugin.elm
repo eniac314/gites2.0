@@ -768,10 +768,11 @@ loginView config status model =
                                 Nothing
                         , label = text "Connexion"
                         }
-                    , Input.button (buttonStyle_ True)
-                        { onPress = Just <| ChangePluginMode (SignUpMode Initial)
-                        , label = text "Nouvel utilisateur"
-                        }
+
+                    --, Input.button (buttonStyle_ True)
+                    --    { onPress = Just <| ChangePluginMode (SignUpMode Initial)
+                    --    , label = text "Nouvel utilisateur"
+                    --    }
                     ]
                 ]
 
