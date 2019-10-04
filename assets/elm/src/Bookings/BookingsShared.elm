@@ -520,27 +520,26 @@ priceView lang nc na nk bo =
                     (\o acc -> o.price + acc)
                     0
 
-        roundC n =
-            round (n * 100)
-                |> toFloat
-                |> (\k -> k / 100)
-
+        --roundC n =
+        --    round (n * 100)
+        --        |> toFloat
+        --        |> (\k -> k / 100)
         tax =
-            let
-                taxBase =
-                    min 2.3
-                        (roundC <|
-                            (roundC <|
-                                (roundC <| basePrice / toFloat nc)
-                                    / (toFloat <| na + nk)
-                            )
-                                * 0.05
-                        )
-
-                taxAdd =
-                    roundC <| taxBase * 0.1
-            in
-            roundC <| (taxBase + taxAdd) * (toFloat <| na * nc)
+            --let
+            --    taxBase =
+            --        min 2.3
+            --            (roundC <|
+            --                (roundC <|
+            --                    (roundC <| basePrice / toFloat nc)
+            --                        / (toFloat <| na + nk)
+            --                )
+            --                    * 0.05
+            --            )
+            --    taxAdd =
+            --        roundC <| taxBase * 0.1
+            --in
+            --roundC <| (taxBase + taxAdd) * (toFloat <| na * nc)
+            0.99 * toFloat na * toFloat nc
     in
     el
         []
