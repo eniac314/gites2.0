@@ -7,7 +7,7 @@ mix phx.server
 source .env && mix phx.server
 
 - lock log in if login from local storage
-
+source .env && mix phx.server
 - check responsive layout page détails
 
 - make album thumbs scrollable on ios
