@@ -96,3 +96,213 @@ text
 
 ###############################################################################
 mix phx.gen.json PagesData PageData pagesdata name:string:unique content:text
+
+
+
+################################################################################
+Resolving Hex dependencies...
+Dependency resolution completed:
+Unchanged:
+  bamboo_smtp 1.6.0
+  base64url 0.0.1
+  certifi 2.5.1
+  connection 1.0.4
+  gen_smtp 0.12.0
+  guardian 1.2.1
+  idna 6.0.0
+  jason 1.1.2
+  jose 1.9.0
+  metrics 1.0.1
+  mime 1.3.1
+  mimerl 1.2.0
+  parse_trans 3.3.0
+  phoenix_ecto 4.0.0
+  phoenix_pubsub 1.1.2
+  plug_crypto 1.0.0
+  poison 3.1.0
+  ranch 1.7.1
+  recaptcha 2.3.0
+  sweet_xml 0.6.6
+  unicode_util_compat 0.4.1
+Upgraded:
+  bamboo 1.2.0 => 1.3.0
+  comeonin 5.1.0 => 5.1.2
+  cowboy 2.6.1 => 2.6.3
+  cowlib 2.7.0 => 2.7.3
+  db_connection 2.0.5 => 2.1.1
+  decimal 1.7.0 => 1.8.0
+  ecto 3.0.7 => 3.2.2
+  ecto_sql 3.0.5 => 3.2.0
+  ex_aws 2.1.0 => 2.1.1
+  ex_aws_s3 2.0.1 => 2.0.2
+  file_system 0.2.6 => 0.2.7
+  gettext 0.16.1 => 0.17.0 (minor)
+  hackney 1.15.1 => 1.15.2
+  httpoison 1.5.0 => 1.6.1
+  pbkdf2_elixir 1.0.1 => 1.0.2
+  phoenix 1.4.1 => 1.4.10
+  phoenix_html 2.13.1 => 2.13.3
+  phoenix_live_reload 1.2.0 => 1.2.1
+  plug 1.7.2 => 1.8.3
+  plug_cowboy 2.0.1 => 2.1.0
+  postgrex 0.14.1 => 0.15.1 (minor)
+  ssl_verify_fun 1.1.4 => 1.1.5
+  telemetry 0.3.0 => 0.4.0 (minor)
+* Updating phoenix (Hex package)
+* Updating ecto_sql (Hex package)
+* Updating postgrex (Hex package)
+* Updating phoenix_html (Hex package)
+* Updating phoenix_live_reload (Hex package)
+* Updating gettext (Hex package)
+* Updating plug_cowboy (Hex package)
+* Updating comeonin (Hex package)
+* Updating pbkdf2_elixir (Hex package)
+* Updating ex_aws (Hex package)
+* Updating ex_aws_s3 (Hex package)
+* Updating hackney (Hex package)
+* Updating bamboo (Hex package)
+* Updating plug (Hex package)
+* Updating ssl_verify_fun (Hex package)
+* Updating httpoison (Hex package)
+* Updating cowboy (Hex package)
+* Updating cowlib (Hex package)
+* Updating file_system (Hex package)
+* Updating db_connection (Hex package)
+* Updating decimal (Hex package)
+* Updating ecto (Hex package)
+* Updating telemetry (Hex package)
+eniac314@eniac314-Aspire-E5-573G:~/prog/elm/gites2.0$ source .env && mix phx.server
+==> file_system
+Compiling 7 files (.ex)
+Generated file_system app
+==> gettext
+Compiling 1 file (.yrl)
+Compiling 1 file (.erl)
+Compiling 20 files (.ex)
+Generated gettext app
+==> gites
+Could not find "rebar3", which is needed to build dependency :telemetry
+I can install a local copy which is just used by Mix
+Shall I install rebar3? (if running non-interactively, use "mix local.rebar --force") [Yn] Y
+* creating /home/eniac314/.mix/rebar
+* creating /home/eniac314/.mix/rebar3
+===> Compiling telemetry
+==> decimal
+Compiling 1 file (.ex)
+Generated decimal app
+==> jason
+Compiling 8 files (.ex)
+Generated jason app
+==> comeonin
+Compiling 4 files (.ex)
+Generated comeonin app
+==> pbkdf2_elixir
+Compiling 5 files (.ex)
+Generated pbkdf2_elixir app
+==> ssl_verify_fun
+Compiling 7 files (.erl)
+Generated ssl_verify_fun app
+===> Compiling hackney
+==> ex_aws
+Compiling 26 files (.ex)
+Generated ex_aws app
+==> ex_aws_s3
+Compiling 7 files (.ex)
+Generated ex_aws_s3 app
+==> db_connection
+Compiling 14 files (.ex)
+Generated db_connection app
+==> httpoison
+Compiling 3 files (.ex)
+Generated httpoison app
+==> recaptcha
+Compiling 6 files (.ex)
+Generated recaptcha app
+==> ecto
+Compiling 55 files (.ex)
+Generated ecto app
+===> Compiling cowlib
+===> Compiling cowboy
+==> postgrex
+Compiling 61 files (.ex)
+Generated postgrex app
+==> ecto_sql
+Compiling 23 files (.ex)
+Generated ecto_sql app
+==> plug
+Compiling 1 file (.erl)
+Compiling 39 files (.ex)
+warning: System.stacktrace/0 outside of rescue/catch clauses is deprecated. If you want to support only Elixir v1.7+, you must access __STACKTRACE__ inside a rescue/catch. If you want to support earlier Elixir versions, move System.stacktrace/0 inside a rescue/catch
+  lib/plug/conn/wrapper_error.ex:23
+
+Generated plug app
+==> phoenix_html
+Compiling 8 files (.ex)
+Generated phoenix_html app
+==> plug_cowboy
+Compiling 6 files (.ex)
+Generated plug_cowboy app
+==> phoenix
+Compiling 67 files (.ex)
+warning: redefining module Mix.Tasks.Phx.Server (current version loaded from /home/eniac314/prog/elm/gites2.0/_build/dev/lib/phoenix/ebin/Elixir.Mix.Tasks.Phx.Server.beam)
+  lib/mix/tasks/phx.server.ex:1
+
+Generated phoenix app
+==> phoenix_live_reload
+Compiling 4 files (.ex)
+Generated phoenix_live_reload app
+==> guardian
+Compiling 20 files (.ex)
+Generated guardian app
+==> bamboo
+Compiling 25 files (.ex)
+Generated bamboo app
+==> bamboo_smtp
+Compiling 1 file (.ex)
+Generated bamboo_smtp app
+==> phoenix_ecto
+Compiling 6 files (.ex)
+Generated phoenix_ecto app
+==> gites
+Compiling 47 files (.ex)
+warning: clauses with the same name and arity (number of arguments) should be grouped together, "def handle_call/3" was previously defined (lib/gites/backup/backup_server.ex:104)
+  lib/gites/backup/backup_server.ex:202
+
+warning: clauses with the same name and arity (number of arguments) should be grouped together, "def handle_cast/2" was previously defined (lib/gites/backup/backup_server.ex:108)
+  lib/gites/backup/backup_server.ex:220
+
+warning: function init/1 required by behaviour GenServer is not implemented (in module Gites.BackupServer).
+
+We will inject a default implementation for now:
+
+    def init(init_arg) do
+      {:ok, init_arg}
+    end
+
+You can copy the implementation above or define your own that converts the arguments given to GenServer.start_link/3 to the server state.
+
+  lib/gites/backup/backup_server.ex:1: Gites.BackupServer (module)
+
+warning: variable "base_email" does not exist and is being expanded to "base_email()", please use parentheses to remove the ambiguity or change the variable name
+  lib/gites/email.ex:6: Gites.Email.notif_admin_email/2
+
+warning: variable "base_email" does not exist and is being expanded to "base_email()", please use parentheses to remove the ambiguity or change the variable name
+  lib/gites/email.ex:13: Gites.Email.notif_email/3
+
+warning: function init/1 required by behaviour GenServer is not implemented (in module Gites.AuthLock).
+
+We will inject a default implementation for now:
+
+    def init(init_arg) do
+      {:ok, init_arg}
+    end
+
+You can copy the implementation above or define your own that converts the arguments given to GenServer.start_link/3 to the server state.
+
+  lib/gites/auth/auth_lock.ex:1: Gites.AuthLock (module)
+
+warning: unused alias AwsUploadView
+  lib/gites_web/views/aws_upload_view.ex:3
+
+warning: variable "ok" is unused (if the variable is not meant to be used, prefix it with an underscore)
+  lib/gites_web/controllers/backups_controller.ex:24: GitesWeb.BackupsController.import_backup/2
