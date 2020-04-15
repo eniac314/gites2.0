@@ -64,7 +64,9 @@ config :ex_aws,
     host: "s3.eu-west-3.amazonaws.com",
     region: "eu-west-3" ]
 
-
+config :phoenix, :format_encoders,
+  ics: ICalendar
+  
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{Mix.env()}.exs"

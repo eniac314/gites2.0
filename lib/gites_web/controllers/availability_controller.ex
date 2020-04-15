@@ -13,6 +13,27 @@ defmodule GitesWeb.AvailabilityController do
     render(conn, "index.json", availabilities: availabilities)
   end
 
+  def index_ical(conn, _params) do
+    availabilities = BookingSystem.list_availabilities()
+
+    events =
+      BookingSystem.list_availabilities()
+      |> Enum.map(fn av -> av.date end)
+      |> Ratadie.group_dates()
+      |> Enum.map(&GitesWeb.AvailabilityController.to_event/1)
+
+    calendar = %ICalendar{events: events}
+    render(conn, "index.ics", calendar: calendar)
+  end
+
+  def to_event(range) do
+    %ICalendar.Event{
+      summary: "unavailable",
+      dtstart: Ratadie.to_event_date(range[:start]),
+      dtend: Ratadie.to_event_date(range[:stop])
+    }
+  end
+
   def index_admin(conn, _params) do
     availabilities = BookingSystem.list_availabilities()
     render(conn, "index_admin.json", availabilities: availabilities)

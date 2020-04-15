@@ -19,6 +19,10 @@ defmodule GitesWeb.AvailabilityView do
       availability: availability.availability}
   end
 
+  def render("index.ics", %{calendar: calendar}) do
+    calendar
+  end
+
   def render("availability_admin.json", %{availability: availability}) do
     %{date: availability.date,
       availability: availability.availability,

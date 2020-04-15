@@ -54,6 +54,7 @@ defmodule Gites.MixProject do
       {:sweet_xml, "~> 0.6"},
       {:bamboo, "~> 1.2"},
       {:bamboo_smtp, "~> 1.6.0"},
+      {:icalendar, "~> 1.0"},
     ]
   end
 

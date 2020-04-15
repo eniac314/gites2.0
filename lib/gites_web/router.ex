@@ -30,6 +30,7 @@ defmodule GitesWeb.Router do
     post("/login", UserSessionController, :create)
     resources("/bookings", BookingController, only: [:create])
     resources("/availabilities", AvailabilityController, only: [:index])
+    get("/index.ics", AvailabilityController, :index_ical)
     resources("/pagesdata", PageDataController, only: [:show])
   end
 
