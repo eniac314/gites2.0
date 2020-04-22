@@ -7,10 +7,10 @@
   <meta name="keywords" content="gîte, lainsecq, vieux lilas">
   <link rel="stylesheet" href="/css/app.css">
  
-  <!-- <script src="https://www.google.com/recaptcha/api.js?render=explicit" async defer></script> -->
+  <script src="https://www.google.com/recaptcha/api.js?render=explicit" async defer></script>
 
   <!-- Matomo -->
-  <!-- <script type="text/javascript">
+  <script type="text/javascript">
     var _paq = window._paq || [];
     /* tracker methods like "setCustomDimension" should be called before "trackPageView" */
     _paq.push(['trackPageView']);
@@ -22,7 +22,7 @@
       var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
       g.type='text/javascript'; g.async=true; g.defer=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
     })();
-  </script> -->
+  </script>
 <!-- End Matomo Code -->
 
 </head>
