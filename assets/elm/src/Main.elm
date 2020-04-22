@@ -22,6 +22,7 @@ import Internals.Helpers exposing (decoBorder, decodeMls, getArtworks)
 import Internals.MarkdownParser as MarkdownParser
 import Json.Decode as D
 import Json.Encode as E
+import LocalStorage.Cookies as Cookies
 import MultLang.MultLang exposing (..)
 import Style.Helpers exposing (..)
 import Style.Icons as Icons
@@ -48,6 +49,7 @@ type DisplayMode
     | DisplayRates
     | DisplayNearby
     | DisplayAccess
+    | DisplayCookiesInfo
 
 
 type alias Model =
@@ -56,6 +58,7 @@ type alias Model =
     , nearbyPage : GenericPage.Model Msg
     , galleryPage : GalleryPage.Model Msg
     , bookings : Bookings.Model Msg
+    , cookiesAdmin : Cookies.Model Msg
     , ratePage : Maybe MultLangStr
     , lang : Lang
     , displayMode : DisplayMode
@@ -77,6 +80,7 @@ type Msg
     | NearbyPageMsg GenericPage.Msg
     | GalleryPageMsg GalleryPage.Msg
     | BookingsMsg Bookings.Msg
+    | CookiesAdminMsg Cookies.Msg
     | ChangeLang Lang
     | GotRateArticle (Result Http.Error MultLangStr)
     | DownloadDoc String
@@ -109,6 +113,9 @@ init flags url key =
         ( newGalleryPage, galleryCmd ) =
             GalleryPage.init GalleryPageMsg
 
+        ( newCookiesAdmin, cookiesAdminCmd ) =
+            Cookies.init CookiesAdminMsg
+
         url_ =
             if
                 (url.path == "/")
@@ -124,6 +131,7 @@ init flags url key =
       , nearbyPage = newNearbyPage
       , galleryPage = newGalleryPage
       , bookings = newBookings
+      , cookiesAdmin = newCookiesAdmin
       , ratePage = Nothing
       , lang = French
       , displayMode =
@@ -150,6 +158,7 @@ init flags url key =
         , nearbyPageCmd
         , galleryCmd
         , bookingsCmd
+        , cookiesAdminCmd
         , Http.get
             { url = "/api/pagesdata/rateArticle"
             , expect =
@@ -172,6 +181,7 @@ subscriptions model =
         , GenericPage.subscriptions model.nearbyPage
         , Bookings.subscriptions model.bookings
         , GalleryPage.subscriptions model.galleryPage
+        , Cookies.subscriptions model.cookiesAdmin
         ]
 
 
@@ -265,6 +275,15 @@ update msg model =
             , bookingsCmd
             )
 
+        CookiesAdminMsg cookiesAdminMsg ->
+            let
+                ( newCookiesAdmin, cookiesAdminCmd ) =
+                    Cookies.update cookiesAdminMsg model.cookiesAdmin
+            in
+            ( { model | cookiesAdmin = newCookiesAdmin }
+            , cookiesAdminCmd
+            )
+
         ChangeLang l ->
             ( { model | lang = l }, Cmd.none )
 
@@ -296,6 +315,7 @@ urlDict =
         , ( "rates", DisplayRates )
         , ( "nearby", DisplayNearby )
         , ( "access", DisplayAccess )
+        , ( "cookies", DisplayCookiesInfo )
         ]
 
 
@@ -420,6 +440,13 @@ view model =
                                     , width = model.width
                                     }
                                     model.accessPage
+
+                            DisplayCookiesInfo ->
+                                Cookies.view
+                                    { lang = model.lang
+                                    , width = model.width
+                                    }
+                                    model.cookiesAdmin
                         ]
                     , footer model
                     ]

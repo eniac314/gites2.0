@@ -86,3 +86,47 @@ app.ports.loadCaptcha.subscribe(function(sitekey) {
      }
   );  
 });
+
+// Cookies admin code ///////////////////
+
+app.ports.loadExternalScript.subscribe(function(url){
+    var script = document.createElement("script");  
+    script.src = url;  
+
+    document.head.appendChild(script);  
+});
+
+app.ports.loadMatomo.subscribe(function(){
+  var _paq = window._paq || [];
+    /* tracker methods like "setCustomDimension" should be called before "trackPageView" */
+    _paq.push(['trackPageView']);
+    _paq.push(['enableLinkTracking']);
+    (function() {
+      var u="//analytics.uminokirin.com/matomo/";
+      _paq.push(['setTrackerUrl', u+'matomo.php']);
+      _paq.push(['setSiteId', '2']);
+      var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+      g.type='text/javascript'; g.async=true; g.defer=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
+    })();
+});
+
+app.ports.setCookieConsent.subscribe(function(prefs){
+  window.localStorage.setItem('vieuxLilasCookiePrefs', prefs);
+});
+
+app.ports.loadLocalPrefs.subscribe(function(){
+  var prefs = window.localStorage.getItem('vieuxLilasCookiePrefs') || {};
+  app.ports.localPrefs.send(prefs);
+});
+
+app.ports.clearLocalStorage.subscribe(function(){
+  window.localStorage.clear();
+  var cookies = document.cookie.split(";");
+
+  for (var i = 0; i < cookies.length; i++) {
+      var cookie = cookies[i];
+      var eqPos = cookie.indexOf("=");
+      var name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+      document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  }
+})

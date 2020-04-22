@@ -14,8 +14,6 @@ defmodule GitesWeb.AvailabilityController do
   end
 
   def index_ical(conn, _params) do
-    availabilities = BookingSystem.list_availabilities()
-
     events =
       BookingSystem.list_availabilities()
       |> Enum.map(fn av -> av.date end)

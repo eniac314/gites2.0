@@ -929,6 +929,65 @@ dateChoiceView config model =
                 ]
             ]
         , (if config.width < 1000 then
+            column [ spacing 15, width fill ]
+
+           else
+            row [ spacing 15, width fill ]
+          )
+            [ el [ width fill ]
+                (Select.view
+                    { outMsg = NbrAdultSelectorMsg
+                    , items =
+                        [ ( "1", SelectNbrAdults 1 )
+                        , ( "2", SelectNbrAdults 2 )
+                        , ( "3", SelectNbrAdults 3 )
+                        , ( "4", SelectNbrAdults 4 )
+                        , ( "5", SelectNbrAdults 5 )
+                        , ( "6", SelectNbrAdults 6 )
+                        ]
+                    , selected =
+                        model.nbrAdults
+                            |> Maybe.map String.fromInt
+                    , placeholder =
+                        Just "-"
+                    , label =
+                        Just <|
+                            mandatoryLabel config
+                                (MultLangStr
+                                    "Number of adults"
+                                    "Nombre d'adultes"
+                                )
+                    }
+                    model.nbrAdultSelector
+                )
+            , el [ width fill ]
+                (Select.view
+                    { outMsg = NbrChildrenSelectorMsg
+                    , items =
+                        [ ( "1", SelectNbrChildren 1 )
+                        , ( "2", SelectNbrChildren 2 )
+                        , ( "3", SelectNbrChildren 3 )
+                        , ( "4", SelectNbrChildren 4 )
+                        , ( "5", SelectNbrChildren 5 )
+                        , ( "6", SelectNbrChildren 6 )
+                        ]
+                    , selected =
+                        model.nbrChildren
+                            |> Maybe.map String.fromInt
+                    , placeholder =
+                        Just "-"
+                    , label =
+                        Just <|
+                            regLabel config
+                                (MultLangStr
+                                    "Number of children"
+                                    "Nombre d'enfants"
+                                )
+                    }
+                    model.nbrChildrenSelector
+                )
+            ]
+        , (if config.width < 1000 then
             column
 
            else
@@ -949,6 +1008,39 @@ dateChoiceView config model =
                     optionsView config model
 
             Nothing ->
+                Element.none
+        , case ( ( model.checkInDate, model.checkOutDate ), model.nbrAdults ) of
+            ( ( Just ci, Just co ), Just na ) ->
+                let
+                    nc =
+                        nightsCount ci co
+                in
+                column [ spacing 15 ]
+                    [ el
+                        []
+                        (text <|
+                            strM config.lang
+                                (MultLangStr "Your stay: "
+                                    "Réservation pour "
+                                )
+                                ++ String.fromInt nc
+                                ++ (if nc > 1 then
+                                        strM config.lang
+                                            (MultLangStr " nights"
+                                                " nuits"
+                                            )
+
+                                    else
+                                        strM config.lang
+                                            (MultLangStr " night"
+                                                " nuit"
+                                            )
+                                   )
+                        )
+                    , priceView config.lang nc na (Maybe.withDefault 0 model.nbrChildren) (model.options |> Maybe.withDefault dummyOptions)
+                    ]
+
+            _ ->
                 Element.none
         , el
             [ alignLeft
@@ -1019,8 +1111,8 @@ optionsView config model =
 
 
 canShowForm model =
-    case ( model.checkInDate, model.checkOutDate ) of
-        ( Just _, Just _ ) ->
+    case ( model.checkInDate, model.checkOutDate, model.nbrAdults ) of
+        ( Just _, Just _, Just _ ) ->
             True
 
         _ ->
