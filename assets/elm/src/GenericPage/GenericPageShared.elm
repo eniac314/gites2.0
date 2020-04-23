@@ -1,4 +1,4 @@
-module GenericPage.GenericPageShared exposing (..)
+module GenericPage.GenericPageShared exposing (GenericPageContent, GenericPageItem(..), GoogleMapMeta, buildGoogleMapUrl, decodeGenericPage, decodeGenericPageItem, decodeGoogleMapMeta, genericPageItemView, getGenericPageContent, googleMapIframe, initCarousels, parseHtml)
 
 import Dict exposing (..)
 import Element exposing (..)
@@ -20,6 +20,7 @@ import Json.Decode as D
 import Json.Encode as E
 import MultLang.MultLang exposing (..)
 import Style.Helpers exposing (..)
+import Style.Palette exposing (..)
 
 
 type alias GenericPageContent =
@@ -48,6 +49,7 @@ genericPageItemView :
         , width : Int
         , carousels : Dict String (Carousel.Model msg)
         , downloadHandler : String -> msg
+        , showGoogleMaps : Bool
     }
     -> GenericPageItem
     -> Element msg
@@ -74,11 +76,45 @@ genericPageItemView config item =
                         )
                         images
                     )
+
             else
                 sameHeightImgRow awsUrl Nothing images
 
         GoogleMap gm ->
-            googleMapIframe gm
+            if config.showGoogleMaps then
+                googleMapIframe gm
+
+            else
+                paragraph
+                    [ paddingXY 10 20
+                    , Background.color white
+                    , Border.rounded 20
+                    , Font.italic
+                    ]
+                    [ textM config.lang
+                        (MultLangStr "You need to "
+                            "Il est nécéssaire d'"
+                        )
+                    , link
+                        [ mouseOver
+                            [ Font.color blue
+                            ]
+                        , Font.underline
+                        , Font.color lightBlue
+                        ]
+                        { url = "/cookies"
+                        , label =
+                            textM config.lang
+                                (MultLangStr
+                                    "allow cookies for google services"
+                                    "autoriser les cookies pour les services Google"
+                                )
+                        }
+                    , textM config.lang
+                        (MultLangStr " in order to show this map"
+                            " pour les services Google pour pouvoir afficher cette carte"
+                        )
+                    ]
 
         Carousel id pics ->
             case Dict.get id config.carousels of
@@ -210,6 +246,7 @@ buildGoogleMapUrl mapMeta =
             [ Just <| "pb=" ++ mapMeta.pb
             , if not mapMeta.frameBorder then
                 Just "frameborder=0"
+
               else
                 Nothing
             ]
@@ -218,6 +255,7 @@ buildGoogleMapUrl mapMeta =
                 |> (\s ->
                         if s == "" then
                             s
+
                         else
                             "?" ++ s
                    )
@@ -236,6 +274,7 @@ googleMapIframe gm =
                 , HtmlAttr.height gm.height
                 , if gm.frameBorder then
                     noHtmlAttr
+
                   else
                     HtmlAttr.attribute "frameborder" "0"
                 , HtmlAttr.attribute "allowfullscreen" "true"

@@ -50,6 +50,8 @@ type DisplayMode
     | DisplayNearby
     | DisplayAccess
     | DisplayCookiesInfo
+    | DisplayHostingInfo
+    | DisplayContactInfo
 
 
 type alias Model =
@@ -316,6 +318,8 @@ urlDict =
         , ( "nearby", DisplayNearby )
         , ( "access", DisplayAccess )
         , ( "cookies", DisplayCookiesInfo )
+        , ( "hosting", DisplayHostingInfo )
+        , ( "contact", DisplayContactInfo )
         ]
 
 
@@ -344,6 +348,17 @@ view model =
         [ Element.layout
             [ width fill
             , Font.size 16
+            , if model.displayMode /= DisplayCookiesInfo then
+                inFront
+                    (Cookies.floatingDialogView
+                        { lang = model.lang
+                        , width = model.width
+                        }
+                        model.cookiesAdmin
+                    )
+
+              else
+                noAttr
             ]
             (el
                 [ width fill
@@ -371,6 +386,7 @@ view model =
                                 GenericPage.view
                                     { lang = model.lang
                                     , width = model.width
+                                    , showGoogleMaps = .googleConsent <| Cookies.cookiesPrefs model.cookiesAdmin
                                     }
                                     model.frontPage
 
@@ -389,6 +405,7 @@ view model =
                                     , url = model.url
                                     , width = model.width
                                     , artwork = a2
+                                    , canUseGoogleRecaptcha = .googleConsent <| Cookies.cookiesPrefs model.cookiesAdmin
                                     }
                                     model.bookings
 
@@ -431,6 +448,7 @@ view model =
                                 GenericPage.view
                                     { lang = model.lang
                                     , width = model.width
+                                    , showGoogleMaps = .googleConsent <| Cookies.cookiesPrefs model.cookiesAdmin
                                     }
                                     model.nearbyPage
 
@@ -438,6 +456,7 @@ view model =
                                 GenericPage.view
                                     { lang = model.lang
                                     , width = model.width
+                                    , showGoogleMaps = .googleConsent <| Cookies.cookiesPrefs model.cookiesAdmin
                                     }
                                     model.accessPage
 
@@ -447,6 +466,12 @@ view model =
                                     , width = model.width
                                     }
                                     model.cookiesAdmin
+
+                            DisplayHostingInfo ->
+                                displayHostingInfo model
+
+                            DisplayContactInfo ->
+                                displayContactInfo model
                         ]
                     , footer model
                     ]
@@ -454,6 +479,116 @@ view model =
             )
         ]
     }
+
+
+displayHostingInfo model =
+    column
+        [ spacing 40
+        , padding 15
+        , width (maximum 1000 fill)
+        , centerX
+        , Font.size 18
+        , Font.family
+            [ Font.typeface "times"
+            ]
+        ]
+        [ el
+            [ Font.bold
+            , Font.size 22
+            , Font.family
+                [ Font.typeface "Crimson Text"
+                , Font.sansSerif
+                ]
+            ]
+            (textM model.lang
+                (MultLangStr "Hosting and data policy"
+                    "Hébergement et gestion des données"
+                )
+            )
+        , paragraph
+            []
+            [ textM model.lang
+                (MultLangStr
+                    "This website is hosted by "
+                    "Ce site est hébergé par la société "
+                )
+            , link
+                [ mouseOver
+                    [ Font.color blue ]
+                , Font.underline
+                , Font.color lightBlue
+                ]
+                { url = "https://www.heroku.com"
+                , label =
+                    textM model.lang
+                        (MultLangStr
+                            "Heroku"
+                            "Heroku"
+                        )
+                }
+            ]
+        , paragraph
+            []
+            [ textM model.lang
+                (MultLangStr
+                    "Personal data collected via the booking form are only used internaly. This data will not be shared or sold to anyone"
+                    "Les données personnelles collectées par ce site via le formulaire de réservation sont uniquement destinées à un usage interne. En aucun cas ces données ne seront cédées, communiquées ou vendues à des tiers. "
+                )
+            ]
+        ]
+
+
+displayContactInfo model =
+    column
+        [ spacing 40
+        , padding 15
+        , width (maximum 1000 fill)
+        , centerX
+        , Font.size 18
+        , Font.family
+            [ Font.typeface "times"
+            ]
+        ]
+        [ el
+            [ Font.bold
+            , Font.size 22
+            , Font.family
+                [ Font.typeface "Crimson Text"
+                , Font.sansSerif
+                ]
+            ]
+            (textM model.lang
+                (MultLangStr "Contact"
+                    "Contact"
+                )
+            )
+        , column
+            [ spacing 10 ]
+            [ el
+                [ Font.size 20
+                , Font.family
+                    [ Font.typeface "Crimson Text"
+                    , Font.sansSerif
+                    ]
+                ]
+                (textM model.lang (MultLangStr "" "Responsable gîte:"))
+            , el [ Font.bold ] (text "Sylvie Gillard")
+            , text "sylvie.gillard@laposte.net"
+            ]
+        , column
+            [ spacing 10 ]
+            [ el
+                [ Font.size 20
+                , Font.family
+                    [ Font.typeface "Crimson Text"
+                    , Font.sansSerif
+                    ]
+                ]
+                (textM model.lang (MultLangStr "" "Responsable site:"))
+            , el [ Font.bold ] (text "Florian Gillard")
+            , text "florian.gillard@tutanota.com"
+            ]
+        ]
 
 
 header : Model -> Element Msg
@@ -812,13 +947,28 @@ footer model =
             , centerX
             ]
             [ footerHeader
-                { fr = "Hébergement"
-                , en = "Hosting"
+                { fr = "Mentions légales"
+                , en = "Legal & privacy"
                 }
             , footerItem
-                { fr = "Heroku"
-                , en = "Heroku"
+                { fr = "Hébergement et traitement des données"
+                , en = "Hosting and data policy"
                 }
-                "https://www.heroku.com/"
+                "/hosting"
+            , footerItem
+                { fr = "Gestion des cookies"
+                , en = "Cookies"
+                }
+                "/cookies"
+            , footerItem
+                { fr = "Conditions générales de vente"
+                , en = "Conditions générales de vente"
+                }
+                "https://gite-vieux-lilas.s3.eu-west-3.amazonaws.com/Documents/CONDITIONS_GENERALES.pdf"
+            , footerItem
+                { fr = "Contact"
+                , en = "Contact"
+                }
+                "/contact"
             ]
         ]

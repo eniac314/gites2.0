@@ -97,26 +97,27 @@ app.ports.loadExternalScript.subscribe(function(url){
 });
 
 app.ports.loadMatomo.subscribe(function(){
-  var _paq = window._paq || [];
-    /* tracker methods like "setCustomDimension" should be called before "trackPageView" */
-    _paq.push(['trackPageView']);
-    _paq.push(['enableLinkTracking']);
-    (function() {
-      var u="//analytics.uminokirin.com/matomo/";
-      _paq.push(['setTrackerUrl', u+'matomo.php']);
-      _paq.push(['setSiteId', '2']);
-      var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
-      g.type='text/javascript'; g.async=true; g.defer=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
-    })();
+  // var _paq = window._paq || [];
+  //   /* tracker methods like "setCustomDimension" should be called before "trackPageView" */
+  //   _paq.push(['trackPageView']);
+  //   _paq.push(['enableLinkTracking']);
+  //   (function() {
+  //     var u="//analytics.uminokirin.com/matomo/";
+  //     _paq.push(['setTrackerUrl', u+'matomo.php']);
+  //     _paq.push(['setSiteId', '2']);
+  //     var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+  //     g.type='text/javascript'; g.async=true; g.defer=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
+  //   })();
+  loadMatomoScript();
 });
 
 app.ports.setCookieConsent.subscribe(function(prefs){
-  window.localStorage.setItem('vieuxLilasCookiePrefs', prefs);
+  window.localStorage.setItem('vieuxLilasCookiePrefs', JSON.stringify(prefs));
 });
 
 app.ports.loadLocalPrefs.subscribe(function(){
-  var prefs = window.localStorage.getItem('vieuxLilasCookiePrefs') || {};
-  app.ports.localPrefs.send(prefs);
+  var prefs = window.localStorage.getItem('vieuxLilasCookiePrefs') || "{}";
+  app.ports.localPrefs.send(JSON.parse(prefs));
 });
 
 app.ports.clearLocalStorage.subscribe(function(){

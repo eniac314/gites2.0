@@ -116,6 +116,7 @@ type alias Model msg =
     , presences : Presence.PresenceState String
     , captchaResp : String
     , bookingProcessed : Status
+    , termsAndConditionsChecked : Bool
     , outMsg : Msg -> msg
     }
 
@@ -170,6 +171,7 @@ type Msg
     | Delay Float Msg
     | GotBookingOptions (Result Http.Error BookingOptions)
     | NewBooking
+    | AgreeToTermsAndConditions Bool
     | NoOp
 
 
@@ -243,6 +245,7 @@ init outMsg ( seed, seedExtension ) reset =
       , presences = Dict.empty
       , captchaResp = ""
       , bookingProcessed = Initial
+      , termsAndConditionsChecked = False
       , outMsg = outMsg
       }
     , Cmd.map outMsg <|
@@ -526,6 +529,9 @@ update config msg model =
 
                 Nothing ->
                     ( model, Cmd.none )
+
+        AgreeToTermsAndConditions b ->
+            ( { model | termsAndConditionsChecked = b }, Cmd.none )
 
         LoadCaptcha ->
             ( model
@@ -826,6 +832,7 @@ type alias ViewConfig =
     , url : Url.Url
     , width : Int
     , artwork : String
+    , canUseGoogleRecaptcha : Bool
     }
 
 
@@ -847,10 +854,20 @@ view config model =
                     [ dateChoiceView config model ]
 
                 "" :: "bookings" :: "form" :: [] ->
-                    [ formView config model ]
+                    [ if config.canUseGoogleRecaptcha then
+                        formView config model
+
+                      else
+                        allowCookiesView config
+                    ]
 
                 "" :: "bookings" :: "confirmation" :: [] ->
-                    [ confirmView config model ]
+                    [ if config.canUseGoogleRecaptcha then
+                        confirmView config model
+
+                      else
+                        allowCookiesView config
+                    ]
 
                 _ ->
                     []
@@ -871,6 +888,39 @@ view config model =
                         (text "")
                    ]
             )
+
+
+allowCookiesView config =
+    paragraph
+        [ paddingXY 10 20
+        , Background.color white
+        , Border.rounded 20
+        , Font.italic
+        ]
+        [ textM config.lang
+            (MultLangStr "The booking form is protected from bots by Google recaptcha, please "
+                "Le formulaire de réservation est protégé contre les robots par Google recaptcha, merci d'"
+            )
+        , link
+            [ mouseOver
+                [ Font.color blue
+                ]
+            , Font.underline
+            , Font.color lightBlue
+            ]
+            { url = "/cookies"
+            , label =
+                textM config.lang
+                    (MultLangStr
+                        "allow cookies for google services"
+                        "autoriser les cookies pour les services Google"
+                    )
+            }
+        , textM config.lang
+            (MultLangStr " if you want to make a reservation."
+                " si vous souhaitez reserver en ligne."
+            )
+        ]
 
 
 
@@ -999,6 +1049,39 @@ dateChoiceView config model =
             [ checkInView config model
             , checkOutView config model
             ]
+        , wrappedRow
+            [ spacing 15 ]
+            [ link
+                [ mouseOver
+                    [ Font.color blue
+                    ]
+                , Font.underline
+                , Font.color lightBlue
+                ]
+                { url = "/rates"
+                , label =
+                    textM config.lang
+                        (MultLangStr
+                            "Our rates"
+                            "Nos tarifs"
+                        )
+                }
+            , newTabLink
+                [ mouseOver
+                    [ Font.color blue
+                    ]
+                , Font.underline
+                , Font.color lightBlue
+                ]
+                { url = "https://gite-vieux-lilas.s3.eu-west-3.amazonaws.com/Documents/CONDITIONS_GENERALES.pdf"
+                , label =
+                    textM config.lang
+                        (MultLangStr
+                            "Conditions générales de vente"
+                            "Conditions générales de vente"
+                        )
+                }
+            ]
         , case Maybe.map .options model.options of
             Just d ->
                 if d == Dict.empty then
@@ -1038,6 +1121,12 @@ dateChoiceView config model =
                                    )
                         )
                     , priceView config.lang nc na (Maybe.withDefault 0 model.nbrChildren) (model.options |> Maybe.withDefault dummyOptions)
+                    , paragraph []
+                        [ textM config.lang
+                            (MultLangStr "The tourist tax is included in the price."
+                                "Ce prix prend en compte la taxe de séjour."
+                            )
+                        ]
                     ]
 
             _ ->
@@ -1685,6 +1774,39 @@ confirmView config model =
                 , customerDetailView config bookingInfo
                 , contactView config bookingInfo
                 , recapView config cInDate cOutDate bookingInfo (model.options |> Maybe.withDefault dummyOptions)
+                , Input.checkbox
+                    [ paddingXY 0 15 ]
+                    { onChange = AgreeToTermsAndConditions
+                    , icon =
+                        Input.defaultCheckbox
+                    , checked = model.termsAndConditionsChecked
+                    , label =
+                        Input.labelRight []
+                            (row
+                                []
+                                [ textM config.lang
+                                    (MultLangStr
+                                        "I agree to the "
+                                        "J'accepte les "
+                                    )
+                                , newTabLink
+                                    [ mouseOver
+                                        [ Font.color blue
+                                        ]
+                                    , Font.underline
+                                    , Font.color lightBlue
+                                    ]
+                                    { url = "https://gite-vieux-lilas.s3.eu-west-3.amazonaws.com/Documents/CONDITIONS_GENERALES.pdf"
+                                    , label =
+                                        textM config.lang
+                                            (MultLangStr
+                                                "terms and conditions"
+                                                "conditions générales de ventes"
+                                            )
+                                    }
+                                ]
+                            )
+                    }
                 , html <|
                     Html.img
                         [ HtmlAttr.hidden True
@@ -1712,9 +1834,9 @@ confirmView config model =
                                         (MultLangStr "Go back" "Retour")
                                 }
                             , Input.button
-                                (buttonStyle2 (model.captchaResp /= ""))
+                                (buttonStyle2 (model.captchaResp /= "" && model.termsAndConditionsChecked))
                                 { onPress =
-                                    if model.captchaResp /= "" then
+                                    if model.captchaResp /= "" && model.termsAndConditionsChecked then
                                         Just (SendBookingData config.lang)
 
                                     else

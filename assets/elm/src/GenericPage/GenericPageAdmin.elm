@@ -622,6 +622,7 @@ editableItem config model id item =
             , width = config.width
             , carousels = model.carousels
             , downloadHandler = model.outMsg << DownloadDoc
+            , showGoogleMaps = True
             }
             item
         , itemControlView config model id

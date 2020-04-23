@@ -1,4 +1,4 @@
-module GenericPage.GenericPage exposing (..)
+module GenericPage.GenericPage exposing (Model, Msg(..), init, subscriptions, update, view)
 
 import Dict exposing (..)
 import Element exposing (..)
@@ -96,7 +96,7 @@ update config msg model =
             ( model, Cmd.none )
 
 
-view : { a | lang : Lang, width : Int } -> Model msg -> Element msg
+view : { a | lang : Lang, width : Int, showGoogleMaps : Bool } -> Model msg -> Element msg
 view config model =
     column
         [ width (maximum 1000 fill)
@@ -111,6 +111,7 @@ view config model =
                 , width = config.width
                 , carousels = model.carousels
                 , downloadHandler = model.outMsg << DownloadDoc
+                , showGoogleMaps = config.showGoogleMaps
                 }
             )
             model.content
