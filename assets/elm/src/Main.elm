@@ -505,6 +505,38 @@ displayHostingInfo model =
                     "Hébergement et gestion des données"
                 )
             )
+        , column
+            [ spacing 5 ]
+            [ el [] (text "Conception: Gillard Informatique")
+            , el
+                []
+                (text "5 Place de l'église")
+            , el
+                []
+                (text "89520 Lainsecq")
+            , el
+                []
+                (text "Tel +33 (0)3 86 74 72 64")
+            , el
+                []
+                (text "Mobile +33 (0)6 52 11 05 72")
+            , el
+                []
+                (text "Siret: 823 705 009 00020")
+            , row
+                [ spacing 10 ]
+                [ el [] (text "Site officiel:")
+                , newTabLink
+                    [ mouseOver
+                        [ Font.color blue ]
+                    , Font.underline
+                    , Font.color lightBlue
+                    ]
+                    { url = "http://www.gillardinformatique.net"
+                    , label = text "gillardinformatique.net"
+                    }
+                ]
+            ]
         , paragraph
             []
             [ textM model.lang

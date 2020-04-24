@@ -119,7 +119,20 @@ update msg model =
                         , prefsSet = True
                         , prefSaved = True
                       }
-                    , Cmd.none
+                    , Cmd.batch
+                        [ setCookieConsent (encodeCookieConsent model)
+                        , if googleConsent then
+                            loadExternalScript "https://www.google.com/recaptcha/api.js?render=explicit"
+
+                          else
+                            Cmd.none
+                        , if matomoConsent then
+                            loadMatomo ()
+
+                          else
+                            Cmd.none
+                        ]
+                        |> Cmd.map model.outMsg
                     )
 
                 _ ->
