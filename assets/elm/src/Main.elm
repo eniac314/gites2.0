@@ -567,6 +567,14 @@ displayHostingInfo model =
                     "Les données personnelles collectées par ce site via le formulaire de réservation sont uniquement destinées à un usage interne. En aucun cas ces données ne seront cédées, communiquées ou vendues à des tiers. "
                 )
             ]
+        , paragraph []
+            [ textM
+                config.lang
+                (MultLangStr
+                    "We garantee we will only store customer data for the time necessary to process the transaction."
+                    "Nous nous engageons à conserver les données du client pendant la période strictement nécessaire pour la finalité du traitement."
+                )
+            ]
         ]
 
 
