@@ -113,15 +113,18 @@ update msg model =
         LocalPrefsLoaded prefsVal ->
             case D.decodeValue decodePrefs prefsVal of
                 Ok { matomoConsent, googleConsent } ->
-                    ( { model
-                        | googleConsent = googleConsent
-                        , matomoConsent = matomoConsent
-                        , prefsSet = True
-                        , prefSaved = True
-                      }
+                    let
+                        newModel =
+                            { model
+                                | googleConsent = googleConsent
+                                , matomoConsent = matomoConsent
+                                , prefsSet = True
+                                , prefSaved = True
+                            }
+                    in
+                    ( newModel
                     , Cmd.batch
-                        [ setCookieConsent (encodeCookieConsent model)
-                        , if googleConsent then
+                        [ if googleConsent then
                             loadExternalScript "https://www.google.com/recaptcha/api.js?render=explicit"
 
                           else
@@ -368,7 +371,7 @@ view config model =
                                 (textM config.lang
                                     (MultLangStr
                                         "Allow google services using cookies"
-                                        "Autoriser les services Google nécéssitants des cookies"
+                                        "Autoriser les services Google nécéssitant des cookies"
                                     )
                                 )
                         }
