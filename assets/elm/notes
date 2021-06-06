@@ -14,6 +14,9 @@ source .env && iex -S mix phx.server
 - make album thumbs scrollable on ios
 
 ###############################################################################
+using asdf to install multiple erlang/elixir versions:
+https://thinkingelixir.com/install-elixir-using-asdf/#Install_Erlang
+
 git memo:
 
 git add -A 

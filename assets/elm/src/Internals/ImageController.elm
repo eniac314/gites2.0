@@ -27,6 +27,7 @@ import Style.Helpers exposing (..)
 import Style.Icons as Icons exposing (..)
 import Style.Palette exposing (..)
 import Task exposing (perform)
+import Url.Builder as Url exposing (relative)
 
 
 port toImageProcessor : Encode.Value -> Cmd msg
@@ -100,6 +101,7 @@ load logInfo model output =
       }
     , if model.contentsLoadStatus == Initial then
         getContents logInfo model
+
       else
         Cmd.none
     )
@@ -110,6 +112,7 @@ subscriptions model =
     Sub.batch
         ([ if model.portActive then
             processedImages (model.outMsg << ImageProcessed)
+
            else
             Sub.none
          ]
@@ -287,6 +290,7 @@ update config msg model =
                                 , Waiting
                                 , Dict.empty
                                 )
+
                             else
                                 ( Cmd.none, model.contentsLoadStatus, uploaders )
                     in
@@ -336,6 +340,7 @@ update config msg model =
                 | picked =
                     if List.member imgMeta model.picked then
                         List.Extra.remove imgMeta model.picked
+
                     else
                         model.picked ++ [ imgMeta ]
               }
@@ -512,6 +517,7 @@ view config model =
                         { onPress =
                             if model.contentsLoadStatus == Success then
                                 Just ImagesRequested
+
                             else
                                 Nothing
                         , label =
@@ -522,6 +528,7 @@ view config model =
                         { onPress =
                             if model.locked == [] then
                                 Just AddToSelection
+
                             else
                                 Nothing
                         , label =
@@ -532,6 +539,7 @@ view config model =
                         { onPress =
                             if model.picked /= [] then
                                 Just DeletePicked
+
                             else
                                 Nothing
                         , label =
@@ -545,6 +553,7 @@ view config model =
                         , label =
                             textM config.lang (MultLangStr "reload pictures" "recharger images")
                         }
+
                   else
                     Element.none
                 , mainPanelView config model
@@ -572,6 +581,7 @@ view config model =
                         { onPress =
                             if model.output /= Dict.empty then
                                 Just SaveAndQuit
+
                             else
                                 Nothing
                         , label =
@@ -608,8 +618,10 @@ mainPanelView config model =
                         )
                     )
                 ]
+
             else
                 imageSelectorView config model
+
          else
             [ column
                 [ width fill
@@ -659,6 +671,7 @@ imageSelectorView config model =
                  , alignTop
                  , if List.member imgMeta model.picked then
                     Background.color lightBlue
+
                    else
                     Background.color grey
                  , mouseOver
@@ -667,6 +680,7 @@ imageSelectorView config model =
                  ]
                     ++ (if isLocked then
                             [ alpha 0.5 ]
+
                         else
                             [ Events.onClick
                                 (PickImage imgMeta)
@@ -697,6 +711,7 @@ imageSelectorView config model =
 rowOutputView config model =
     if model.output == Dict.empty then
         Element.none
+
     else
         column
             [ width (px <| min (config.width - 30) 1000)
@@ -731,6 +746,7 @@ rowOutputView config model =
 galleryOutPutView config model =
     if model.output == Dict.empty then
         Element.none
+
     else
         column
             [ width (px <| min (config.width - 30) 1000)

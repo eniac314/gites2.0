@@ -569,7 +569,7 @@ displayHostingInfo model =
             ]
         , paragraph []
             [ textM
-                config.lang
+                model.lang
                 (MultLangStr
                     "We garantee we will only store customer data for the time necessary to process the transaction."
                     "Nous nous engageons à conserver les données du client pendant la période strictement nécessaire pour la finalité du traitement."
