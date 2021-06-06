@@ -10,7 +10,7 @@
             "NoRedInk/elm-json-decode-pipeline": "1.0.0",
             "NoRedInk/elm-random-pcg-extended": "1.0.0",
             "NoRedInk/elm-uuid": "2.0.0",
-            "Skinney/murmur3": "2.0.8",
+            "robinheghan/murmur3": "1.0.0",
             "andrewMacmurray/elm-delay": "3.0.0",
             "avh4/elm-color": "1.0.0",
             "basti1302/elm-human-readable-filesize": "1.2.0",
