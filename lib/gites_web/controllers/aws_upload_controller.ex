@@ -50,7 +50,7 @@ defmodule GitesWeb.AwsUploadController do
 
   def delete(conn, %{"filename" => safe_id}) do
     bucket = System.get_env("S3_BUCKET")
-    path = String.replace(safe_id, "¤", "/")
+    path = String.replace(String.replace(safe_id, "¤", "/"), "_", " ")
 
     ExAws.S3.delete_object(bucket, path)
     |> ExAws.request()
@@ -85,7 +85,7 @@ defmodule GitesWeb.AwsUploadController do
   end
 
   def get_url(conn, %{"mime" => mime, "filename" => safe_id, "metadata" => meta}) do
-    id = String.replace(safe_id, "¤", "/")
+    id = String.replace(String.replace(safe_id, "¤", "/"), "_", " ")
     render(conn, "presigned_url.json", presigned_s3_url: presigned_s3_url(id, mime, meta))
   end
 
