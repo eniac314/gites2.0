@@ -14,6 +14,37 @@ source .env && iex -S mix phx.server
 - make album thumbs scrollable on ios
 
 ###############################################################################
+updating dependencies:
+
+mix:
+mix hex.outdated
+mix deps.update dep_name
+
+erlang/elixir:
+asdf list all elixir
+asdf install elixir version 
+asdf local elixir version 
+
+npm:
+cd assets
+npm outdated
+npm update --save/--save-dev
+list vulnerabilities: npm audit fix
+
+-------------------------------------------------------------------------------
+
+prod database backup: https://devcenter.heroku.com/articles/heroku-postgres-import-export
+heroku pg:backups:capture
+heroku pg:backups:download
+
+restore to local database:
+pg_restore --verbose --clean --no-acl --no-owner -h localhost -U myuser -d mydb latest.dump
+
+
+-------------------------------------------------------------------------------
+
+
+
 using asdf to install multiple erlang/elixir versions:
 https://thinkingelixir.com/install-elixir-using-asdf/#Install_Erlang
 
