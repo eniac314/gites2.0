@@ -47,18 +47,16 @@ type alias BookingInfo =
 
 
 type alias BookingOptions =
-    { twoNightsPrice : Maybe Float
-    , threeNightsPrice : Maybe Float
-    , moreThan3NightsPrice : Maybe Float
+    { basePrice : Maybe Float
+    , multiplier : Maybe Float
     , touristTax : Maybe Float
     , options : Dict String BookingOption
     }
 
 
 dummyOptions =
-    { twoNightsPrice = Nothing
-    , threeNightsPrice = Nothing
-    , moreThan3NightsPrice = Nothing
+    { basePrice = Nothing
+    , multiplier = Nothing
     , touristTax = Nothing
     , options = Dict.empty
     }
@@ -164,18 +162,13 @@ encodeBookingInfo bookingInfo =
 encodeBookingOptions : BookingOptions -> Encode.Value
 encodeBookingOptions bos =
     Encode.object
-        [ ( "twoNightsPrice"
-          , bos.twoNightsPrice
+        [ ( "basePrice"
+          , bos.basePrice
                 |> Maybe.map Encode.float
                 |> Maybe.withDefault Encode.null
           )
-        , ( "threeNightsPrice"
-          , bos.threeNightsPrice
-                |> Maybe.map Encode.float
-                |> Maybe.withDefault Encode.null
-          )
-        , ( "moreThan3NightsPrice"
-          , bos.moreThan3NightsPrice
+        , ( "multiplier"
+          , bos.multiplier
                 |> Maybe.map Encode.float
                 |> Maybe.withDefault Encode.null
           )
@@ -273,9 +266,8 @@ decodeLanguage =
 decodeBookingOptions =
     Decode.succeed
         BookingOptions
-        |> required "twoNightsPrice" (Decode.nullable Decode.float)
-        |> required "threeNightsPrice" (Decode.nullable Decode.float)
-        |> required "moreThan3NightsPrice" (Decode.nullable Decode.float)
+        |> required "basePrice" (Decode.nullable Decode.float)
+        |> required "multiplier" (Decode.nullable Decode.float)
         |> required "touristTax" (Decode.nullable Decode.float)
         |> required "options" (Decode.dict decodeBookingOption)
 
@@ -491,26 +483,15 @@ recapView config cInDate cOutDate bi opt =
 priceView lang nc na nk bo =
     let
         p1 =
-            bo.twoNightsPrice
+            bo.basePrice
                 |> Maybe.withDefault 0
 
         p2 =
-            bo.threeNightsPrice
-                |> Maybe.withDefault 0
-
-        p3 =
-            bo.moreThan3NightsPrice
+            bo.multiplier
                 |> Maybe.withDefault 0
 
         basePrice =
-            if nc == 2 then
-                p1
-
-            else if nc == 3 then
-                p2
-
-            else
-                toFloat nc * p3
+            p1 + toFloat nc * p2
 
         opts =
             bo.options

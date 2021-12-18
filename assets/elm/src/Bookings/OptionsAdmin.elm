@@ -33,9 +33,8 @@ type alias Model msg =
     , optionNameFr : Maybe String
     , optionNameEn : Maybe String
     , optionPrice : Maybe Float
-    , twoNightsPrice : Maybe Float
-    , threeNightsPrice : Maybe Float
-    , moreThan3NightsPrice : Maybe Float
+    , basePrice : Maybe Float
+    , multiplier : Maybe Float
     , touristTax : Maybe Float
     , article : Maybe MultLangStr
     , markdownEditor : MarkdownEditor.Model msg
@@ -47,9 +46,8 @@ type alias Model msg =
 
 currentBookingOptions : Model msg -> BookingOptions
 currentBookingOptions model =
-    { twoNightsPrice = model.twoNightsPrice
-    , threeNightsPrice = model.threeNightsPrice
-    , moreThan3NightsPrice = model.moreThan3NightsPrice
+    { basePrice = model.basePrice
+    , multiplier = model.multiplier
     , touristTax = model.touristTax
     , options =
         Dict.foldr
@@ -73,9 +71,8 @@ type Msg
     | NameInputFr String
     | NameInputEn String
     | SetPrice String
-    | SetOneDayPrice String
-    | SetDiscountPrice String
-    | SetOneWeekPrice String
+    | SetBasePrice String
+    | SetMultiplier String
     | SetTouristTax String
     | SelectOption Int
     | SaveChanges
@@ -96,9 +93,8 @@ init outMsg =
       , optionNameFr = Nothing
       , optionNameEn = Nothing
       , optionPrice = Nothing
-      , twoNightsPrice = Nothing
-      , threeNightsPrice = Nothing
-      , moreThan3NightsPrice = Nothing
+      , basePrice = Nothing
+      , multiplier = Nothing
       , touristTax = Nothing
       , article = Nothing
       , markdownEditor =
@@ -212,6 +208,7 @@ update config msg model =
                 | optionNameFr =
                     if name == "" then
                         Nothing
+
                     else
                         Just name
               }
@@ -223,6 +220,7 @@ update config msg model =
                 | optionNameEn =
                     if name == "" then
                         Nothing
+
                     else
                         Just name
               }
@@ -237,25 +235,17 @@ update config msg model =
             , Cmd.none
             )
 
-        SetOneDayPrice price ->
+        SetBasePrice price ->
             ( { model
-                | twoNightsPrice = String.toFloat price
+                | basePrice = String.toFloat price
                 , needToSave = True
               }
             , Cmd.none
             )
 
-        SetDiscountPrice price ->
+        SetMultiplier price ->
             ( { model
-                | threeNightsPrice = String.toFloat price
-                , needToSave = True
-              }
-            , Cmd.none
-            )
-
-        SetOneWeekPrice price ->
-            ( { model
-                | moreThan3NightsPrice = String.toFloat price
+                | multiplier = String.toFloat price
                 , needToSave = True
               }
             , Cmd.none
@@ -383,9 +373,8 @@ update config msg model =
             case res of
                 Ok o ->
                     ( { model
-                        | twoNightsPrice = o.twoNightsPrice
-                        , threeNightsPrice = o.threeNightsPrice
-                        , moreThan3NightsPrice = o.moreThan3NightsPrice
+                        | basePrice = o.basePrice
+                        , multiplier = o.multiplier
                         , touristTax = o.touristTax
                         , options =
                             Dict.values o.options
@@ -458,9 +447,9 @@ view config model =
                                 )
                             , Input.text
                                 (textInputStyle ++ [ width (px 100) ])
-                                { onChange = SetOneDayPrice
+                                { onChange = SetBasePrice
                                 , text =
-                                    Maybe.map String.fromFloat model.twoNightsPrice
+                                    Maybe.map String.fromFloat model.basePrice
                                         |> Maybe.withDefault ""
                                 , placeholder =
                                     Nothing
@@ -471,16 +460,16 @@ view config model =
                                         ]
                                         (textM config.lang
                                             (MultLangStr
-                                                "Price for two nights:"
-                                                "Tarif deux nuits:"
+                                                "Base price:"
+                                                "Tarif de base:"
                                             )
                                         )
                                 }
                             , Input.text
                                 (textInputStyle ++ [ width (px 100) ])
-                                { onChange = SetDiscountPrice
+                                { onChange = SetMultiplier
                                 , text =
-                                    Maybe.map String.fromFloat model.threeNightsPrice
+                                    Maybe.map String.fromFloat model.multiplier
                                         |> Maybe.withDefault ""
                                 , placeholder =
                                     Nothing
@@ -491,28 +480,8 @@ view config model =
                                         ]
                                         (textM config.lang
                                             (MultLangStr
-                                                "Price for three nights:"
-                                                "Tarif trois nuits:"
-                                            )
-                                        )
-                                }
-                            , Input.text
-                                (textInputStyle ++ [ width (px 100) ])
-                                { onChange = SetOneWeekPrice
-                                , text =
-                                    Maybe.map String.fromFloat model.moreThan3NightsPrice
-                                        |> Maybe.withDefault ""
-                                , placeholder =
-                                    Nothing
-                                , label =
-                                    Input.labelLeft
-                                        [ centerY
-                                        , width (px 150)
-                                        ]
-                                        (textM config.lang
-                                            (MultLangStr
-                                                "Price for n > 3 nights:"
-                                                "Base tarif n > 3 nuits:"
+                                                "Multiplier:"
+                                                "Multiplicateur:"
                                             )
                                         )
                                 }
@@ -542,6 +511,7 @@ view config model =
                                 { onPress =
                                     if model.needToSave then
                                         Just SaveChanges
+
                                     else
                                         Nothing
                                 , label =
@@ -641,6 +611,7 @@ view config model =
 
                                                 Nothing ->
                                                     Just NewOption
+
                                         else
                                             Nothing
                                     , label =
@@ -715,6 +686,7 @@ optionsView config model =
                             Just s ->
                                 if s == n then
                                     [ Events.onClick Cancel ]
+
                                 else
                                     defAttr
 
@@ -784,9 +756,8 @@ saveOptions logInfo model =
                 [ ( "name", E.string "bookingOptions" )
                 , ( "content"
                   , encodeBookingOptions
-                        { twoNightsPrice = model.twoNightsPrice
-                        , threeNightsPrice = model.threeNightsPrice
-                        , moreThan3NightsPrice = model.moreThan3NightsPrice
+                        { basePrice = model.basePrice
+                        , multiplier = model.multiplier
                         , touristTax = model.touristTax
                         , options =
                             Dict.toList model.options
