@@ -152,6 +152,7 @@ homeView config model =
     column
         [ centerX
         , spacing 15
+        , padding 15
         ]
         [ case model.mainArticle of
             Just a ->
