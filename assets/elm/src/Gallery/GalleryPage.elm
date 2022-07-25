@@ -152,13 +152,20 @@ homeView config model =
     column
         [ centerX
         , spacing 15
-        , padding 15
         ]
         [ case model.mainArticle of
             Just a ->
-                MarkdownParser.renderMarkdown
-                    (strM config.lang a)
-                    (model.outMsg << DownloadDoc)
+                el
+                    [ if config.width < 500 then
+                        padding 15
+
+                      else
+                        noAttr
+                    ]
+                <|
+                    MarkdownParser.renderMarkdown
+                        (strM config.lang a)
+                        (model.outMsg << DownloadDoc)
 
             Nothing ->
                 Element.none
