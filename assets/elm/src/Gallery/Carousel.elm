@@ -78,6 +78,7 @@ subscriptions model =
         Sub.batch
             [ if model.mbAnim == Nothing && model.mbDrag == Nothing then
                 Sub.none
+
               else
                 onAnimationFrame Tick
             , if
@@ -88,6 +89,7 @@ subscriptions model =
                     || (model.mbDrag /= Nothing)
               then
                 Sub.none
+
               else
                 Time.every 10000 (Animate AlphaFade)
             , onVisibilityChange VisibilityChange
@@ -207,6 +209,7 @@ update config msg model =
                             | mbAnim = newAnim
                             , mbDrag = Nothing
                         }
+
                     else if start.x - current_.x < -10 then
                         let
                             newAnim =
@@ -224,6 +227,7 @@ update config msg model =
                             | mbAnim = newAnim
                             , mbDrag = Nothing
                         }
+
                     else
                         { model | mbDrag = Nothing }
 
@@ -243,18 +247,21 @@ update config msg model =
                         Just ( anim, AnimateLeft ) ->
                             if isDone newClock anim then
                                 ( Nothing, right (.images model) )
+
                             else
                                 ( model.mbAnim, model.images )
 
                         Just ( anim, AnimateRight ) ->
                             if isDone newClock anim then
                                 ( Nothing, left (.images model) )
+
                             else
                                 ( model.mbAnim, model.images )
 
                         Just ( anim, AlphaFade ) ->
                             if isDone newClock anim then
                                 ( Nothing, left (.images model) )
+
                             else
                                 ( model.mbAnim, model.images )
 
@@ -352,6 +359,7 @@ picView model config { src } attrs =
                 )
                 Element.none
             ]
+
     else
         column
             [ Background.color lightGrey
@@ -397,5 +405,6 @@ moveChunk config model =
         Just (Drag start stop) ->
             if start.x - stop.x <= 0 then
                 moveRight (toFloat <| (-1 * config.maxWidth) + abs (start.x - stop.x))
+
             else
                 moveLeft (toFloat <| config.maxWidth + start.x - stop.x)
