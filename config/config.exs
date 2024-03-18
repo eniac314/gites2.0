@@ -29,7 +29,7 @@ config :gites, Gites.Guardian,
 #configures Mailer 
 config :gites, Gites.Mailer,
   adapter: Bamboo.SMTPAdapter,
-  server: "smtp.ionos.fr",
+  server: "node56-eu.n0c.com",
   hostname: "levieuxlilas.fr",
   port: 465,
   username: System.get_env("SMTP_USERNAME"),
