@@ -27,7 +27,7 @@ import MultLang.MultLang exposing (..)
 import Style.Helpers exposing (..)
 import Style.Icons as Icons
 import Style.Palette exposing (..)
-import Url as Url
+import Url
 
 
 main : Program Flags Model Msg
