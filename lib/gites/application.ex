@@ -8,6 +8,8 @@ defmodule Gites.Application do
   def start(_type, _args) do
     # List all child processes to be supervised
     children = [
+      # Start the PubSub system
+      {Phoenix.PubSub, name: Gites.PubSub},
       # Start the Ecto repository
       Gites.Repo,
       # Start the endpoint when the application starts

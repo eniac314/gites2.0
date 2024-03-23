@@ -15,7 +15,7 @@ config :gites, GitesWeb.Endpoint,
   url: [host: "localhost"],
   secret_key_base: "vkCAf/k7+5Vb26RESpKxEh5mX1jwmc3jNay5ZG1xPhlo9/n2BdTD2C/WygoQIRWf",
   render_errors: [view: GitesWeb.ErrorView, accepts: ~w(html json)],
-  pubsub: [name: Gites.PubSub, adapter: Phoenix.PubSub.PG2]
+  pubsub_server: Gites.PubSub
 
 # Configures guardian 
 config :gites, Gites.Guardian,
