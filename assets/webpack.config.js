@@ -1,16 +1,16 @@
 const path = require('path');
 const glob = require('glob');
 // const MiniCssExtractPlugin = require('mini-css-extract-plugin');
-const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
-const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin');
+// const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
+// const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
+const TerserPlugin = require("terser-webpack-plugin");
 
 module.exports = (env, options) => ({
+  watch: true,
   optimization: {
-    minimizer: [
-      new UglifyJsPlugin({ cache: true, parallel: true, sourceMap: false }),
-      new OptimizeCSSAssetsPlugin({})
-    ]
+    minimize: true,
+    minimizer: [new TerserPlugin()],
   },
   entry: {
       // app: ['./js/app.js'].concat(glob.sync('./vendor/**/*.js')),  
@@ -37,19 +37,20 @@ module.exports = (env, options) => ({
       {
         test: /\.elm$/,
         exclude: [/elm-stuff/, /node_modules/],
-        use: {
-          loader: 'elm-webpack-loader',
+        use: [ 
+        // { loader: 'elm-hot-webpack-loader' },
+        { loader: 'elm-webpack-loader',
           options: {
             cwd: path.resolve(__dirname, 'elm'),
             // optimize: true
             // debug: true
           }
-        }
+        }]
       }
     ]
   },
   plugins: [
     // new MiniCssExtractPlugin({ filename: '../css/app.css' }),
-    new CopyWebpackPlugin([{ from: 'static/', to: '../' }])
+    new CopyWebpackPlugin({ patterns: [{ from: 'static/', to: '../' }]})
   ]
 });

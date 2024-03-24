@@ -38,7 +38,7 @@ heroku pg:backups:capture
 heroku pg:backups:download
 
 restore to local database:
-pg_restore --verbose --clean --no-acl --no-owner -h localhost -U myuser -d mydb latest.dump
+pg_restore --verbose --clean --no-acl --no-owner -h localhost -U postgres -d gites_dev latest.dump
 
 
 -------------------------------------------------------------------------------
