@@ -5,9 +5,10 @@ const glob = require('glob');
 // const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const TerserPlugin = require("terser-webpack-plugin");
+const isProduction = process.env.NODE_ENV === 'production';
 
 module.exports = (env, options) => ({
-  watch: true,
+  watch: !isProduction,
   optimization: {
     minimize: true,
     minimizer: [new TerserPlugin()],
