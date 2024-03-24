@@ -5,10 +5,15 @@ const glob = require('glob');
 // const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const TerserPlugin = require("terser-webpack-plugin");
-const isProduction = process.env.NODE_ENV === 'production';
+// const isProduction = process.env.NODE_ENV === 'production';
 
-module.exports = (env, options) => ({
-  watch: !isProduction,
+module.exports = (env, options) => {
+  console.log('env:', env);
+  console.log('options:', options);
+  console.log('watch', options.mode === 'development');
+
+  return {
+  watch: options.mode === 'development',
   optimization: {
     minimize: true,
     minimizer: [new TerserPlugin()],
@@ -54,4 +59,5 @@ module.exports = (env, options) => ({
     // new MiniCssExtractPlugin({ filename: '../css/app.css' }),
     new CopyWebpackPlugin({ patterns: [{ from: 'static/', to: '../' }]})
   ]
-});
+};
+};
