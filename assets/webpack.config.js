@@ -22,6 +22,8 @@ module.exports = (env, options) => {
       // app: ['./js/app.js'].concat(glob.sync('./vendor/**/*.js')),  
       main: ['./js/main.js'],
       admin: ['./js/admin.js']
+      // jsPdf: ['./js/jspdf.umd.min.js'],
+      // html2canvas: ['./js/html2canvas.min.js']
   },
   output: {
     filename: '[name].js',

@@ -24,6 +24,7 @@ import Json.Decode as Decode
 import Json.Decode.Pipeline exposing (optional, required)
 import Json.Encode as Encode
 import MultLang.MultLang exposing (..)
+import PdfGen.Contrat as Contrat
 import Prng.Uuid as Uuid
 import Style.Helpers exposing (buttonStyle, noAttr, sides)
 import Style.Palette exposing (..)
@@ -100,6 +101,7 @@ type Msg
     | KeyDown Int
     | KeyUp Int
     | VisibilityChange Visibility
+    | SaveContratPdf
     | NoOp
 
 
@@ -504,6 +506,9 @@ update config msg model =
             , Cmd.none
             )
 
+        SaveContratPdf ->
+            ( model, Contrat.savePdf "contratPDF" )
+
         NoOp ->
             ( model, Cmd.none )
 
@@ -525,28 +530,35 @@ type alias ViewConfig =
 view : ViewConfig -> Model msg -> Element msg
 view config model =
     Element.map model.outMsg <|
-        row
+        column
             [ width fill
             , height fill
-            , paddingEach { top = 45, right = 45, bottom = 45, left = 45 }
-            , spacing 30
-            , Background.color lightGrey
+            , spacing 20
             ]
-            [ column
-                [ spacing 20
-                , alignTop
+            [ row
+                [ width fill
+                , height fill
+                , paddingEach { top = 45, right = 45, bottom = 45, left = 45 }
+                , spacing 30
+                , Background.color lightGrey
                 ]
-                [ datePickerView config model
-                , bookingListView config model
+                [ column
+                    [ spacing 20
+                    , alignTop
+                    ]
+                    [ datePickerView config model
+                    , bookingListView config model
+                    ]
+                , column
+                    [ spacing 20
+                    , alignTop
+                    , width fill
+                    ]
+                    [ presenceStateView config model
+                    , bookingEditorView config model
+                    ]
                 ]
-            , column
-                [ spacing 20
-                , alignTop
-                , width fill
-                ]
-                [ presenceStateView config model
-                , bookingEditorView config model
-                ]
+            , html <| Contrat.view config model
             ]
 
 
@@ -1072,6 +1084,16 @@ bookingView config bookingInfo model =
                     textM config.lang
                         (MultLangStr "Delete booking"
                             "Effacer la réservation"
+                        )
+                }
+            , Input.button
+                (buttonStyle True)
+                { onPress =
+                    Just SaveContratPdf
+                , label =
+                    textM config.lang
+                        (MultLangStr "Generate contract"
+                            "Générer Contrat"
                         )
                 }
             ]

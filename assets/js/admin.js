@@ -3,6 +3,8 @@ import "phoenix_html"
 import socket from "./socket"
 
 import { Elm } from "../elm/src/Admin.elm"
+import { jsPDF } from "jspdf";
+import * as html2canvas from 'html2canvas'
 
 // Strong seed for random generator //////////////// 
 
@@ -172,4 +174,71 @@ function fileSize(src){
     var sizeInBytes = 4 * Math.ceil((stringLength / 3))*0.5624896334383812;
     var sizeInKb=sizeInBytes/1024;
     return Math.round(sizeInBytes);
+}
+
+// saving to PDF
+// window.jsPDF = window.jspdf.jsPDF;
+app.ports.savePdf.subscribe(function(id){
+    savePDF(id);
+});
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function savePDF(id) {
+  console.log(id)
+  // var imgs = [...document.querySelectorAll('.' + id)];
+  // console.log(imgs)
+  var doc = new jsPDF('p','px','a4');
+
+  var j = 0;
+
+  var img = document.getElementById(id);
+  var imgs = [img];
+
+  // app.ports.savePdfProgress.send({done: 0, total: imgs.length});
+  await sleep(50);
+
+  var promises = imgs.map(async (img, i) => { 
+    var canvas = await html2canvas(img);
+    // app.ports.savePdfProgress.send({done: j + 1, total: imgs.length});
+    j = j + 1;
+    return canvas;
+  })
+
+  var currentHeight = 0
+
+  var canvases = await Promise.all(promises);
+  
+  canvases.forEach(canvas => {
+    var wid = canvas.width; 
+    var hgt = canvas.height; 
+    var img = canvas.toDataURL("image/jpeg", 0.9);
+    var hratio = hgt/wid; 
+    var width = doc.internal.pageSize.width;    
+    var height = width * hratio;
+
+    // if (currentHeight + height + 20 > doc.internal.pageSize.height) {
+    //   doc.addPage();
+    //   currentHeight = 0;
+    // }
+
+    doc.addImage(img,'JPEG', 0, currentHeight, width, height);
+
+    currentHeight = currentHeight + height;
+      
+  })
+  // doc.output('dataurlnewwindow',id+'.pdf');
+
+  // window.open(URL.createObjectURL(doc.output("blob"),id+'.pdf'))
+
+  let dataSrc = doc.output("datauristring");
+  
+  let win = window.open("", id +'.pdf');
+  console.log(dataSrc);
+
+  win.document.write("<html><head><title>" + id+'.pdf' + "</title></head><body width='100%' height='100%'><embed width='100%' height='100%' src=" + 
+      dataSrc + "></embed></body></html>");
+  
 }
