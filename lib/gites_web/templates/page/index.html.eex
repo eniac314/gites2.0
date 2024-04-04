@@ -31,7 +31,7 @@
 
 </head>
 <body>
-	<script type="text/javascript" src="<%= Routes.static_path(@conn, "/js/main.js") %>"></script>
+	<script type='text/javascript' src='<%= Routes.static_path(@conn, "/js/main.js") %>'></script>
 </body>
 
 </html>
