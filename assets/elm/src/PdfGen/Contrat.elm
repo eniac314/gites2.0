@@ -288,7 +288,7 @@ montant config model =
                     [ spacing 15 ]
                     [ row
                         [ width shrink, spacing 5 ]
-                        [ text "Montant total du loyer :"
+                        [ text "Montant total du loyer dû :"
                         , el [ Font.weight Font.bold ]
                             (text <|
                                 (euroView <| basePrice + opts + tax)
