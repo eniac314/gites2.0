@@ -288,7 +288,7 @@ montant config model =
                     [ spacing 15 ]
                     [ row
                         [ width shrink, spacing 5 ]
-                        [ text "Montant du loyer :"
+                        [ text "Montant total du loyer :"
                         , el [ Font.weight Font.bold ]
                             (text <|
                                 (euroView <| basePrice + opts + tax)
@@ -297,7 +297,7 @@ montant config model =
                         ]
                     , row
                         [ width shrink, spacing 5 ]
-                        [ text "Montant de la taxe de séjour :"
+                        [ text "Dont montant de la taxe de séjour :"
                         , el [ Font.weight Font.bold ]
                             (text <|
                                 euroView tax
