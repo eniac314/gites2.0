@@ -5,10 +5,13 @@ port module PdfGen.Contrat exposing (..)
 import Bookings.BookingsShared exposing (nightsCount, roundC_)
 import Bookings.DatePicker.Date exposing (formatDate)
 import Color exposing (..)
+import Date exposing (fromPosix)
 import Dict exposing (..)
+import Html
 import Html.Attributes as HA
 import Json.Decode as D
 import String.Extra
+import Time exposing (millisToPosix)
 import Ui exposing (..)
 import Ui.Font as Font
 import Ui.Prose as Prose
@@ -23,24 +26,38 @@ port savePdfProgress : (D.Value -> msg) -> Sub msg
 view config model =
     embed [] <|
         clipped [ width (px 0), height (px 0) ] <|
-            column
-                [ padding 50
-                , width (px 1240)
-                , height (px 1754)
+            column []
+                [ html <|
+                    Html.node "style"
+                        []
+                        [ Html.text <|
+                            """ li.s.e{
+  display:list-item;
+       
+}
+                    
+                """
+                        ]
+                , column
+                    [ padding 50
+                    , width (px 1240)
+                    , height (px 1754)
 
-                --, border 1
-                , Font.size 18
-                , htmlAttribute <| HA.id "contratPDF"
-                ]
-                [ title
-                , el [ Font.center, Font.underline, paddingWith { top = 60, left = 0, right = 0, bottom = 30 } ] (text "Entre les soussignés :")
-                , bailleur
-                , el [ Font.center, Font.underline, padding 30 ] (text "Et :")
-                , preneur config model
-                , recap config model
-                , montant config model
-                , el [ paddingXY 0 30 ] (text "Ci-joint les conditions générales de location ainsi que le descriptif des lieux loués.")
-                , signaturesDate
+                    --, border 1
+                    , Font.size 20
+                    , htmlAttribute <| HA.class "contratPDF"
+                    ]
+                    [ title
+                    , el [ Font.center, Font.underline, paddingWith { top = 60, left = 0, right = 0, bottom = 30 } ] (text "Entre les soussignés :")
+                    , bailleur
+                    , el [ Font.center, Font.underline, padding 20 ] (text "Et :")
+                    , preneur config model
+                    , recap config model
+                    , montant config model
+                    , el [ paddingXY 0 30 ] (text "Ci-joint les conditions générales de location ainsi que le descriptif des lieux loués.")
+                    , signaturesDate config
+                    ]
+                , condGen config
                 ]
 
 
@@ -54,7 +71,7 @@ title =
         , background lightGrey
         ]
         [ text "CONTRAT DE LOCATION DU MEUBLE DE TOURISME LE VIEUX LILAS"
-        , el [ Font.size 18 ] (text "6 personnes maximum")
+        , el [ Font.size 18, Font.center ] (text "6 personnes maximum")
         ]
 
 
@@ -165,7 +182,7 @@ recap config model =
                     nightsCount checkIn checkOut
             in
             column
-                [ paddingXY 0 40
+                [ paddingXY 0 30
                 , spacing 20
                 ]
                 [ row
@@ -265,7 +282,7 @@ montant config model =
             in
             column
                 [ spacing 20
-                , paddingXY 0 40
+                , paddingXY 0 30
                 ]
                 [ column
                     [ spacing 15 ]
@@ -274,7 +291,7 @@ montant config model =
                         [ text "Montant du loyer :"
                         , el [ Font.weight Font.bold ]
                             (text <|
-                                String.fromFloat (roundC_ <| basePrice + opts + tax)
+                                (euroView <| basePrice + opts + tax)
                                     ++ " €"
                             )
                         ]
@@ -283,7 +300,7 @@ montant config model =
                         [ text "Montant de la taxe de séjour :"
                         , el [ Font.weight Font.bold ]
                             (text <|
-                                String.fromFloat (roundC_ tax)
+                                euroView tax
                                     ++ " €"
                             )
                         ]
@@ -292,7 +309,7 @@ montant config model =
                         [ text "Montant des arrhes correspondant à 30% du loyer qui sont à verser à la réservation :"
                         , el [ Font.weight Font.bold ]
                             (text <|
-                                String.fromFloat (roundC_ <| 0.3 * (basePrice + opts + tax))
+                                (euroView <| 0.3 * (basePrice + opts + tax))
                                     ++ " €"
                             )
                         ]
@@ -300,16 +317,16 @@ montant config model =
                 , column
                     [ spacing 15 ]
                     [ Prose.paragraph
-                        [ Font.weight Font.bold ]
+                        [ Font.weight Font.bold, Font.lineHeight 1.5 ]
                         [ text "Joindre un chèque (ou la preuve du virement) de ce montant à l’exemplaire de ce contrat à retourner\nau bailleur par courrier ou mail." ]
                     , Prose.paragraph
                         [ Font.weight Font.bold ]
                         [ text "Une caution de 50 € sera demandée à votre arrivée." ]
                     , Prose.paragraph
-                        []
+                        [ Font.lineHeight 1.5 ]
                         [ text "Cette caution vous sera restituée à la fin du séjour sauf en cas de dégradation ou casse." ]
                     , Prose.paragraph
-                        []
+                        [ Font.lineHeight 1.5 ]
                         [ text "Le solde du loyer sera versé au bailleur avant le départ du gîte." ]
                     ]
                 ]
@@ -318,14 +335,40 @@ montant config model =
             none
 
 
-signaturesDate =
+euroView a =
+    let
+        f =
+            roundC_ a
+    in
+    if String.contains "." (String.fromFloat f) then
+        let
+            ( p, s ) =
+                ( String.Extra.leftOf "." (String.fromFloat f)
+                , String.Extra.rightOf "." (String.fromFloat f)
+                )
+        in
+        p ++ "," ++ String.padRight 2 '0' s
+
+    else
+        String.fromFloat f
+
+
+signaturesDate config =
     column
         [ spacing 30
         , paddingXY 0 30
         ]
-        [ row [ width shrink, spacing 200 ]
-            [ text "Fait en deux exemplaires à"
-            , text "le"
+        [ row [ width shrink ]
+            [ text "Fait en deux exemplaires à "
+            , el [ Font.weight Font.bold ] (text "Lainsecq")
+            , text ", le "
+            , el [ Font.weight Font.bold ]
+                (text <|
+                    formatDate config.lang
+                        (Date.fromPosix config.zone
+                            (millisToPosix config.currentTime)
+                        )
+                )
             ]
         , row
             []
@@ -360,6 +403,71 @@ signaturePreneur =
         [ text "Le locataire"
         , el [] (text "Lu et approuvé")
         ]
+
+
+
+-------------------------------------------------------------------------------
+
+
+condGen config =
+    let
+        parStyle =
+            [ Font.lineHeight 1.5
+            , Font.justify
+            , move (up 5)
+            ]
+    in
+    column
+        [ padding 50
+        , width (px 1240)
+        , height (px 1754)
+
+        --, border 1
+        , Font.size 20
+        , htmlAttribute <| HA.class "contratPDF"
+        , spacing 60
+        ]
+        [ condGenTitle
+        , Prose.paragraph [] [ text "La présente location est faite aux conditions ordinaires et de droit en pareille matière :" ]
+        , Prose.numbered
+            --Prose.decimal
+            [ spacing 40, paddingLeft 20 ]
+            [ Prose.item [] <|
+                column [ spacing 15 ]
+                    [ Prose.paragraph [] [ text "Il est convenu en cas de désistement :" ]
+                    , Prose.bulleted
+                        --(Prose.custom "➢")
+                        [ spacing 15 ]
+                        [ Prose.item [] <| Prose.paragraph parStyle [ text "du locataire : à moins d’un mois avant la prise d’effet de la location, le locataire perdra les arrhes versées" ]
+                        , Prose.item [] <| Prose.paragraph parStyle [ text "du propriétaire : dans les sept jours suivant le désistement, il est tenu de verser au locataire le double des arrhes reçues." ]
+                        ]
+                    ]
+            , Prose.item [] <| Prose.paragraph parStyle [ text "Obligation d’occuper les lieux personnellement, d’en prendre soin et de les entretenir le temps du séjour. Toutes les installations sont en état de marche et toute réclamation les concernant survenant plus de 24 h après l’entrée en jouissance des lieux, ne pourra être admise. Les réparations rendues nécessaires par la négligence ou le mauvais entretien en cours de location, seront à la charge du locataire." ]
+            , Prose.item [] <| Prose.paragraph parStyle [ text "Les locaux sont loués meublés avec matériel de cuisine, vaisselle, verrerie, couettes et oreillers, tels qu’ils sont dans l’état descriptif ci-joint. S’il y a lieu, le propriétaire ou son représentant seront en droit de réclamer au locataire, à son départ, la valeur totale au prix de remplacement des objets, mobiliers ou matériels cassés, fêlés, ébréchés ou détériorés et ceux dont l’usure dépasserait la normale pour la durée de la location, une indemnité pour les détériorations de toute nature concernant les rideaux, papiers peints, plafonds, tapis, vitres, literie, etc. " ]
+            , Prose.item [] <| Prose.paragraph parStyle [ text "Le locataire s'engage à s'assurer contre les risques locatifs (incendie, dégât des eaux). Le défaut d'assurance, en cas de sinistre, donnera lieu à des dommages et intérêts." ]
+            , Prose.item [] <| Prose.paragraph parStyle [ text "Le propriétaire s'engage à assurer le logement contre les risques locatifs pour le compte du locataire, ce dernier ayant l'obligation de lui signaler, dans les 24 h, tout sinistre survenu dans le logement, ses dépendances ou accessoires." ]
+            , Prose.item [] <| Prose.paragraph parStyle [ text "Obligation de veiller à ce que la tranquillité du voisinage ne soit pas troublée par le fait du locataire, de sa famille ou de son animal de compagnie." ]
+            , Prose.item [] <| Prose.paragraph parStyle [ text "Le preneur s’engage à respecter la réglementation en vigueur concernant l’accès à l’internet et notamment l’usage et les téléchargements." ]
+            ]
+        , signaturesDate config
+        ]
+
+
+condGenTitle =
+    column
+        [ Font.center
+        , Font.weight Font.bold
+        , spacing 15
+        , Font.size 22
+        , padding 10
+        , background lightGrey
+        ]
+        [ text "CONDITIONS GENERALES"
+        ]
+
+
+
+-------------------------------------------------------------------------------
 
 
 signature =

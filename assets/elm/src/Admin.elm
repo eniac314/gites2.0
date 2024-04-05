@@ -424,6 +424,8 @@ view model =
                             , options =
                                 OptionsAdmin.currentBookingOptions
                                     model.optionsAdmin
+                            , currentTime = model.currentTime
+                            , zone = model.zone
                             }
                             model.bookingsAdmin
 

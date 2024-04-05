@@ -28,6 +28,7 @@ import PdfGen.Contrat as Contrat
 import Prng.Uuid as Uuid
 import Style.Helpers exposing (buttonStyle, noAttr, sides)
 import Style.Palette exposing (..)
+import Time exposing (Zone)
 
 
 port presenceState : (Encode.Value -> msg) -> Sub msg
@@ -524,6 +525,8 @@ type alias ViewConfig =
     { lang : Lang
     , width : Int
     , options : BookingOptions
+    , currentTime : Int
+    , zone : Zone
     }
 
 

@@ -188,14 +188,14 @@ function sleep(ms) {
 
 async function savePDF(id) {
   console.log(id)
-  // var imgs = [...document.querySelectorAll('.' + id)];
+  var imgs = [...document.querySelectorAll('.' + id)];
   // console.log(imgs)
   var doc = new jsPDF('p','px','a4');
 
   var j = 0;
 
-  var img = document.getElementById(id);
-  var imgs = [img];
+  // var img = document.getElementById(id);
+  // var imgs = [img];
 
   // app.ports.savePdfProgress.send({done: 0, total: imgs.length});
   await sleep(50);
@@ -210,6 +210,7 @@ async function savePDF(id) {
   var currentHeight = 0
 
   var canvases = await Promise.all(promises);
+  var currentCanvas = 0
   
   canvases.forEach(canvas => {
     var wid = canvas.width; 
@@ -219,14 +220,15 @@ async function savePDF(id) {
     var width = doc.internal.pageSize.width;    
     var height = width * hratio;
 
-    // if (currentHeight + height + 20 > doc.internal.pageSize.height) {
-    //   doc.addPage();
-    //   currentHeight = 0;
-    // }
+    if (currentCanvas > 0 && currentHeight + height + 20 > doc.internal.pageSize.height) {
+      doc.addPage();
+      currentHeight = 0;
+    }
 
     doc.addImage(img,'JPEG', 0, currentHeight, width, height);
 
     currentHeight = currentHeight + height;
+    currentCanvas = currentCanvas + 1
       
   })
   // doc.output('dataurlnewwindow',id+'.pdf');
