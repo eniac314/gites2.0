@@ -16,7 +16,7 @@ import Element.Input as Input
 import Element.Keyed as Keyed
 import Element.Lazy exposing (lazy)
 import Element.Region as Region
-import Html as Html
+import Html
 import Html.Attributes as HtmlAttr
 import Html.Events as HtmlEvents
 import Http exposing (..)
@@ -200,45 +200,45 @@ init outMsg ( seed, seedExtension ) reset =
 
       --Just <| Date.fromCalendarDate 2020 Time.Jan 12
       , slots = slots
-      , firstName = Nothing
-      , lastName = Nothing
-      , address = Nothing
-      , addAddress = Nothing
-      , postcode = Nothing
-      , city = Nothing
-      , country = Nothing
-      , phone1 = Nothing
-      , phone2 = Nothing
-      , email = Nothing
-      , confEmail = Nothing
-      , confEmailFocused = False
-      , nbrAdults = Nothing
-      , nbrAdultSelector = Select.init
-      , nbrChildren = Nothing
-      , nbrChildrenSelector = Select.init
-      , pets = False
-      , petsType = Nothing
-      , comments = Nothing
 
-      --, firstName = Just "Florian"
-      --, lastName = Just "Gillard"
-      --, address = Just "5 place de l'église"
+      --, firstName = Nothing
+      --, lastName = Nothing
+      --, address = Nothing
       --, addAddress = Nothing
-      --, postcode = Just 89520
-      --, city = Just "Lainsecq"
-      --, country = Just "France"
-      --, phone1 = Just "0652110572"
+      --, postcode = Nothing
+      --, city = Nothing
+      --, country = Nothing
+      --, phone1 = Nothing
       --, phone2 = Nothing
-      --, email = Just "florian.gillard@tutanota.com"
-      --, confEmail = Just "florian.gillard@tutanota.com"
+      --, email = Nothing
+      --, confEmail = Nothing
       --, confEmailFocused = False
-      --, nbrAdults = Just 1
+      --, nbrAdults = Nothing
       --, nbrAdultSelector = Select.init
       --, nbrChildren = Nothing
       --, nbrChildrenSelector = Select.init
       --, pets = False
       --, petsType = Nothing
       --, comments = Nothing
+      , firstName = Just "Florian"
+      , lastName = Just "Gillard"
+      , address = Just "5 place de l'église"
+      , addAddress = Nothing
+      , postcode = Just 89520
+      , city = Just "Lainsecq"
+      , country = Just "France"
+      , phone1 = Just "0652110572"
+      , phone2 = Nothing
+      , email = Just "florian.gillard@tutanota.com"
+      , confEmail = Just "florian.gillard@tutanota.com"
+      , confEmailFocused = False
+      , nbrAdults = Just 1
+      , nbrAdultSelector = Select.init
+      , nbrChildren = Nothing
+      , nbrChildrenSelector = Select.init
+      , pets = False
+      , petsType = Nothing
+      , comments = Nothing
       , options = Nothing
       , currentSeed = newSeed
       , currentUuid = newUuid
@@ -800,20 +800,38 @@ checkOutAvailability { booked, notAvailable, noCheckIn, noCheckOut, lockedDays }
                 Just cIn ->
                     (notAvailable ++ locked)
                         |> List.any (\d_ -> Date.compare d_ cIn == GT && Date.compare d_ d == LT)
-    in
-    \d ->
-        if List.member d booked then
-            DP.Booked
 
-        else if
-            (Maybe.map
+        isBeforeCheckIn d =
+            Maybe.map
                 (\cIn ->
                     (Date.compare d (Date.add Days 1 cIn) == LT)
                         || (Date.compare d (Date.add Days 1 cIn) == EQ)
                 )
                 mbCheckInDate
                 |> Maybe.withDefault False
-            )
+
+        isAvailable d =
+            (not <| List.member d booked)
+                && (not <| List.member d notAvailable)
+                && (not <| List.member d noCheckIn)
+                && (not <| List.member d noCheckOut)
+                && (not <| List.member d locked)
+                && (not <| isBeforeCheckIn d)
+                && (not <| isBridging d)
+    in
+    \d ->
+        if List.member d booked then
+            DP.Booked
+
+        else if isAvailable (Date.add Days -1 d) then
+            -- check necessaire pour autoriser un checkout le jour où quelqu'un arrive,
+            -- laisse la possibilité de faire un check out sur une date qu'on a blockée.
+            -- Pas de solution évidente étant donné que la page client ne fais pas de différence
+            -- entre les date booked et nonAvailable
+            DP.Available
+
+        else if
+            isBeforeCheckIn d
                 || List.member d notAvailable
                 || isBridging d
                 || List.member d locked
