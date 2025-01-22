@@ -278,7 +278,7 @@ montant config model =
                             0
 
                 tax =
-                    0.99 * toFloat nbrAdults * toFloat nc
+                    1.32 * toFloat nbrAdults * toFloat nc
             in
             column
                 [ spacing 20

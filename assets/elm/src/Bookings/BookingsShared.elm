@@ -520,7 +520,7 @@ priceView lang nc na nk bo =
             --        roundC <| taxBase * 0.1
             --in
             --roundC <| (taxBase + taxAdd) * (toFloat <| na * nc)
-            0.99 * toFloat na * toFloat nc
+            1.32 * toFloat na * toFloat nc
     in
     el
         []
